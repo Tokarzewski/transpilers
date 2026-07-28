@@ -260,6 +260,7 @@ def main(argv: list[str] | None = None) -> int:
             "method reports \"has no attribute\" without this."
         ),
     )
+    args = parser.parse_args(argv)
     source_lang = args.source_lang or EXT_TO_SOURCE.get(args.source.suffix)
     if source_lang is None:
         # Binaries with no extension fall through here — default to asm so

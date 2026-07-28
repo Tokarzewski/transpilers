@@ -33,6 +33,11 @@ transpile-comments = "transpilers.cli.strip_comments:main"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.pytest.ini_options]
+# scripts/ holds nightly/production ML probes (needs the optional `ml` dep
+# group, GPU-specific torch build) - not part of the routine test suite.
+testpaths = ["tests"]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/transpilers"]
 

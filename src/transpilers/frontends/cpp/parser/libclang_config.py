@@ -32,17 +32,23 @@ def _configure_libclang() -> None:
             )))
         candidates.append(r"C:\Program Files\LLVM\bin\libclang.dll")
     else:
-        try:                                   # bundled PyPI libclang wheel
+        # System locations first: like the PyPI `libclang` wheel capping at
+        # 18.1.1 on Windows (see module docstring), it's also stale on Linux
+        # distros that ship a newer `clang` bindings package - an apt-installed
+        # libclang matching the current LLVM release is more likely correct
+        # than the bundled wheel, so it's tried first rather than last.
+        candidates.extend(sorted(_glob.glob("/usr/lib/llvm-*/lib/libclang.so*")))
+        candidates.extend(sorted(_glob.glob("/usr/lib/llvm-*/lib/libclang-*.so*")))
+        candidates.extend(sorted(_glob.glob("/usr/lib/x86_64-linux-gnu/libclang*.so*")))
+        candidates.extend(["/opt/homebrew/opt/llvm/lib/libclang.dylib",
+                           "/usr/local/opt/llvm/lib/libclang.dylib"])
+        try:                                   # bundled PyPI libclang wheel (last resort)
             import clang as _clang
             _native = _os.path.join(_os.path.dirname(_clang.__file__), "native")
             candidates.extend(sorted(_glob.glob(_os.path.join(_native, "libclang*.so*"))))
             candidates.extend(sorted(_glob.glob(_os.path.join(_native, "libclang*.dylib"))))
         except Exception:
             pass
-        candidates.extend(sorted(_glob.glob("/usr/lib/llvm-*/lib/libclang.so*")))
-        candidates.extend(sorted(_glob.glob("/usr/lib/x86_64-linux-gnu/libclang*.so*")))
-        candidates.extend(["/opt/homebrew/opt/llvm/lib/libclang.dylib",
-                           "/usr/local/opt/llvm/lib/libclang.dylib"])
     for p in candidates:
         if p and _os.path.isfile(p):
             try:

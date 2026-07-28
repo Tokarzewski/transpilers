@@ -60,6 +60,9 @@ from pathlib import Path
 
 _INCLUDE_RE = re.compile(r'^[ \t]*#\s*include\s*[<"]([^">]+)[>"][^\n]*', re.MULTILINE)
 
+_HEADER_SUFFIXES = (".hxx", ".hpp", ".h", ".hh")
+_IMPL_SUFFIXES = (".cxx", ".cpp", ".cc", ".c")
+
 
 def _find_header(name: str, requesting_dir: Path, include_dirs: list[Path]) -> Path | None:
     """Search alongside the including file first (the standard's own rule
@@ -76,7 +79,29 @@ def _find_header(name: str, requesting_dir: Path, include_dirs: list[Path]) -> P
     return None
 
 
-def resolve_local_includes(path: str | Path, include_dirs: list[str | Path] | None = None) -> str:
+def _find_impl(header_path: Path, include_dirs: list[Path]) -> Path | None:
+    """A header's sibling implementation file (same stem, a `.cxx`/`.cpp`/
+    `.cc`/`.c` suffix), searched alongside the header first, then each
+    search directory. Only headers have one to find; a `.cxx`/`.cpp` file
+    passed here (e.g. the entry point itself, or one already pulled in as
+    another header's impl) has no further impl of its own."""
+    if header_path.suffix.lower() not in _HEADER_SUFFIXES:
+        return None
+    stem = header_path.stem
+    for d in (header_path.parent, *include_dirs):
+        for suffix in _IMPL_SUFFIXES:
+            candidate = d / f"{stem}{suffix}"
+            if candidate.is_file():
+                return candidate
+    return None
+
+
+def resolve_local_includes(
+    path: str | Path,
+    include_dirs: list[str | Path] | None = None,
+    *,
+    include_impls: bool = False,
+) -> str:
     """Return *path*'s content with every transitively-reachable local
     header expanded in place, exactly where its ``#include`` line was.
 
@@ -90,13 +115,43 @@ def resolve_local_includes(path: str | Path, include_dirs: list[str | Path] | No
     found on the search path (typically because it actually names a
     vendored third-party header) is left as-is; the existing preprocessing
     pipeline strips the directive line either way.
+
+    ``include_impls`` (opt-in, default off so existing `-I`-only callers are
+    unaffected): also pull in each inlined header's sibling `.cxx`/`.cpp`
+    implementation file, if one exists on the search path. A real multi-file
+    project routinely declares a method in a header (`Standard_EXPORT double
+    Angle(...) const;`) and defines it out-of-line in that header's own
+    `.cxx` -- fine for a real build (declaration is enough at compile time,
+    the body is resolved at link time), but this engine emits one
+    amalgamated translation unit with no separate link step, so calling
+    into such a method from another *inlined* method reports "has no
+    attribute" unless that `.cxx`'s real body is part of the same unit.
+
+    Impls are appended as a distinct *second pass*, strictly after every
+    header has been fully resolved -- not interleaved into the header
+    expansion at the point each header is first reached. A `.cxx` file
+    routinely `#include`s more headers than its own class's declarations
+    strictly need (it has real method bodies to compile, not just
+    signatures), which can introduce completeness cycles the pure header
+    graph never had to solve: e.g. gp_Mat.cxx needing gp_XYZ complete for
+    its own body, while gp_XYZ's header-side completion is still mid-stack
+    because gp_Dir.hxx (reached from a different branch) is what's
+    currently pulling gp_XYZ.hxx in. Resolving all headers first, with
+    impls only appended once that settles, sidesteps this: by the time any
+    `.cxx` body is emitted, every locally-known type is already complete,
+    so there's nothing left for a `.cxx`'s own broader include list to
+    race against. The entry file's own `.cxx` doesn't get "re-found" as
+    its own header's impl (it's already in `seen` from the very first
+    `expand()` call), so this can't loop back on the entry point itself.
     """
     entry = Path(path).resolve()
     dirs = [Path(d).resolve() for d in (include_dirs or [])]
     seen: set[Path] = set()
+    visited_order: list[Path] = []
 
     def expand(file_path: Path) -> str:
         seen.add(file_path.resolve())
+        visited_order.append(file_path)
         text = file_path.read_text(encoding="utf-8", errors="replace")
 
         def _replace(m: re.Match[str]) -> str:
@@ -110,7 +165,29 @@ def resolve_local_includes(path: str | Path, include_dirs: list[str | Path] | No
 
         return _INCLUDE_RE.sub(_replace, text)
 
-    return expand(entry)
+    out = expand(entry)
+    if not include_impls:
+        return out
+
+    # Second pass: for every header resolved above (including ones an
+    # impl's own broader #include list discovers along the way -- hence
+    # the index-based loop over a list still being appended to, a
+    # fixed-point walk rather than a single fixed-size iteration),
+    # append its sibling impl once, in discovery order.
+    impl_done: set[Path] = set()
+    impl_parts: list[str] = []
+    i = 0
+    while i < len(visited_order):
+        candidate = visited_order[i]
+        i += 1
+        rp = candidate.resolve()
+        if rp in impl_done:
+            continue
+        impl_done.add(rp)
+        impl = _find_impl(candidate, dirs)
+        if impl is not None and impl.resolve() not in seen:
+            impl_parts.append(expand(impl))
+    return out + "\n" + "\n".join(impl_parts)
 
 
 __all__ = ["resolve_local_includes"]

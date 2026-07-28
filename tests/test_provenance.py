@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import textwrap
+import time
 
 import pytest
 
@@ -383,3 +384,25 @@ class TestSyntheticProvenance:
                 found = True
                 break
         assert found, "HirForEach node should be in the provenance map"
+
+
+def test_provenance_map_scales_linearly_not_quadratically():
+    # _build_provenance_map used to look up each MIR/LIR node's matching
+    # HIR provenance with a linear re-scan of every already-recorded
+    # provenance (O(mir_nodes * hir_nodes)) instead of an O(1) dict lookup.
+    # Fine for a hand-written algorithm slice, but a large real-world
+    # amalgamated translation unit (e.g. transpiling a whole C++ package
+    # with --include-impls, thousands of nodes per tier) turned this into
+    # a multi-minute hang for no benefit over a dict keyed by hir_id.
+    # ~150 tiny functions is enough to make the quadratic behavior take
+    # tens of seconds while the linear one stays well under a second --
+    # generous enough to not flake on a slow CI box either way.
+    src = "\n".join(
+        f"def f{i}(a: int, b: int) -> int:\n    return a + b + {i}"
+        for i in range(150)
+    )
+    start = time.time()
+    trace = run_stages(src, source_lang="python", target="rust")
+    elapsed = time.time() - start
+    assert trace.provenance_map is not None
+    assert elapsed < 10.0, f"provenance map build took {elapsed:.1f}s -- looks quadratic again"

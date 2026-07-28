@@ -46,6 +46,9 @@ class MojoFn(LirNode):
     return_type: str
     body: list[LirNode]
     raises: bool = False
+    # A C++ `static` method: no `self` param, emitted with `@staticmethod`
+    # and called as `StructName.method(...)`, no instance needed.
+    is_static: bool = False
 
 @dataclass
 class MojoReturn(LirNode):

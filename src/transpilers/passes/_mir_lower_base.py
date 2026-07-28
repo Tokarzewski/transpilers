@@ -365,7 +365,7 @@ class MirLoweringBase:
             return copy_provenance(
                 self.ns.StructInit(
                     name=node.name,
-                    field_values=[(n, self.lower_expr(v)) for n, v in node.field_values],
+                    field_values=[(n, self.lower_arg(v)) for n, v in node.field_values],
                 ),
                 node,
             )
@@ -411,12 +411,23 @@ class MirLoweringBase:
             node,
         )
 
+    def lower_arg(self, node: mir.MirNode):
+        """Lower a value passed *by value* into a call (a plain function/
+        method call argument, or a constructor's field-init argument).
+        Default: identical to lower_expr. Targets with an ownership model
+        where passing a bare reference into a call needs an explicit copy
+        (Mojo: `f(self.field)` needs `f(self.field.copy())` when `self.field`
+        is a struct) override this; a receiver expression is deliberately
+        *not* routed through here, since a method call borrows its receiver
+        rather than consuming it."""
+        return self.lower_expr(node)
+
     def lower_method_call(self, node: mir.MirMethodCall):
         return copy_provenance(
             self.ns.MethodCall(
                 receiver=self.lower_expr(node.receiver),
                 method=node.method,
-                args=[self.lower_expr(a) for a in node.args],
+                args=[self.lower_arg(a) for a in node.args],
             ),
             node,
         )

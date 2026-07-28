@@ -41,8 +41,9 @@ _SIGNEDNESS_OVERLOAD_SRC = """
 
 def test_signedness_overload_renamed_not_duplicated():
     out = _mojo(_SIGNEDNESS_OVERLOAD_SRC)
-    assert "def NOT(self, kArgument1: Int) -> Int:" in out
-    assert "def NOT_overload2(self, kArgument1: Int) -> Int:" in out
+    # NOT is declared `static` -- no `self`, called as Bitwise.NOT(x).
+    assert "def NOT(kArgument1: Int) -> Int:" in out
+    assert "def NOT_overload2(kArgument1: Int) -> Int:" in out
     assert out.count("def NOT(") == 1
 
 

@@ -161,39 +161,42 @@ def _build_provenance_map(
     # Record all HIR nodes.
     hir_nodes: list[object] = []
     _walk_provenance_nodes(hir_mod, hir_nodes)
+    by_hir_id: dict[int, object] = {}
     for hir_node in hir_nodes:
         hid = getattr(hir_node, "_hir_node_id", 0)
         if hid > 0:
-            pm.record_node(
+            prov = pm.record_node(
                 hir_node,
                 hir_id=hid,
                 hir_type=type(hir_node).__name__,
                 source_span=None,
                 hir_repr=repr(hir_node)[:120],
             )
+            by_hir_id[hid] = prov
 
-    # Record MIR nodes pointing back to their HIR provenance.
+    # Record MIR nodes pointing back to their HIR provenance. Looked up via
+    # by_hir_id (built once above) rather than a linear re-scan of every
+    # already-recorded provenance per node -- the latter is O(mir_nodes *
+    # hir_nodes), which is fine for a hand-written algorithm slice but
+    # becomes minutes-long on a real-world amalgamated translation unit
+    # (thousands of nodes on each side, e.g. transpiling a whole C++
+    # package with --include-impls) for no benefit over a dict lookup.
     mir_nodes: list[object] = []
     _walk_provenance_nodes(mir_mod, mir_nodes)
     for mir_node in mir_nodes:
         hid = getattr(mir_node, "_hir_provenance_id", 0)
-        if hid > 0:
-            # Find the matching HIR provenance by hir_id.
-            for hir_obj_id, prov in list(pm.items()):
-                if prov.hir_id == hid:
-                    pm.record(mir_node, prov)
-                    break
+        prov = by_hir_id.get(hid) if hid > 0 else None
+        if prov is not None:
+            pm.record(mir_node, prov)
 
     # Record LIR nodes pointing back to their HIR provenance (via MIR).
     lir_nodes: list[object] = []
     _walk_provenance_nodes(lir_mod, lir_nodes)
     for lir_node in lir_nodes:
         hid = getattr(lir_node, "_hir_provenance_id", 0)
-        if hid > 0:
-            for hir_obj_id, prov in list(pm.items()):
-                if prov.hir_id == hid:
-                    pm.record(lir_node, prov)
-                    break
+        prov = by_hir_id.get(hid) if hid > 0 else None
+        if prov is not None:
+            pm.record(lir_node, prov)
 
     return pm
 @dataclass

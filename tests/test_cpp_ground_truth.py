@@ -361,6 +361,47 @@ def test_mojo_backend_emits_placeholder_for_foreign_preamble_struct(monkeypatch)
     assert result.ok, result.stderr
 
 
+def test_project_preamble_real_marker_emits_helper_past_it(monkeypatch):
+    """A project preamble is usually parse-only scaffolding (opaque stubs,
+    typedefs, macros) that must never itself appear in the emitted target --
+    but some projects also need a handful of small *real* helpers with
+    correct bodies that the user's own code genuinely calls (e.g. OCCT's
+    `RealSmall()` tolerance constant). Content at or after
+    `_PREAMBLE_REAL_MARKER` is user code for emission purposes: it must be
+    converted and emitted, not silently excluded like the rest of the
+    preamble, or every call site is "use of unknown declaration" despite
+    parsing and type-checking fine."""
+    from transpilers.cli.main import transpile_cpp_to_mojo
+
+    monkeypatch.setenv(
+        "TRANSPILERS_CPP_PREAMBLE",
+        "typedef double Real64;\n"
+        "// === TRANSPILERS: REAL PREAMBLE BELOW ===\n"
+        "constexpr double Tolerance() { return 1e-9; }\n",
+    )
+    out = transpile_cpp_to_mojo("bool small(Real64 x) { return x < Tolerance(); }\n")
+    assert "def Tolerance() -> Float64:" in out
+    assert "return 1e-09" in out or "return 1e-9" in out
+
+
+def test_project_preamble_stub_part_stays_excluded_with_real_marker(monkeypatch):
+    """The marker only promotes content *after* it; a stub class declared
+    before the marker in the same preamble must still be excluded from
+    emission (this is what distinguishes it from just disabling exclusion
+    for the whole preamble)."""
+    from transpilers.cli.main import transpile_cpp_to_mojo
+
+    monkeypatch.setenv(
+        "TRANSPILERS_CPP_PREAMBLE",
+        "class OpaqueStub {};\n"
+        "// === TRANSPILERS: REAL PREAMBLE BELOW ===\n"
+        "constexpr double Tolerance() { return 1e-9; }\n",
+    )
+    out = transpile_cpp_to_mojo("double f() { return Tolerance(); }\n")
+    assert "struct OpaqueStub" not in out
+    assert "def Tolerance() -> Float64:" in out
+
+
 def test_e2e_uses_clang_resolved_intrinsic_signature():
     """`std::sqrt(x)` -> Mojo emits `from std.math import sqrt`."""
     from transpilers.cli.main import transpile_cpp_to_mojo

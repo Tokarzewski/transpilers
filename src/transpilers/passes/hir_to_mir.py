@@ -52,6 +52,16 @@ PYTHON_TYPE_MAP: dict[str, Type] = {
 _KNOWN_STRUCTS: set[str] = set()
 _STRUCT_FIELD_NAMES: dict[str, list[str]] = {}
 _STRUCT_FIELD_TYPES: dict[str, dict[str, Type]] = {}
+# A struct's explicit `__init__` param types (self excluded), keyed by struct
+# name -- only present when the struct declares a real constructor. Used by
+# the HirStructInit trailing-field padding below to pad to the
+# *constructor's* declared arity rather than the *field* count: a
+# constructor that computes some fields internally from fewer params than
+# the struct has fields (e.g. OCCT's `gp_EulerSequence_Parameters(int
+# theAx1, bool, bool, bool)` deriving 3 of its 6 fields from `theAx1`) must
+# not have its call sites padded with fabricated extra args just because
+# the field count is larger.
+_STRUCT_CTOR_PARAM_TYPES: dict[str, list[Type]] = {}
 # Module-level constants (`NAME: T = <literal>` at module scope). A free-name
 # reference inside a function inlines the constant's value, so self-contained
 # numeric modules transpile without a module-const declaration concept in the
@@ -87,6 +97,7 @@ def hir_to_mir(module: hir.HirModule) -> mir.MirModule:
     _KNOWN_STRUCTS.clear()
     _STRUCT_FIELD_NAMES.clear()
     _STRUCT_FIELD_TYPES.clear()
+    _STRUCT_CTOR_PARAM_TYPES.clear()
     # Reset per-module so synthesised foreach index names are deterministic:
     # a given module always lowers to byte-identical output regardless of how
     # many modules were processed earlier in the same process.
@@ -142,6 +153,9 @@ def _lower_struct(s: hir.HirStruct) -> mir.MirStruct:
     methods = [_lower_function(m) for m in s.methods]
     _STRUCT_FIELD_NAMES[s.name] = [f.name for f in fields]
     _STRUCT_FIELD_TYPES[s.name] = {f.name: f.ty for f in fields}
+    ctor = next((m for m in methods if m.name == "__init__"), None)
+    if ctor is not None:
+        _STRUCT_CTOR_PARAM_TYPES[s.name] = [p.ty for p in ctor.params[1:]]
     return _p(mir.MirStruct(name=s.name, fields=fields, methods=methods), s)
 
 
@@ -150,7 +164,8 @@ def _lower_function(fn: hir.HirFunction) -> mir.MirFunction:
     ret_ty = _resolve_annotation(fn.return_annotation)
     env: dict[str, Type] = {p.name: p.ty for p in params}
     body = [_lower_stmt(n, env) for n in fn.body]
-    return _p(mir.MirFunction(name=fn.name, params=params, return_type=ret_ty, body=body), fn)
+    return _p(mir.MirFunction(name=fn.name, params=params, return_type=ret_ty, body=body,
+                              is_static=fn.is_static), fn)
 
 
 def _lower_stmt(node: hir.HirNode, env: dict[str, Type]) -> mir.MirNode:
@@ -353,17 +368,31 @@ def _lower_expr(node: hir.HirNode, env: dict[str, Type]) -> mir.MirNode:
         field_names = _STRUCT_FIELD_NAMES.get(node.name, [])
         field_types = _STRUCT_FIELD_TYPES.get(node.name, {})
         lowered_args = [_lower_expr(a, env) for a in node.args]
+        # A struct with a real user-defined constructor (member-init list
+        # computing some fields from fewer params than the struct has
+        # fields -- e.g. OCCT's `gp_EulerSequence_Parameters`, whose ctor
+        # derives 3 of its 6 fields from a single `theAx1` argument) must be
+        # padded to *its own declared arity*, not the field count: padding
+        # to field count fabricates extra args the constructor was never
+        # declared to take. Structs without an explicit ctor (the common
+        # per-field aggregate case, e.g. `gp_XYZ(x, y, z)`) fall back to the
+        # field-count expectation, unchanged from before.
+        ctor_param_types = _STRUCT_CTOR_PARAM_TYPES.get(node.name)
+        expected_types = ctor_param_types if ctor_param_types is not None else [
+            field_types.get(n, UnknownT()) for n in field_names
+        ]
         pairs: list[tuple[str, mir.MirNode]] = []
         # Pair positionally; when field names aren't registered yet (e.g. a
         # struct's own method constructs the struct before its fields are
         # recorded), keep the args positionally (name "") rather than dropping
         # them. Trailing fields with no arg get a default (C++ partial init).
-        for i in range(max(len(field_names), len(lowered_args))):
+        for i in range(max(len(expected_types), len(lowered_args))):
             fname = field_names[i] if i < len(field_names) else ""
             if i < len(lowered_args):
                 pairs.append((fname, lowered_args[i]))
             else:
-                pairs.append((fname, _default_init_for(field_types.get(fname, UnknownT()))))
+                ty = expected_types[i] if i < len(expected_types) else UnknownT()
+                pairs.append((fname, _default_init_for(ty)))
         return _p(mir.MirStructInit(
             name=node.name, field_values=pairs, ty=StructT(name=node.name)
         ), node)

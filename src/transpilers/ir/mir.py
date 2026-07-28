@@ -49,6 +49,8 @@ class MirFunction(MirNode):
     params: list["MirParam"]
     return_type: Type
     body: list[MirNode]
+    # See HirFunction.is_static.
+    is_static: bool = False
 
 
 @dataclass

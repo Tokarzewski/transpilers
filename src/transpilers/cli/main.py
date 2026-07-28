@@ -247,8 +247,19 @@ def main(argv: list[str] | None = None) -> int:
             "$CBM_BIN."
         ),
     )
-    args = parser.parse_args(argv)
-
+    parser.add_argument(
+        "--include-impls",
+        action="store_true",
+        help=(
+            "cpp/c only, requires --include-dir: also pull in each inlined "
+            "header's sibling .cxx/.cpp implementation file. A method "
+            "declared in a header but defined out-of-line in that header's "
+            "own .cxx is otherwise only a declaration in the amalgamated "
+            "translation unit this engine builds (no separate link step to "
+            "resolve the real body at) -- calling it from another inlined "
+            "method reports \"has no attribute\" without this."
+        ),
+    )
     source_lang = args.source_lang or EXT_TO_SOURCE.get(args.source.suffix)
     if source_lang is None:
         # Binaries with no extension fall through here — default to asm so
@@ -273,7 +284,8 @@ def main(argv: list[str] | None = None) -> int:
         # multi-file project's class declarations are visible to the parser
         # instead of failing with "use of undeclared identifier".
         from transpilers.frontends.cpp.parser.includes import resolve_local_includes
-        src_input = resolve_local_includes(args.source, include_dirs=args.include_dirs)
+        src_input = resolve_local_includes(
+            args.source, include_dirs=args.include_dirs, include_impls=args.include_impls)
     elif source_lang == "cpp" and args.cbm_repo:
         # Opt-in (only when --cbm is given): recover the cross-file
         # class/method/macro surface for this file from a codebase-memory-mcp

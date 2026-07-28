@@ -130,15 +130,53 @@ def _project_preamble() -> str:
     return ("\n" + inline + "\n") if inline else ""
 
 
-# Number of lines occupied by the parser preamble (PARSER_PREAMBLE +
-# _project_preamble). User code starts at this line offset. Cursors with
-# ``location.line <= USER_CODE_FIRST_LINE`` come from the preamble and
-# should not be emitted as user HIR. Cursors at exactly
-# ``USER_CODE_FIRST_LINE`` come from the leading newline of the user
-# source, which is harmless to skip.
+# A project preamble is usually *parse-only* scaffolding (opaque stub
+# classes, typedefs, macros) that must exist for libclang to get past a
+# type it can't see the real declaration of, but that should never itself
+# appear in the emitted target -- e.g. `class Standard_OStream {};` is
+# never meant to become a real Mojo struct. But some projects also need a
+# handful of small *real* helpers with correct bodies (e.g. OCCT's
+# `RealSmall()`/`Epsilon()`/`IsOdd()` tolerance/parity functions, called
+# for real from headers/impls the -I resolver pulls in) -- these DO need
+# to be emitted, or every call site is "use of unknown declaration" in the
+# output even though the call parsed and type-checked fine. A preamble
+# marks the split with this literal line; everything at or after it is
+# treated as ordinary user code (converted and emitted normally) instead
+# of being excluded like the rest of the preamble.
+_PREAMBLE_REAL_MARKER = "// === TRANSPILERS: REAL PREAMBLE BELOW ==="
+
+
+def _split_project_preamble() -> tuple[str, str]:
+    """Split ``_project_preamble()`` into ``(stub_part, real_part)`` at
+    ``_PREAMBLE_REAL_MARKER``. ``real_part`` is ``""`` if the preamble has
+    no marker (the common case -- most project preambles are parse-only).
+
+    ``real_part`` must land in the final translation unit *after*
+    ``PARSER_PREAMBLE`` (the generic std:: shim, also excluded, and itself
+    only added later inside ``preprocess_cpp``) and immediately before the
+    user's own source -- not where it textually sits in the preamble file,
+    right before ``PARSER_PREAMBLE``. ``parse_cpp`` prepends it directly to
+    *source* for exactly this reason; see the call site there.
+    """
+    project = _project_preamble()
+    marker_at = project.find(_PREAMBLE_REAL_MARKER)
+    if marker_at == -1:
+        return project, ""
+    return project[:marker_at], project[marker_at:]
+
+
+# Number of lines occupied by everything that must stay excluded from user
+# HIR: the parse-only project preamble stub part, plus PARSER_PREAMBLE
+# (added after it -- see _split_project_preamble and the parse_cpp call
+# site). Cursors with ``location.line <= this`` come from that excluded
+# region; cursors after it (the preamble's own real part, if any, followed
+# by the user's actual source) are ordinary user code. Cursors at exactly
+# this line come from the leading newline of the user source, which is
+# harmless to skip.
 def _compute_user_first_line() -> int:
     from .preprocess import PARSER_PREAMBLE
-    return len((PARSER_PREAMBLE + _project_preamble()).splitlines())
+    stub_part, _real_part = _split_project_preamble()
+    return len((stub_part + PARSER_PREAMBLE).splitlines())
 
 _UNKNOWN_TYPE_NAME_RE = _re.compile(r"unknown type name '([A-Za-z_][A-Za-z0-9_]*)'")
 _SCREAMING_MACRO_RE = _re.compile(r"^[A-Z][A-Z0-9_]*$")
@@ -215,6 +253,9 @@ def parse_cpp(source: str):
         "-DM_PI=3.14159265358979323846", "-DM_PI_2=1.57079632679489661923",
         "-DM_PI_4=0.78539816339744830962", "-DM_2_PI=0.63661977236758134308",
         "-DM_E=2.71828182845904523536", "-DM_SQRT2=1.41421356237309504880",
+        "-DM_SQRT1_2=0.70710678118654752440",
+        # <cfloat>/float.h, same rationale as the M_* constants above.
+        "-DDBL_EPSILON=2.2204460492503131e-16", "-DFLT_EPSILON=1.19209290e-7F",
     ]
     triple_args = []
     triple = _host_triple()
@@ -242,9 +283,17 @@ def parse_cpp(source: str):
     # never actually be used by that code; only worked for cases that
     # never exercised it, e.g. macro-only injections that the real `-E`
     # step expands positionally regardless of preamble placement).
-    # _compute_user_first_line()'s line-count math is order-independent
-    # (same total line count either way), so this doesn't need updating.
-    preprocessed = _project_preamble() + preprocess_cpp(source)
+    # The preamble's stub part goes before preprocess_cpp (ahead of even
+    # PARSER_PREAMBLE, which preprocess_cpp adds internally) exactly as
+    # before. Its *real* part (see _split_project_preamble/
+    # _PREAMBLE_REAL_MARKER) instead goes directly onto the front of
+    # *source*, so it lands after PARSER_PREAMBLE and immediately before
+    # the user's own code -- matching _compute_user_first_line()'s
+    # boundary, which only excludes stub_part + PARSER_PREAMBLE. Real
+    # C++ code with no directives of its own to strip, so prepending it
+    # pre-preprocessing (rather than post-, like stub_part) is harmless.
+    _stub_preamble, _real_preamble = _split_project_preamble()
+    preprocessed = _stub_preamble + preprocess_cpp(_real_preamble + source)
     # Retry with unresolved export/calling-convention macros (TOPOLOGIC_API,
     # DLLEXPORT, WINAPI, ...) neutralized -- see _macro_like_unknown_types.
     # Bounded by the number of distinct macro names actually seen, so this
@@ -455,6 +504,7 @@ def _convert_class(cursor: ci.Cursor) -> hir.HirStruct:
     name = cursor.spelling
     fields: list[hir.HirParam] = []
     methods: list[hir.HirFunction] = []
+    has_defaulted_default_ctor = False
     for c in cursor.get_children():
         if c.kind == ci.CursorKind.CXX_ACCESS_SPEC_DECL:
             # `public:` / `private:` / `protected:` markers. Only public is
@@ -469,14 +519,30 @@ def _convert_class(cursor: ci.Cursor) -> hir.HirStruct:
         if c.kind == ci.CursorKind.CONSTRUCTOR and c.is_definition() and not c.is_default_method():
             methods.append(_convert_constructor(c, struct_name=name))
             continue
+        if c.kind == ci.CursorKind.CONSTRUCTOR and c.is_default_method() and c.is_default_constructor():
+            # `gp_Vec() = default;` (or the implicit compiler-generated
+            # equivalent) alongside other real, explicit constructors on the
+            # same class (e.g. gp_Vec also declares `gp_Vec(double, double,
+            # double)`). Mojo's `@fieldwise_init` synthesizes a usable
+            # default ctor only when the struct has *no* explicit `__init__`
+            # at all (see `_class_conformances` in backends/mojo/emit.py) --
+            # once any real constructor is emitted, that auto-generation is
+            # dropped, so a defaulted 0-arg ctor needs its own explicit
+            # `__init__` synthesized too, or `gp_Vec()` call sites have no
+            # matching overload ("no matching function in initialization").
+            # Deferred until the whole class is scanned (see below the loop)
+            # since whether it's actually needed depends on whether any
+            # *other* constructor ends up defined on this same class.
+            has_defaulted_default_ctor = True
+            continue
         if c.kind in (ci.CursorKind.CXX_METHOD, ci.CursorKind.CONSTRUCTOR, ci.CursorKind.DESTRUCTOR):
-            # Declared-but-not-defined methods/ctors/dtors, and `= default`
-            # ones (no explicit body to convert -- e.g. `Dir& operator=
-            # (const Dir&) = default;`, extremely common on OCCT-style value
-            # types): skip silently rather than raising, matching real
-            # compiler-generated behavior. `is_default_method()` still
-            # reports `is_definition() == True`, so without excluding it
-            # above too, this branch would never even see it.
+            # Declared-but-not-defined methods/ctors/dtors, and other
+            # `= default` ones (no explicit body to convert -- e.g. `Dir&
+            # operator=(const Dir&) = default;`, extremely common on
+            # OCCT-style value types): skip silently rather than raising,
+            # matching real compiler-generated behavior. `is_default_method()`
+            # still reports `is_definition() == True`, so without excluding
+            # it above too, this branch would never even see it.
             continue
         if c.kind == ci.CursorKind.CXX_BASE_SPECIFIER:
             raise UnsupportedConstruct(f"C++ inheritance for class {name!r} not yet supported")
@@ -503,7 +569,61 @@ def _convert_class(cursor: ci.Cursor) -> hir.HirStruct:
             # struct's other concrete fields and methods untouched.
             continue
         raise UnsupportedConstruct(f"class member {c.kind.name}")
+    if has_defaulted_default_ctor and any(m.name == "__init__" for m in methods):
+        methods.append(_synthesized_default_ctor(fields, struct_name=name))
     return hir.HirStruct(name=name, fields=fields, methods=methods)
+
+
+def _default_value_for_annotation(annotation: str) -> hir.HirNode:
+    """A best-effort zero/empty value for *annotation*, for synthesizing a
+    defaulted 0-arg constructor's field-init body (see
+    `_synthesized_default_ctor`). A struct-typed field recurses into that
+    struct's own 0-arg construction (mirroring real C++ value-init
+    semantics for a member with its own default ctor); anything else falls
+    back to a scalar zero rather than refusing the whole class over it."""
+    if annotation in _KNOWN_STRUCT_NAMES:
+        return hir.HirStructInit(name=annotation, args=[])
+    if annotation == "bool":
+        return hir.HirBoolLiteral(value=False)
+    if annotation in ("float", "double"):
+        return hir.HirFloatLiteral(value=0.0)
+    if annotation == "str":
+        return hir.HirStringLiteral(value="")
+    return hir.HirIntLiteral(value=0)
+
+
+def _synthesized_default_ctor(fields: list[hir.HirParam], *, struct_name: str) -> hir.HirFunction:
+    """A `__init__(out self):` that zero/value-initializes every field, for
+    a class with an explicitly-defaulted (`= default`) 0-arg constructor
+    alongside other real, explicit constructors. Mojo's `@fieldwise_init`
+    only auto-synthesizes a usable default ctor when a struct has *no*
+    explicit `__init__` at all; once any other constructor is emitted, a
+    defaulted 0-arg ctor needs this explicit counterpart too, or a 0-arg
+    construction call site (`gp_Vec()`) has no matching overload."""
+    body: list[hir.HirNode] = [
+        hir.HirFieldAssign(
+            obj=hir.HirName(name="self"),
+            field=f.name,
+            value=_default_value_for_annotation(f.annotation),
+        )
+        for f in fields
+    ]
+    return hir.HirFunction(
+        name="__init__",
+        params=[hir.HirParam(name="self", annotation=struct_name)],
+        return_annotation="None",
+        body=body,
+    )
+
+def _param_name(cursor: ci.Cursor, index: int) -> str:
+    """A PARM_DECL's identifier, or a synthesized placeholder if it has
+    none. C++ allows an unnamed parameter both in a declaration and, when
+    the parameter is genuinely unused, in a definition too (e.g. OCCT's own
+    `void gp_Pnt::DumpJson(Standard_OStream&, int) const`, whose second
+    parameter is never referenced in the body). `cursor.spelling` is `""`
+    in that case; every target needs *some* identifier there."""
+    return cursor.spelling or f"_arg{index}"
+
 
 def _convert_constructor(cursor: ci.Cursor, *, struct_name: str) -> hir.HirFunction:
     """C++ constructor → Mojo `__init__(out self, ...)`. The member-init list
@@ -515,10 +635,12 @@ def _convert_constructor(cursor: ci.Cursor, *, struct_name: str) -> hir.HirFunct
     body_stmts: list[hir.HirNode] = []
     kids = list(cursor.get_children())
     i = 0
+    pidx = 0
     while i < len(kids):
         c = kids[i]
         if c.kind == CursorKind.PARM_DECL:
-            params.append(hir.HirParam(name=c.spelling, annotation=_type_text(c.type)))
+            params.append(hir.HirParam(name=_param_name(c, pidx), annotation=_type_text(c.type)))
+            pidx += 1
         elif c.kind == CursorKind.MEMBER_REF and i + 1 < len(kids):
             field_inits.append(
                 hir.HirFieldAssign(
@@ -570,14 +692,17 @@ _UNARY_OPERATOR_DUNDERS: dict[str, str] = {
 }
 
 
-def _method_name(cursor: ci.Cursor) -> str:
-    """Map an operator-overload member to its dunder; otherwise the spelling.
+def _operator_name(cursor: ci.Cursor, *, unary_param_count: int) -> str:
+    """Map an operator-overload to its dunder; otherwise the raw spelling.
     `operator+` → `__add__`, `operator==` → `__eq__`, etc. An operator token
     we don't recognize keeps the raw spelling (no refusal — same as before).
 
-    `+`/`-` are ambiguous: a member `operator-()` (no explicit params, just
-    the implicit `self`) is unary negation, but `operator-(other)` is binary
-    subtraction — same token, different arity, different dunder in every
+    `+`/`-` are ambiguous: unary negation/plus take one fewer explicit
+    parameter than the binary form of the same token (a member
+    `operator-()` has zero explicit params — just the implicit `self`;
+    a free `operator-(x)` has one). *unary_param_count* is that
+    threshold, so this same logic serves both member and free-function
+    callers. Same token, different arity, different dunder in every
     target (`__neg__` takes no argument; `__sub__` requires one). Mapping
     both to `__sub__` produces a nonsensical zero-arg `__sub__`, which every
     target's own dunder-arity checker (Mojo's included) rejects outright.
@@ -585,21 +710,55 @@ def _method_name(cursor: ci.Cursor) -> str:
     spelling = cursor.spelling
     if spelling.startswith("operator"):
         token = spelling[len("operator"):].strip()
-        if token in ("-", "+") and not any(
-            c.kind == ci.CursorKind.PARM_DECL for c in cursor.get_children()
-        ):
+        n_params = sum(1 for c in cursor.get_children() if c.kind == ci.CursorKind.PARM_DECL)
+        if token in ("-", "+") and n_params == unary_param_count:
             return _UNARY_OPERATOR_DUNDERS[token]
+        if (token == "()" and n_params >= 2
+                and cursor.result_type.kind in (ci.TypeKind.LVALUEREFERENCE, ci.TypeKind.RVALUEREFERENCE)):
+            # A multi-arg call operator RETURNING A REFERENCE is never a
+            # generic functor invocation (a functor/predicate -- e.g. a
+            # `std::sort` comparator -- returns a plain value like `bool`,
+            # by value): it's the common matrix/grid-class 2D element
+            # accessor idiom (`T& operator()(int row, int col)`, e.g.
+            # OCCT's gp_Mat/gp_GTrsf/gp_Mat2d/gp_GTrsf2d), where the
+            # reference return exists precisely so a write use
+            # (`M(1, 1) = v`) can assign through it. Map to `__getitem__`
+            # so a read call site (`M(1, 1)`, handled in `_convert_call`)
+            # becomes `M[1, 1]`'s dunder. There's no `__setitem__`
+            # counterpart emitted for this: the reference-return-as-lvalue
+            # idiom has no analog in any of these value-oriented targets,
+            # so a write use is left as a genuinely unsupported construct
+            # (see `_convert_assignment_stmt`) rather than paired with a
+            # setter whose signature couldn't match the source body anyway.
+            return "__getitem__"
         if token in _OPERATOR_DUNDERS:
             return _OPERATOR_DUNDERS[token]
     return spelling
 
 
+def _method_name(cursor: ci.Cursor) -> str:
+    """Map an operator-overload member to its dunder; otherwise the spelling.
+    See `_operator_name` — a member's implicit `self` means its unary forms
+    take zero explicit parameters."""
+    return _operator_name(cursor, unary_param_count=0)
+
+
 def _convert_method(cursor: ci.Cursor, *, struct_name: str) -> hir.HirFunction:
-    params: list[hir.HirParam] = [hir.HirParam(name="self", annotation=struct_name)]
+    # A `static` method has no implicit `this`/`self` -- it's called via
+    # `ClassName::method(...)`, no receiver instance at all (e.g. OCCT's
+    # `gp::Resolution()` / `Precision::Angular()` tolerance helpers).
+    # Injecting a `self` param for one anyway would be wrong twice over: the
+    # target emits it as `@staticmethod` (no self param at all — Mojo
+    # rejects a bodyless-of-self instance method with "self argument must
+    # be present"), and a real call site never has an instance to pass.
+    is_static = cursor.is_static_method()
+    params: list[hir.HirParam] = [] if is_static else [hir.HirParam(name="self", annotation=struct_name)]
     body: list[hir.HirNode] = []
+    pidx = 0
     for c in cursor.get_children():
         if c.kind == CursorKind.PARM_DECL:
-            params.append(hir.HirParam(name=c.spelling, annotation=_type_text(c.type)))
+            params.append(hir.HirParam(name=_param_name(c, pidx), annotation=_type_text(c.type)))
+            pidx += 1
         elif c.kind == CursorKind.COMPOUND_STMT:
             body = _convert_compound(c)
     return hir.HirFunction(
@@ -607,6 +766,7 @@ def _convert_method(cursor: ci.Cursor, *, struct_name: str) -> hir.HirFunction:
         params=params,
         return_annotation=_type_text(cursor.result_type),
         body=body,
+        is_static=is_static,
     )
 
 def _check_diagnostics(tu: ci.TranslationUnit) -> None:
@@ -672,13 +832,33 @@ def _set_loc(cursor: ci.Cursor, node: "hir.HirNode") -> "hir.HirNode":
 def _convert_function(cursor: ci.Cursor) -> hir.HirFunction:
     params: list[hir.HirParam] = []
     body: list[hir.HirNode] = []
+    idx = 0
     for c in cursor.get_children():
         if c.kind == CursorKind.PARM_DECL:
-            params.append(hir.HirParam(name=c.spelling, annotation=_type_text(c.type)))
+            params.append(hir.HirParam(name=_param_name(c, idx), annotation=_type_text(c.type)))
+            idx += 1
         elif c.kind == CursorKind.COMPOUND_STMT:
             body = _convert_compound(c)
+    # A free (non-member) operator overload -- e.g. `gp_Vec operator*(double,
+    # const gp_Vec&)`, the common idiom for a symmetric binary operator --
+    # is just as real a C++ construct as a member operator, but the free
+    # function itself is never invoked by name: a call site like `2.0 * v`
+    # is desugared straight to a binop by `_convert_call`/`_convert_binop`
+    # (see the CALL_EXPR 'operator*' handling above), never a call to this
+    # function. Naming it here only has to keep it a syntactically valid
+    # identifier instead of the literal invalid `operator*` token -- it must
+    # NOT be the actual dunder, though: Mojo (like every target here)
+    # requires a `__mul__`-etc-named callable to be a struct method, and
+    # rejects a global function with that exact name outright ("must be a
+    # method, not a global function"). Since nothing calls this function by
+    # name anyway, prefix away from the reserved dunder spelling.
+    # Unary here means one explicit parameter (no implicit `self` to absorb
+    # the operand), unlike a member's zero-param unary form.
+    name = _operator_name(cursor, unary_param_count=1)
+    if name.startswith("__") and name.endswith("__"):
+        name = f"_operator{name}"
     return hir.HirFunction(
-        name=cursor.spelling,
+        name=name,
         params=params,
         return_annotation=_type_text(cursor.result_type),
         body=body,
@@ -767,6 +947,9 @@ def _convert_stmt_inner(cursor: ci.Cursor) -> list[hir.HirNode]:
     if kind == CursorKind.UNARY_OPERATOR:
         return [_convert_unary_stmt(cursor)]
     if kind == CursorKind.CALL_EXPR:
+        swapped = _convert_std_swap_stmt(cursor)
+        if swapped is not None:
+            return swapped
         return [_convert_expr_stmt(cursor)]
     if kind == CursorKind.BREAK_STMT:
         return [hir.HirBreak()]
@@ -784,8 +967,45 @@ def _convert_stmt_inner(cursor: ci.Cursor) -> list[hir.HirNode]:
             return _convert_stmt_inner(kids[0])
     raise UnsupportedConstruct(f"stmt {kind.name}")
 
+_ARRAY_TYPE_KINDS = (ci.TypeKind.CONSTANTARRAY, ci.TypeKind.INCOMPLETEARRAY, ci.TypeKind.VARIABLEARRAY)
+
+
+def _default_array_value(t: ci.Type) -> hir.HirNode:
+    """A zero-filled nested list literal matching a native fixed-size
+    array type's shape (`double[3][3]` -> a 3x3 list of `0.0`), for a
+    VAR_DECL with no real initializer -- see `_convert_var_decl`'s
+    no-initializer array handling."""
+    if t.kind in _ARRAY_TYPE_KINDS:
+        count = t.element_count if t.kind == ci.TypeKind.CONSTANTARRAY else 0
+        return hir.HirList(elements=[_default_array_value(t.element_type) for _ in range(count)])
+    ann = _type_text(t)
+    if ann in _KNOWN_STRUCT_NAMES:
+        return hir.HirStructInit(name=ann, args=[])
+    if ann == "bool":
+        return hir.HirBoolLiteral(value=False)
+    if ann == "float":
+        return hir.HirFloatLiteral(value=0.0)
+    if ann == "str":
+        return hir.HirStringLiteral(value="")
+    return hir.HirIntLiteral(value=0)
+
+
 def _convert_var_decl(cursor: ci.Cursor) -> hir.HirNode:
     annotation = _type_text(cursor.type)
+    if cursor.type.kind in _ARRAY_TYPE_KINDS and not any(
+        t.spelling in ("=", "{") for t in cursor.get_tokens()
+    ):
+        # A native fixed-size array declared with NO initializer at all
+        # (`double mymatrix[3][3];`, OCCT's own `gp_Trsf::InitFromJson`
+        # scratch buffer) has its dimension-size expressions (INTEGER_LITERAL
+        # cursors for the `3`s) reported as VAR_DECL *children* by libclang --
+        # there's no actual initializer here, but the generic `kids[-1]`
+        # fallback below would misread the last dimension-size literal as
+        # one, emitting e.g. `var mymatrix: List[List[Float64]] = 3`. Zero-
+        # fill a nested list literal matching the array's real shape instead.
+        return hir.HirAssign(
+            target=cursor.spelling, value=_default_array_value(cursor.type), annotation=annotation
+        )
     kids = list(cursor.get_children())
     if annotation in _KNOWN_STRUCT_NAMES:
         # `Point p;` (no kids) → zero-init StructInit.
@@ -1040,25 +1260,61 @@ def _convert_expr_stmt(cursor: ci.Cursor) -> hir.HirNode:
         return hir.HirRaw(snippet=_cursor_snippet(cursor))
 
 
+# Mirrors the numeric-valued `-D` predefines in `parse_cpp`'s `predefs`
+# list (NULL, M_PI, ...) -- kept in sync with that list by hand. An
+# INTEGER_LITERAL/FLOATING_LITERAL cursor for one of these command-line
+# `-D`-defined constants loses its own token text under a libclang
+# tokenizer quirk at macro-expansion boundaries (see `_tokens_for`'s and
+# `_literal_token`'s docstrings); the token *found* via the widened
+# retokenize fallback is still just the macro's identifier spelling
+# ("M_PI"), never its expanded numeric text, so `float()`/`int()` on it
+# would still fail. Resolve these specific, well-known names to the value
+# we ourselves defined them as, rather than silently falling back to 0.
+_PREDEF_INT_MACROS: dict[str, int] = {
+    "NULL": 0, "EXIT_SUCCESS": 0, "EXIT_FAILURE": 1,
+    "INT_MIN": -2147483648, "INT_MAX": 2147483647,
+    "UINT_MAX": 4294967295,
+    "LONG_MIN": -9223372036854775808, "LONG_MAX": 9223372036854775807,
+    "LLONG_MIN": -9223372036854775808, "LLONG_MAX": 9223372036854775807,
+}
+
+_PREDEF_FLOAT_MACROS: dict[str, float] = {
+    "M_PI": 3.14159265358979323846,
+    "M_PI_2": 1.57079632679489661923,
+    "M_PI_4": 0.78539816339744830962,
+    "M_2_PI": 0.63661977236758134308,
+    "M_E": 2.71828182845904523536,
+    "M_SQRT2": 1.41421356237309504880,
+    "M_SQRT1_2": 0.70710678118654752440,
+    "DBL_EPSILON": 2.2204460492503131e-16,
+    "FLT_EPSILON": 1.19209290e-7,
+}
+
+
 def _convert_expr(cursor: ci.Cursor) -> hir.HirNode:
     kind = cursor.kind
     if kind == CursorKind.INTEGER_LITERAL:
-        token = next(cursor.get_tokens(), None)
+        token = _literal_token(cursor)
         if token is None:
-            # Macro-expanded literals (EXIT_FAILURE, NULL) lose their source
-            # tokens. We don't have the actual constant value available
-            # without evaluating; fall back to 0 so the file parses. This
-            # is a real lossy compromise — comparisons against
-            # EXIT_FAILURE/EXIT_SUCCESS may now produce surprising results.
             return hir.HirIntLiteral(value=0)
+        if token.spelling in _PREDEF_INT_MACROS:
+            return hir.HirIntLiteral(value=_PREDEF_INT_MACROS[token.spelling])
         try:
             return hir.HirIntLiteral(value=int(token.spelling.rstrip("uUlL"), 0))
         except ValueError:
+            # Some other macro-expanded literal (`_literal_token`'s widened
+            # retokenize found the macro's own identifier spelling, not its
+            # expanded numeric text -- we don't have the actual constant
+            # value available for anything outside `_PREDEF_INT_MACROS`
+            # without evaluating). Fall back to 0 so the file still parses;
+            # a real lossy compromise for an unrecognized macro constant.
             return hir.HirIntLiteral(value=0)
     if kind == CursorKind.FLOATING_LITERAL:
-        token = next(cursor.get_tokens(), None)
+        token = _literal_token(cursor)
         if token is None:
             return hir.HirFloatLiteral(value=0.0)
+        if token.spelling in _PREDEF_FLOAT_MACROS:
+            return hir.HirFloatLiteral(value=_PREDEF_FLOAT_MACROS[token.spelling])
         try:
             return hir.HirFloatLiteral(value=float(token.spelling.rstrip("fFlL")))
         except ValueError:
@@ -1192,9 +1448,52 @@ def _convert_expr(cursor: ci.Cursor) -> hir.HirNode:
         return hir.HirIntLiteral(value=0)
     raise UnsupportedConstruct(f"expr {kind.name}")
 
+def _strip_paren_unexposed(cursor: ci.Cursor) -> ci.Cursor:
+    while cursor.kind in (CursorKind.UNEXPOSED_EXPR, CursorKind.PAREN_EXPR):
+        kids = list(cursor.get_children())
+        if len(kids) != 1:
+            return cursor
+        cursor = kids[0]
+    return cursor
+
+
+def _is_this_expr(cursor: ci.Cursor) -> bool:
+    return _strip_paren_unexposed(cursor).kind == CursorKind.CXX_THIS_EXPR
+
+
+def _is_addr_of_expr(cursor: ci.Cursor) -> bool:
+    c = _strip_paren_unexposed(cursor)
+    if c.kind != CursorKind.UNARY_OPERATOR or len(list(c.get_children())) != 1:
+        return False
+    try:
+        return _unary_token(c) == "&"
+    except UnsupportedConstruct:
+        return False
+
+
 def _convert_binop(cursor: ci.Cursor) -> hir.HirNode:
     op = _binop_token(cursor)
     kids = list(cursor.get_children())
+    if op in ("==", "!=") and (
+        (_is_this_expr(kids[0]) and _is_addr_of_expr(kids[1]))
+        or (_is_this_expr(kids[1]) and _is_addr_of_expr(kids[0]))
+    ):
+        # `this == &theOther` / `&theOther == this` -- a pointer-identity
+        # self-aliasing check (the classic self-assignment/self-comparison
+        # guard idiom, e.g. OCCT's `gp_Quaternion::IsEqual`: `if (this ==
+        # &theOther) return true;` before falling back to a real value
+        # comparison). This engine doesn't model pointer/reference identity
+        # -- parameters are handled by value/borrow, not tracked aliases --
+        # and after the existing address-of/`this`-to-`self` lossy
+        # lowering, both sides collapse to plain names, so naively emitting
+        # a VALUE comparison here isn't just imprecise but can be a compile
+        # error outright when the type has no `operator==` (as here).
+        # Every real-world instance of this idiom is followed by a full
+        # value-comparison fallback that computes the correct result
+        # regardless of whether the identity fast path is taken, so
+        # dropping the fast path (never true) preserves correctness at the
+        # cost of a micro-optimization.
+        return hir.HirBoolLiteral(value=(op == "!="))
     left = _convert_expr(kids[0])
     right = _convert_expr(kids[1])
     if op in COMPARE_OPS:
@@ -1234,7 +1533,17 @@ def _convert_assignment_stmt(cursor: ci.Cursor) -> hir.HirNode:
         lk = list(lhs.get_children())
         if len(lk) == 2:
             sub = (_convert_expr(lk[0]), _convert_expr(lk[1]))
-    elif lhs.kind == CursorKind.CALL_EXPR:
+    elif lhs.kind == CursorKind.CALL_EXPR and lhs.spelling != "operator()":
+        # The `lhs.spelling != "operator()"` guard excludes the 2D
+        # element-accessor idiom (`aMat(1, 1) = v`, see `_operator_name`'s
+        # `__getitem__` mapping and the read-side handling in
+        # `_convert_call`): that C++ method returns a mutable reference for
+        # the caller to assign *through*, which none of these targets
+        # model, so there's no `__setitem__` counterpart to route a write
+        # to. Falling through to the `UnsupportedConstruct` below (a
+        # never-refuse hole) is more honest than reusing this 1-D
+        # `(lk[0], lk[-1])` reduction, which would silently drop the row
+        # index and emit a wrong single-index subscript assign.
         lk = [c for c in lhs.get_children()
               if c.kind not in (CursorKind.TYPE_REF, CursorKind.NAMESPACE_REF)
               and not ((c.spelling or "").startswith("operator") and c.kind != CursorKind.CALL_EXPR)]
@@ -1356,6 +1665,57 @@ def _lhs_as_subscript_or_name(lhs: ci.Cursor) -> hir.HirNode:
         return hir.HirFieldAccess(value=obj, field=lhs.spelling)
     return _convert_expr(lhs)
 
+def _assign_to(target: hir.HirNode, value: hir.HirNode) -> hir.HirNode:
+    """Build the right *Assign statement for a target expression shape
+    produced by `_lhs_as_subscript_or_name` (subscript / field / plain
+    name), for `_convert_std_swap_stmt`'s manual swap desugaring."""
+    if isinstance(target, hir.HirSubscript):
+        return hir.HirSubscriptAssign(obj=target.value, index=target.index, value=value)
+    if isinstance(target, hir.HirFieldAccess):
+        return hir.HirFieldAssign(obj=target.value, field=target.field, value=value)
+    if isinstance(target, hir.HirName):
+        return hir.HirAssign(target=target.name, value=value, annotation=None)
+    raise UnsupportedConstruct(f"swap target shape {type(target).__name__}")
+
+
+def _convert_std_swap_stmt(cursor: ci.Cursor) -> list[hir.HirNode] | None:
+    """`std::swap(a, b);` as a statement -> `tmp = a; a = b; b = tmp;`.
+
+    Not just a style choice: Mojo's own `swap()` builtin rejects two
+    arguments that alias the same underlying container ("argument ...
+    allows writing a memory location previously writable through another
+    aliased argument") -- exactly OCCT's `gp_Mat::Transpose` idiom,
+    `std::swap(myMat[0][1], myMat[1][0])`, two elements of the *same*
+    matrix. A manual temp-variable swap sidesteps that aliasing-exclusivity
+    restriction entirely (no two arguments passed to any single call), and
+    is correct universally -- not a Mojo-specific workaround.
+
+    Returns None (not applicable) for anything that isn't a genuine
+    `std::swap(a, b)` two-argument call, so the caller falls back to
+    ordinary call-expression handling.
+    """
+    if cursor.spelling != "swap":
+        return None
+    ref = cursor.referenced
+    if ref is None or ref.semantic_parent is None or ref.semantic_parent.spelling != "std":
+        return None
+    kids = [
+        k for k in cursor.get_children()
+        if k.kind not in (CursorKind.NAMESPACE_REF, CursorKind.TYPE_REF, CursorKind.TEMPLATE_REF)
+        and (k.spelling or "") != "swap"
+    ]
+    if len(kids) != 2:
+        return None
+    a = _lhs_as_subscript_or_name(kids[0])
+    b = _lhs_as_subscript_or_name(kids[1])
+    tmp = "__swap_tmp"
+    return [
+        hir.HirAssign(target=tmp, value=a, annotation=None),
+        _assign_to(a, b),
+        _assign_to(b, hir.HirName(name=tmp)),
+    ]
+
+
 def _iter_index(node: "hir.HirNode"):
     """Interpret a vector iterator expr as (container, index): c.begin() -> (c,0),
     c.end() -> (c, len(c)), c.begin()+k -> (c, k). Returns None otherwise."""
@@ -1374,8 +1734,7 @@ def _convert_call(cursor: ci.Cursor) -> hir.HirNode:
 
     # Overloaded binary operator `a + b` arrives as CALL_EXPR 'operator+' with
     # kids [lhs, operator-ref, rhs]. Map to a real binop/compare so Mojo's struct
-    # operator methods (__add__/__eq__/...) drive it. Unary forms (1 operand
-    # after filtering) fall through.
+    # operator methods (__add__/__eq__/...) drive it.
     if cursor.spelling in _OVERLOAD_BINOPS:
         op = cursor.spelling[len("operator"):]
         operands = [k for k in kids if (k.spelling or "") != cursor.spelling]
@@ -1387,6 +1746,16 @@ def _convert_call(cursor: ci.Cursor) -> hir.HirNode:
             if op in ("&&", "||"):
                 return hir.HirBoolOp(op="and" if op == "&&" else "or", left=lhs, right=rhs)
             return hir.HirBinOp(op=op, left=lhs, right=rhs)
+        # Unary form of the same token (1 operand after filtering, e.g.
+        # `-vydir` calling a member `gp_Dir::operator-()` with no explicit
+        # params): only `+`/`-` are valid unary operators among this set.
+        # Without this, the call fell through to the generic call-resolution
+        # path at the bottom of this function, which has no notion of a
+        # bare operator-ref child and emitted garbled code (a spurious
+        # `operator-` call embedded as an argument, e.g. `vydir(operator-)`,
+        # "unexpected token in expression").
+        if len(operands) == 1 and op in ("+", "-"):
+            return hir.HirUnaryOp(op=op, operand=_convert_expr(operands[0]))
 
     # Overloaded assignment (`r = x` / `r += x`, e.g. std::string concat, or
     # any user struct with an `operator=`/`operator+=`) arrives as CALL_EXPR
@@ -1411,7 +1780,7 @@ def _convert_call(cursor: ci.Cursor) -> hir.HirNode:
                     value = hir.HirBinOp(
                         op=aug, left=hir.HirFieldAccess(value=obj, field=lhs.spelling), right=value)
                 return hir.HirFieldAssign(obj=obj, field=lhs.spelling, value=value)
-            target = _decl_name(lhs)
+            target = _decl_name(lhs) or ("self" if _is_this_deref(lhs) else None)
             if target is not None:
                 return hir.HirAssign(target=target, value=_convert_expr(rhs),
                                      annotation=None, augmented_op=aug)
@@ -1492,6 +1861,40 @@ def _convert_call(cursor: ci.Cursor) -> hir.HirNode:
             return hir.HirSubscript(
                 value=_convert_expr(meaningful[0]), index=_convert_expr(meaningful[-1]))
 
+    # 2D element-accessor idiom (`aMat(1, 1)`, `theMat(row, col)`): a common
+    # matrix/grid class's `T& operator()(int, int)` overload, arriving as a
+    # CALL_EXPR with the same [obj, operator-ref, arg...] shape operator[]
+    # has above (as opposed to `_method_name`/`__call__`'s ordinary 0/1-arg
+    # functor invocation). Mirrors the class-definition side's mapping of a
+    # 2+-arg `operator()` to `__getitem__` (see `_operator_name`). A write
+    # use (`aMat(1, 1) = v`) is handled -- or rather, deliberately left
+    # unsupported -- separately in `_convert_assignment_stmt`. Gated on the
+    # callee actually returning a reference (matching `_operator_name`'s
+    # class-definition-side check) so an ordinary value-returning 2-arg
+    # functor call (a `bool operator()(int, int) const` comparator) isn't
+    # misrouted to a `__getitem__` the class was never given.
+    if cursor.spelling == "operator()":
+        op_ref = next(
+            (k for k in kids if (k.spelling or "").startswith("operator")
+             and k.kind != CursorKind.CALL_EXPR),
+            None,
+        )
+        referenced = op_ref.referenced if op_ref is not None else None
+        if referenced is not None and referenced.result_type.kind in (
+            ci.TypeKind.LVALUEREFERENCE, ci.TypeKind.RVALUEREFERENCE
+        ):
+            meaningful = [
+                c for c in kids
+                if c.kind not in (CursorKind.TYPE_REF, CursorKind.NAMESPACE_REF)
+                and not ((c.spelling or "").startswith("operator") and c.kind != CursorKind.CALL_EXPR)
+            ]
+            if len(meaningful) >= 3:
+                return hir.HirMethodCall(
+                    receiver=_convert_expr(meaningful[0]),
+                    method="__getitem__",
+                    args=[_convert_expr(a) for a in meaningful[1:]],
+                )
+
     # Detect tuple/pair constructor: cursor.spelling is the type name ('tuple',
     # 'pair', etc.) and the first child is NOT a callee reference but an argument.
     if cursor.spelling in _TUPLE_CONSTRUCTORS and kids:
@@ -1565,6 +1968,16 @@ def _convert_call(cursor: ci.Cursor) -> hir.HirNode:
     qualified = any(t.spelling == "::" for t in callee.get_tokens())
     if referenced is not None and referenced.kind == CursorKind.CXX_METHOD and not qualified:
         return hir.HirMethodCall(receiver=hir.HirName(name="self"), method=name, args=args)
+    # A qualified call to another class's *static* method (`Precision::
+    # Angular()`, `gp::Resolution()`) — every target here maps a static
+    # method to a receiver-less callable reached via the struct's own name
+    # (Mojo: `@staticmethod` + `StructName.method(...)`), so the struct
+    # name doubles as a valid "receiver" expression for a HirMethodCall
+    # despite naming a type, not a value.
+    if (referenced is not None and referenced.kind == CursorKind.CXX_METHOD
+            and qualified and referenced.is_static_method() and referenced.semantic_parent is not None):
+        struct_name = referenced.semantic_parent.spelling
+        return hir.HirMethodCall(receiver=hir.HirName(name=struct_name), method=name, args=args)
     # SIMD intrinsic lifting: turn Intel `_mm*` calls into semantic HIR
     # operations on SIMD-typed values. Mojo will emit idiomatic `a + b`
     # on SIMD types; other targets fall back to the original call form.

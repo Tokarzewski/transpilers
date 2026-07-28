@@ -125,17 +125,21 @@ class _MojoLowering(MirLoweringBase):
         super().__init__()
         self._used_math: set[str] = set()
         self._field_types: dict[str, dict[str, Type]] = {}
+        self._method_return_types: dict[str, dict[str, Type]] = {}
+        self._mutating_names: frozenset[str] = frozenset()
 
     def type_str(self, ty: Type) -> str:
         return _mojo_type(ty)
 
     def _resolved_ty(self, node: mir.MirNode) -> Type:
         """`node.ty` if infer_types resolved it, else best-effort lookup for
-        a field access whose *own* type infer_types never fills in (it has
-        no struct-field table to consult -- see MirFieldAccess below). Only
-        needs to walk one level: `self.field` resolves via `self`'s own type
-        (always known), and that covers every copy-insertion site that
-        currently needs it.
+        node shapes whose *own* type infer_types never fills in: a field
+        access (no struct-field table to consult) or a method call (MIR
+        carries no method-signature table either -- `hir_to_mir` never sets
+        `ty=` when lowering a HirMethodCall at all). Recurses through
+        receiver chains (`a.Direction().coord`: field-access-of-method-call)
+        so a copy gets inserted for the field of a temporary just as
+        reliably as for the field of a plain name.
         """
         ty = getattr(node, "ty", None)
         if ty is not None and not isinstance(ty, UnknownT):
@@ -144,11 +148,33 @@ class _MojoLowering(MirLoweringBase):
             recv_ty = self._resolved_ty(node.value)
             if isinstance(recv_ty, StructT):
                 return self._field_types.get(recv_ty.name, {}).get(node.field, UnknownT())
+        if isinstance(node, mir.MirMethodCall):
+            recv_ty = self._resolved_ty(node.receiver)
+            if isinstance(recv_ty, StructT):
+                return self._method_return_types.get(recv_ty.name, {}).get(node.method, UnknownT())
         return ty if ty is not None else UnknownT()
+
+    def lower_arg(self, node: mir.MirNode):
+        # Passing a bare struct-typed name/field ("f(self.field)", "f(v)")
+        # into a call hits the identical ImplicitlyCopyable restriction as
+        # returning/assigning one -- a call argument is a by-value hand-off
+        # too, whichever of the callee's own parameter conventions
+        # (default borrow, `var`, `mut`) ends up receiving it. Unlike
+        # return/assign, this needs no `ret`/declared-type context: any
+        # bare reference to an existing struct value reaching a call
+        # boundary needs the copy, full stop.
+        val = self.lower_expr(node)
+        if isinstance(val, (lir.MojoName, lir.MojoFieldAccess)) and isinstance(self._resolved_ty(node), StructT):
+            return lir.MojoMethodCall(receiver=val, method="copy", args=[])
+        return val
 
     def lower_module(self, module: mir.MirModule) -> lir.MojoModule:
         self._used_math.clear()
         self._field_types = {s.name: {f.name: f.ty for f in s.fields} for s in module.structs}
+        self._method_return_types = {
+            s.name: {m.name: m.return_type for m in s.methods} for s in module.structs
+        }
+        self._mutating_names = _compute_mir_mutating_method_names(module)
         items: list[lir.LirNode] = []
         # Struct types the parser resolved (e.g. via a project-preamble shim
         # for a third-party library -- see docs/occt_preamble.hpp) but that
@@ -179,7 +205,7 @@ class _MojoLowering(MirLoweringBase):
         # the param is declared `var n: …`. Subscript-assigning to `xs` (e.g.
         # `xs[i] = v`) requires `mut xs: …` instead. Scan the body for both.
         param_names = {p.name for p in fn.params}
-        var_params, mut_params = _params_reassigned(fn.body, param_names)
+        var_params, mut_params = _params_reassigned(fn.body, param_names, self._mutating_names)
         params = []
         for p in fn.params:
             if p.name in mut_params:
@@ -212,32 +238,36 @@ class _MojoLowering(MirLoweringBase):
             )
             return lir.MojoReassign(name=node.target, value=rhs)
         if node.target in declared:
-            return lir.MojoReassign(name=node.target, value=self.lower_expr(node.value))
+            # Same ImplicitlyCopyable restriction as the fresh-declaration
+            # branch below (and lower_return/lower_field_assign): a plain
+            # reassignment (`Tloc = T.loc;` reached a second time, e.g.
+            # across if/switch branches sharing one declared local) is just
+            # as much a by-value hand-off of an existing reference as a
+            # var-decl initializer is. This branch had no copy-insertion at
+            # all before -- every reassignment from a bare struct-typed
+            # name/field silently fell through to the same compile error.
+            value = self.lower_arg(node.value)
+            return lir.MojoReassign(name=node.target, value=value)
         declared.add(node.target)
         ty = _mojo_type(node.ty) if not isinstance(node.ty, UnknownT) else None
         value = self._lower_container_ctor(node, ty)
         if value is None:
-            value = self.lower_expr(node.value)
-        # Same "bare name of a non-ImplicitlyCopyable type needs an explicit
-        # .copy()" rule as lower_return above -- `Mat aCopy = *this;` /
-        # `Mat aCopy = otherMat;` hit the identical Mojo 1.0.0b2 restriction
-        # a struct-returning function does, just via a var-decl instead of a
-        # return statement.
-        if (isinstance(value, (lir.MojoName, lir.MojoFieldAccess))
-                and isinstance(self._resolved_ty(node.value), StructT)):
-            value = lir.MojoMethodCall(receiver=value, method="copy", args=[])
+            # Same "bare name of a non-ImplicitlyCopyable type needs an
+            # explicit .copy()" rule as lower_return/lower_arg above --
+            # `Mat aCopy = *this;` / `Mat aCopy = otherMat;` hit the
+            # identical Mojo 1.0.0b2 restriction a struct-returning
+            # function or a call argument does, just via a var-decl.
+            value = self.lower_arg(node.value)
         return lir.MojoVar(name=node.target, ty=ty, value=value)
 
     def lower_field_assign(self, node: mir.MirFieldAssign):
         # `self.vydir = otherDirField` hits the identical ImplicitlyCopyable
-        # restriction as a var-decl or return of a bare struct-typed name/
-        # field access (see lower_assign / lower_return above) -- the base
-        # implementation has no copy-insertion at all (correct for Rust/Zig,
-        # which don't need it), so Mojo needs its own override.
-        value = self.lower_expr(node.value)
-        if (isinstance(value, (lir.MojoName, lir.MojoFieldAccess))
-                and isinstance(self._resolved_ty(node.value), StructT)):
-            value = lir.MojoMethodCall(receiver=value, method="copy", args=[])
+        # restriction as a var-decl, reassign, return, or call-argument
+        # hand-off of a bare struct-typed name/field (see lower_assign /
+        # lower_return / lower_arg above) -- the base implementation has no
+        # copy-insertion at all (correct for Rust/Zig, which don't need
+        # it), so Mojo needs its own override.
+        value = self.lower_arg(node.value)
         return lir.MojoFieldAssign(obj=self.lower_expr(node.obj), field=node.field, value=value)
 
     def _lower_container_ctor(self, node, ty):
@@ -294,6 +324,7 @@ class _MojoLowering(MirLoweringBase):
         # Mojo Dict subscript reads raise (KeyError); a function using a Dict
         # needs `raises`. Over-declaring raises is harmless.
         f.raises = _uses_dict(fn)
+        f.is_static = getattr(fn, "is_static", False)
         return f
 
     def lower_return(self, node: mir.MirReturn):
@@ -356,7 +387,7 @@ class _MojoLowering(MirLoweringBase):
             if node.method in ("push_back", "emplace_back", "push") and len(node.args) == 1:
                 return lir.MojoMethodCall(
                     receiver=self.lower_expr(node.receiver), method="append",
-                    args=[self.lower_expr(node.args[0])])
+                    args=[self.lower_arg(node.args[0])])
             # stack/queue: top()/back() -> v[len(v)-1]; front() -> v[0]
             # (Mojo has no negative indexing on List).
             if node.method in ("top", "back") and not node.args:
@@ -372,7 +403,7 @@ class _MojoLowering(MirLoweringBase):
         return super().lower_method_call(node)
 
     def lower_call(self, node: mir.MirCall):
-        args = [self.lower_expr(a) for a in node.args]
+        args = [self.lower_arg(a) for a in node.args]
         if node.func == "__ternary__" and len(args) == 3:
             return _MojoIfExpr(test=args[0], then_=args[1], else_=args[2])
         # std::to_string(x) -> String(x) (int/float -> string, common in EP output)
@@ -475,18 +506,101 @@ def mir_to_mojo_lir(module: mir.MirModule) -> lir.MojoModule:
     return _LOWERING.lower_module(module)
 
 
+_BUILTIN_MUTATING_METHODS = frozenset({
+    "append", "push_back", "emplace_back", "clear", "pop_back", "resize",
+})
+
+
+def _touches_mir_self(node: mir.MirNode) -> bool:
+    """A receiver/target rooted at `self` (self, self.field, self.field[i])."""
+    if isinstance(node, mir.MirName) and node.name == "self":
+        return True
+    if isinstance(node, mir.MirFieldAccess):
+        return _touches_mir_self(node.value)
+    if isinstance(node, mir.MirSubscript):
+        return _touches_mir_self(node.value)
+    return False
+
+
+def _mir_mutates_self(nodes, mutating_names: frozenset[str]) -> bool:
+    """MIR counterpart of the Mojo backend's own `_mutates_self` (see
+    backends/mojo/emit.py) -- needed one IR tier earlier, during MIR->LIR
+    lowering, so a *parameter* mutated via a call to one of these methods
+    (see _params_reassigned below) can be recognized too. Duplicated rather
+    than shared because the two IR tiers use distinct node types
+    (MirFieldAssign vs. MojoFieldAssign, etc.) with no common walk."""
+    import dataclasses
+    if isinstance(nodes, list):
+        return any(_mir_mutates_self(n, mutating_names) for n in nodes)
+    if not dataclasses.is_dataclass(nodes):
+        return False
+    if isinstance(nodes, mir.MirFieldAssign) and _touches_mir_self(nodes.obj):
+        return True
+    if isinstance(nodes, mir.MirSubscriptAssign) and _touches_mir_self(nodes.obj):
+        return True
+    if isinstance(nodes, mir.MirAssign) and nodes.target == "self":
+        # `self = expr` -- the "replace my whole value" idiom for a
+        # mutate-via-copy-assign method (C++'s `(*this) = Multiplied(...);`,
+        # see `_is_this_deref` in the C++ frontend). Mirrors the same check
+        # in emit.py's `_mutates_self`.
+        return True
+    if (isinstance(nodes, mir.MirMethodCall) and nodes.method in mutating_names
+            and _touches_mir_self(nodes.receiver)):
+        return True
+    return any(
+        _mir_mutates_self(getattr(nodes, f.name), mutating_names) for f in dataclasses.fields(nodes)
+    )
+
+
+def _compute_mir_mutating_method_names(module: mir.MirModule) -> frozenset[str]:
+    """Fixed-point closure of method names that mutate their receiver,
+    computed on MIR (before lowering) so `_params_reassigned` below can
+    recognize a reference/by-value parameter mutated via a call to one of
+    these -- not just self (see backends/mojo/emit.py's
+    `_compute_mutating_method_names`, the LIR-level sibling of this
+    function, computed too late in the pipeline for `lower_params` to use).
+    Matches by bare method name, not per-struct: conservative, but at worst
+    marks an unrelated same-named method/param `mut`/`var` too, which Mojo
+    permits on one that doesn't strictly need it.
+    """
+    names = set(_BUILTIN_MUTATING_METHODS)
+    methods = [m for s in module.structs for m in s.methods]
+    changed = True
+    while changed:
+        changed = False
+        for m in methods:
+            if m.name in names:
+                continue
+            if _mir_mutates_self(m.body, frozenset(names)):
+                names.add(m.name)
+                changed = True
+    return frozenset(names)
+
+
 def _params_reassigned(
-    body: list[mir.MirNode], param_names: set[str]
+    body: list[mir.MirNode], param_names: set[str], mutating_names: frozenset[str] = _BUILTIN_MUTATING_METHODS
 ) -> tuple[set[str], set[str]]:
     """Return two sets: (var_params, mut_params).
 
     var_params: params that are scalar-reassigned (need `var` prefix).
     mut_params: params that are subscript-assigned (need `mut` prefix).
     """
+    # `self` has its own separate, correct handling: `out self` for
+    # __init__ (emit.py), `mut self` when the body mutates self (also
+    # emit.py's _mutates_self). It must never be a candidate here --
+    # before mutating_names included user-defined methods, a body calling
+    # a *builtin*-named mutating method directly on `self` (rare) was the
+    # only way to trigger this; now that it includes every user method
+    # that mutates self too, an __init__ body that calls a self-mutating
+    # setter (`self.SetXYZ(...)`) does it constantly. Treating `self` as
+    # an ordinary var/mut-param candidate then baked a stray "var "/"mut "
+    # prefix straight into the *parameter name string* here, which
+    # _emit_fn's own `n == "self"` special-case check (by then comparing
+    # against "var self", not "self") no longer matched -- producing the
+    # nonsensical, real-compiler-rejected `def __init__(var self: T, ...)`.
+    param_names = param_names - {"self"}
     var_out: set[str] = set()
     mut_out: set[str] = set()
-
-    _MUTATING = {"append", "push_back", "emplace_back", "clear", "pop_back", "resize"}
 
     def _param_of(node):
         return node.name if isinstance(node, mir.MirName) and node.name in param_names else None
@@ -501,9 +615,19 @@ def _params_reassigned(
                 and n.obj.name in param_names
             ):
                 mut_out.add(n.obj.name)
-            # in-place mutation via call: `v.append(x)` / `sort(v.begin(),..)` on a
-            # by-value param -> needs an owned `var` (also accepts literal args).
-            elif isinstance(n, mir.MirMethodCall) and n.method in _MUTATING and _param_of(n.receiver):
+            # In-place mutation via call: `v.append(x)` (an STL builtin) or
+            # `theCoord.Add(x)` (a user-defined method whose own body
+            # mutates self, per the closure above) on a param -> needs an
+            # owned `var` to allow the call at all. This is a compile-only
+            # approximation, same as the plain-reassignment case just
+            # above: Mojo's `var` gives a *local* mutable copy regardless
+            # of whether the original C++ parameter was pass-by-value or
+            # pass-by-reference, so a reference out-parameter's mutation
+            # won't actually propagate back to the caller in the emitted
+            # target -- accepted here since fully modeling C++ reference
+            # parameters isn't; the alternative is refusing to compile at
+            # all rather than compiling with a narrower behavioral gap.
+            elif isinstance(n, mir.MirMethodCall) and n.method in mutating_names and _param_of(n.receiver):
                 var_out.add(_param_of(n.receiver))
             elif (isinstance(n, mir.MirCall) and n.func == "sort" and n.args
                   and isinstance(n.args[0], mir.MirMethodCall)

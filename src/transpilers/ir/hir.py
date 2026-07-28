@@ -59,6 +59,10 @@ class HirFunction(HirNode):
     params: list["HirParam"]
     return_annotation: str | None
     body: list[HirNode]
+    # True for a C++ `static` method: no implicit `self`/`this`, callable
+    # via `ClassName::method(...)` with no receiver instance. `params`
+    # holds only the explicit parameters in this case (no injected `self`).
+    is_static: bool = False
 
 
 @dataclass

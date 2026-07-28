@@ -11,7 +11,7 @@
 // Usage:
 //     TRANSPILERS_CPP_PREAMBLE_FILE=docs/occt_gp_preamble.hpp \
 //         transpile gp_Pnt.cxx --source cpp --target mojo \
-//         -I path/to/occt/src/FoundationClasses/TKMath/gp --verify
+//         -I path/to/occt/src/FoundationClasses/TKMath/gp --include-impls --verify
 //
 // DEFINE_STANDARD_ALLOC is OCCT's custom-allocator operator new/delete
 // macro (memory-pool bookkeeping) -- semantically irrelevant to a target
@@ -32,6 +32,22 @@ typedef unsigned int Standard_ExtCharacter;
 // geometry -- opaque is enough since we don't attempt to transpile those.
 class Standard_OStream {};
 class Standard_SStream {};
+// Same rationale: a different OCCT module's string type and dump-parsing
+// helper, both only ever referenced inside InitFromJson bodies (see the
+// OCCT_DUMP_*/OCCT_INIT_VECTOR_CLASS no-op macros below for the rest of
+// that surface). A trivial stub is enough for these call sites to
+// type-check; the values are never used for anything real downstream.
+class TCollection_AsciiString
+{
+public:
+  TCollection_AsciiString() {}
+  TCollection_AsciiString(Standard_CString) {}
+};
+class Standard_Dump
+{
+public:
+  static TCollection_AsciiString Text(const Standard_SStream&) { return TCollection_AsciiString(); }
+};
 
 // Runtime-assertion macros (raise a C++ exception if CONDITION holds).
 // Upstream OCCT itself already expands these to nothing in a release
@@ -45,11 +61,6 @@ class Standard_SStream {};
 #define Standard_NullValue_Raise_if(CONDITION, MESSAGE)
 #define Standard_NoSuchObject_Raise_if(CONDITION, MESSAGE)
 #define Standard_DivideByZero_Raise_if(CONDITION, MESSAGE)
-
-// Real functions (small tolerance constants); the exact values don't
-// matter for transpilation, only that they type-check.
-constexpr double RealSmall() { return 1e-16; }
-constexpr double Epsilon(double) { return 1e-16; }
 
 // `DEFINE_STANDARD_EXCEPTION(Name, Base)` is OCCT's macro for generating an
 // exception class's full boilerplate (constructors, RTTI registration,
@@ -72,16 +83,18 @@ constexpr double Epsilon(double) { return 1e-16; }
 // macro name by hand as new ones are inlined.
 #define No_Exception
 
-// `Precision.hxx` (a different OCCT module) provides tolerance constants
-// used by-value throughout `gp`; the real values are the canonical OCCT
-// defaults (see TKMath/Precision/Precision.cxx) since these DO affect
-// behavioral verification of the transpiled arithmetic, unlike the
-// don't-care tolerance stubs above.
-class Precision
+// The `_Raise_if` macros above cover conditionally-thrown exceptions;
+// gp's .cxx implementation files (pulled in via --include-impls) also
+// throw a couple of these directly and unconditionally on a genuine error
+// path (e.g. `gp_GTrsf::SetForm` on a null determinant) rather than
+// through a Raise_if macro, so the type still needs to exist even though
+// exceptions themselves are out of scope. A constructor accepting the
+// same message argument these call sites pass is enough for `throw
+// Standard_ConstructionError("...")` to type-check.
+class Standard_ConstructionError
 {
 public:
-  static constexpr double Confusion() { return 1e-7; }
-  static constexpr double Angular() { return 1e-12; }
+  Standard_ConstructionError(Standard_CString) {}
 };
 
 // `OCCT_DUMP_VECTOR_CLASS(stream, name, n, ...)` formats a DumpJson() body,
@@ -95,6 +108,12 @@ public:
 // stubbing themselves.
 #define OCCT_DUMP_VECTOR_CLASS(...)
 #define OCCT_INIT_VECTOR_CLASS(...)
+#define OCCT_DUMP_FIELD_VALUE_NUMERICAL(...)
+#define OCCT_DUMP_CLASS_BEGIN(...)
+#define OCCT_DUMP_FIELD_VALUES_DUMPED(...)
+#define OCCT_DUMP_BASE_CLASS(...)
+#define OCCT_INIT_FIELD_VALUE_INTEGER(...)
+#define OCCT_INIT_FIELD_VALUE_REAL(...)
 
 // Method-template converter to NCollection's (separate-module) 4x4 matrix
 // type (`gp_Trsf::GetMat4`); opaque is enough since we never call it or
@@ -102,3 +121,34 @@ public:
 // parse -- same rationale as the Mojo backend's auto-emitted foreign-struct
 // placeholders (see docs/topologic_migration.md).
 template <typename T> class NCollection_Mat4 {};
+
+// === TRANSPILERS: REAL PREAMBLE BELOW ===
+// Everything above this marker is parse-only scaffolding (opaque stubs,
+// typedefs, no-op macros) that must never itself appear in the emitted
+// target -- see core.py's _PREAMBLE_REAL_MARKER. Everything below it is a
+// small set of real, correct helpers that gp's real headers/impls actually
+// call at real call sites (not just inside a now-no-op macro), so it has
+// to be converted and emitted like ordinary user code, or every one of
+// those call sites is "use of unknown declaration" in the output despite
+// parsing and type-checking fine.
+
+// Small tolerance/parity helpers, real bodies (the exact tolerance values
+// don't affect whether this transpiles, only whether a downstream
+// behavioral comparison against real OCCT would match).
+constexpr double RealSmall() { return 1e-16; }
+constexpr double Epsilon(double) { return 1e-16; }
+constexpr bool IsOdd(int theValue) { return (theValue % 2) != 0; }
+constexpr bool IsEven(int theValue) { return (theValue % 2) == 0; }
+
+// `Precision.hxx` (a different OCCT module) provides tolerance constants
+// used by-value throughout `gp`, always via a qualified static call
+// (`Precision::Angular()`) -- the real values are the canonical OCCT
+// defaults (see TKMath/Precision/Precision.cxx) since these DO affect
+// behavioral verification of the transpiled arithmetic, unlike the
+// don't-care tolerance helpers above.
+class Precision
+{
+public:
+  static constexpr double Confusion() { return 1e-7; }
+  static constexpr double Angular() { return 1e-12; }
+};

@@ -110,6 +110,13 @@ def _mutates_self(nodes: object, mutating_names: frozenset[str]) -> bool:
         return True
     if isinstance(nodes, lir.MojoSubscriptAssign) and _touches_self(nodes.obj):
         return True
+    if isinstance(nodes, lir.MojoReassign) and nodes.name == "self":
+        # `self = expr` -- the "replace my whole value" idiom for a
+        # mutate-via-copy-assign method (C++'s `(*this) = Multiplied(...);`,
+        # see `_is_this_deref` in the C++ frontend). Reassigning `self`
+        # outright is just as much a mutation as assigning one of its
+        # fields, and needs the same `mut self`.
+        return True
     if (isinstance(nodes, lir.MojoMethodCall) and nodes.method in mutating_names
             and _touches_self(nodes.receiver)):
         return True
@@ -162,7 +169,8 @@ def _emit_fn(fn: lir.MojoFn, mutating_names: frozenset[str], *, depth: int = 0) 
     )
     ret = f" -> {fn.return_type}" if fn.return_type != "None" else ""
     raises = " raises" if getattr(fn, "raises", False) else ""
-    header = f"{indent}def {_safe(fn.name)}({params}){raises}{ret}:"
+    decorator = f"{indent}@staticmethod\n" if getattr(fn, "is_static", False) else ""
+    header = f"{decorator}{indent}def {_safe(fn.name)}({params}){raises}{ret}:"
     body = _emit_block(fn.body, depth + 1) or (indent + INDENT + "pass")
     return f"{header}\n{body}"
 

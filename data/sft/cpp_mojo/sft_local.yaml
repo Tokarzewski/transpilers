@@ -19,7 +19,7 @@ lora_target: all
 dataset_dir: /home/bart/github/transpilers/data/sft/cpp_mojo
 dataset: mojo_acquisition,cpp_mojo_translation
 template: qwen
-cutoff_len: 4096
+cutoff_len: 2048
 overwrite_cache: true
 preprocessing_num_workers: 8
 
@@ -32,8 +32,8 @@ overwrite_output_dir: true
 report_to: tensorboard
 
 ### train
-per_device_train_batch_size: 2
-gradient_accumulation_steps: 4
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 8
 gradient_checkpointing: true
 learning_rate: 1.5e-4
 num_train_epochs: 2.0
@@ -41,6 +41,3 @@ lr_scheduler_type: cosine
 warmup_ratio: 0.05
 bf16: true
 ddp_timeout: 180000000
-
-### eval
-do_eval: false

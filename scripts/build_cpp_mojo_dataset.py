@@ -54,7 +54,7 @@ PREAMBLE_FILE = REPO / "scripts" / "ep_preamble.h"
 # MODULAR_HOME set so we never run `pixi run` (which rewrites that repo's lock).
 # Override with TRANSPILERS_EPMOJO when the repo lives elsewhere.
 EPMOJO = Path(os.environ.get("TRANSPILERS_EPMOJO",
-                             "/home/bart/Github/energyplus-mojo/.pixi/envs/default"))
+                             "/home/bart/github/EnergyPlusMojo/.pixi/envs/default"))
 MOJO_BIN = EPMOJO / "bin" / "mojo"
 MODULAR_HOME = EPMOJO / "share" / "max"
 

@@ -13,7 +13,7 @@ import json, os, re
 from pathlib import Path
 
 EP_CPP = Path(os.environ.get("EP_SRC", "/home/bart/Github/EnergyPlus/src/EnergyPlus"))
-EP_MOJO = Path(os.environ.get("EP_MOJO_REPO", "/home/bart/Github/energyplus-mojo"))
+EP_MOJO = Path(os.environ.get("EP_MOJO_REPO", "/home/bart/github/EnergyPlusMojo"))
 TRANSP = Path(__file__).resolve().parents[2]  # scripts/rag/<this file> -> repo root
 OUT = TRANSP / "data/rag"; OUT.mkdir(parents=True, exist_ok=True)
 

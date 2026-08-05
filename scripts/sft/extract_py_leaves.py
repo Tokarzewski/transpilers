@@ -107,12 +107,12 @@ def _default_ep() -> Path:
     if env:
         return Path(env)
     for cand in (
-        "/home/bart/Github/energyplus-mojo/src/energyplus_mojo",
+        "/home/bart/github/EnergyPlusMojo/src/energyplus_mojo",
         "/mnt/c/Github/energyplus-mojo/src/energyplus_mojo",
     ):
         if Path(cand).is_dir():
             return Path(cand)
-    return Path("/home/bart/Github/energyplus-mojo/src/energyplus_mojo")
+    return Path("/home/bart/github/EnergyPlusMojo/src/energyplus_mojo")
 
 
 def _default_out() -> Path:

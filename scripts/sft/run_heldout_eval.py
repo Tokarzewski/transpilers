@@ -22,7 +22,7 @@ REPO = Path(__file__).resolve().parents[2]
 HELDOUT = REPO / "data/sft/codepivot/heldout_eval.jsonl"
 ENDPOINT = "http://127.0.0.1:8081/v1/chat/completions"
 
-EPMOJO = "/home/bart/Github/energyplus-mojo/.pixi/envs/default"
+EPMOJO = "/home/bart/github/EnergyPlusMojo/.pixi/envs/default"
 MOJO_BIN = f"{EPMOJO}/bin/mojo"
 MOJO_ENV = dict(os.environ, MODULAR_HOME=f"{EPMOJO}/share/max",
                 PATH="/usr/bin:/bin:" + f"{EPMOJO}/bin")

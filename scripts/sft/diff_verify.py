@@ -17,7 +17,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 OUT = Path(os.environ.get("DIFF_OUT", str(REPO / "data/sft/diverse/verified.jsonl")))
-EPMOJO = "/home/bart/Github/energyplus-mojo/.pixi/envs/default"
+EPMOJO = "/home/bart/github/EnergyPlusMojo/.pixi/envs/default"
 MOJO_BIN = f"{EPMOJO}/bin/mojo"
 # system linker in front (handles Python interop too) + MODULAR_HOME
 MOJO_ENV = dict(os.environ, MODULAR_HOME=f"{EPMOJO}/share/max",

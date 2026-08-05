@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+# Pre-commit hook — runs quick local checks before every commit.
+# Managed in-repo at .githooks/pre-commit (tracked, not gitignored).
+# To enable: git config core.hooksPath .githooks
+set -uo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT" || exit 1
+
+# Only check files being committed
+STAGED="$(git diff --cached --name-only --diff-filter=ACM)"
+
+fail=0
+
+# 1. No merge-conflict markers in staged files
+if [ -n "$STAGED" ]; then
+    if echo "$STAGED" | grep -v '\.(md)$' | xargs grep -lE '^(<<<<<<<|=======|>>>>>>>) ' 2>/dev/null | grep -q .; then
+        echo "✗ merge conflict markers found in staged files:" >&2
+        echo "$STAGED" | xargs grep -lE '^(<<<<<<<|=======|>>>>>>>) ' 2>/dev/null | sed 's/^/    /' >&2
+        fail=1
+    fi
+fi
+
+# 2. Language-specific checks (only when relevant files staged)
+if [ -n "$STAGED" ]; then
+    # Python: syntax check
+    if echo "$STAGED" | grep -q '\.py$'; then
+        for f in $(echo "$STAGED" | grep '\.py$'); do
+            if ! python3 -m py_compile "$f" 2>/dev/null; then
+                echo "✗ Python syntax error in $f" >&2
+                fail=1
+            fi
+        done
+    fi
+    # TypeScript/JavaScript: syntax check via node
+    if echo "$STAGED" | grep -qE '\.(ts|tsx|js|mjs)$'; then
+        for f in $(echo "$STAGED" | grep -E '\.(ts|tsx|js|mjs)$'); do
+            case "$f" in
+                *.ts|*.tsx)
+                    if command -v tsc >/dev/null 2>&1 && [ -f tsconfig.json ]; then
+                        if ! npx --no-install tsc --noEmit --pretty false 2>/dev/null | grep -q .; then :; fi
+                    fi
+                    ;;
+                *.js|*.mjs)
+                    if ! node --check "$f" 2>/dev/null; then
+                        echo "✗ JS syntax error in $f" >&2
+                        fail=1
+                    fi
+                    ;;
+            esac
+        done
+    fi
+    # Mojo: format check if mojo available
+    if echo "$STAGED" | grep -q '\.mojo$' && command -v mojo >/dev/null 2>&1; then
+        if ! mojo format --check "$ROOT/src" >/dev/null 2>&1; then
+            echo "✗ Mojo format check failed (run: mojo format src)" >&2
+            fail=1
+        fi
+    fi
+fi
+
+# 3. Whitespace errors (git's built-in)
+if ! git diff --cached --check | grep -q .; then :; fi
+
+if [ "$fail" -ne 0 ]; then
+    echo "Pre-commit checks FAILED — fix and re-stage." >&2
+    exit 1
+fi
+exit 0

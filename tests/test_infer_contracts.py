@@ -39,10 +39,7 @@ def test_function_calling_only_pure_arithmetic_is_pure():
 
 
 def test_function_calling_unknown_external_is_impure():
-    src = (
-        "def caller(x: int) -> int:\n"
-        "    return unknown_external(x)\n"
-    )
+    src = "def caller(x: int) -> int:\n    return unknown_external(x)\n"
     purity = _contracts(src)
     assert purity["caller"] is False
 
@@ -64,9 +61,6 @@ def test_transitive_purity_propagates_through_call_chain():
 
 
 def test_method_call_makes_function_impure():
-    src = (
-        "def mutate(xs: list) -> None:\n"
-        "    xs.append(1)\n"
-    )
+    src = "def mutate(xs: list) -> None:\n    xs.append(1)\n"
     purity = _contracts(src)
     assert purity["mutate"] is False

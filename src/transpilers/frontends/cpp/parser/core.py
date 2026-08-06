@@ -14,6 +14,7 @@ refuse rather than emit broken code.
 Operator extraction uses tokens (not libclang's BinaryOperator extension), so
 this works against any reasonably recent libclang.
 """
+
 from __future__ import annotations
 
 import os as _os
@@ -35,16 +36,36 @@ CursorKind = ci.CursorKind
 
 _TypeKind = ci.TypeKind
 _INTEGRAL_KINDS = frozenset(
-    getattr(_TypeKind, k) for k in (
-        "BOOL", "CHAR_U", "UCHAR", "CHAR16", "CHAR32", "USHORT", "UINT",
-        "ULONG", "ULONGLONG", "UINT128", "CHAR_S", "SCHAR", "WCHAR",
-        "SHORT", "INT", "LONG", "LONGLONG", "INT128", "ENUM",
-    ) if getattr(_TypeKind, k, None) is not None
-)
-_FLOATING_KINDS = frozenset(
-    getattr(_TypeKind, k) for k in ("FLOAT", "DOUBLE", "LONGDOUBLE", "FLOAT128")
+    getattr(_TypeKind, k)
+    for k in (
+        "BOOL",
+        "CHAR_U",
+        "UCHAR",
+        "CHAR16",
+        "CHAR32",
+        "USHORT",
+        "UINT",
+        "ULONG",
+        "ULONGLONG",
+        "UINT128",
+        "CHAR_S",
+        "SCHAR",
+        "WCHAR",
+        "SHORT",
+        "INT",
+        "LONG",
+        "LONGLONG",
+        "INT128",
+        "ENUM",
+    )
     if getattr(_TypeKind, k, None) is not None
 )
+_FLOATING_KINDS = frozenset(
+    getattr(_TypeKind, k)
+    for k in ("FLOAT", "DOUBLE", "LONGDOUBLE", "FLOAT128")
+    if getattr(_TypeKind, k, None) is not None
+)
+
 
 def _is_integral_type(t) -> bool:
     try:
@@ -52,11 +73,13 @@ def _is_integral_type(t) -> bool:
     except Exception:
         return False
 
+
 def _is_floating_type(t) -> bool:
     try:
         return t.get_canonical().kind in _FLOATING_KINDS
     except Exception:
         return False
+
 
 def _operand_is_floating(cursor) -> bool:
     # clang inserts implicit-cast UNEXPOSED/PAREN wrappers whose type already
@@ -74,17 +97,22 @@ def _operand_is_floating(cursor) -> bool:
         cur = kids[-1]
     return _is_floating_type(cur.type)
 
+
 _POSTFIX_EFFECT_STACK: list[list["hir.HirNode"]] = []
+
 
 def _push_postfix_frame() -> None:
     _POSTFIX_EFFECT_STACK.append([])
 
+
 def _pop_postfix_frame() -> "list[hir.HirNode]":
     return _POSTFIX_EFFECT_STACK.pop() if _POSTFIX_EFFECT_STACK else []
+
 
 def _record_postfix_effect(node: "hir.HirNode") -> None:
     if _POSTFIX_EFFECT_STACK:
         _POSTFIX_EFFECT_STACK[-1].append(node)
+
 
 INPUT_NAME = "input.cpp"
 
@@ -175,8 +203,10 @@ def _split_project_preamble() -> tuple[str, str]:
 # harmless to skip.
 def _compute_user_first_line() -> int:
     from .preprocess import PARSER_PREAMBLE
+
     stub_part, _real_part = _split_project_preamble()
     return len((stub_part + PARSER_PREAMBLE).splitlines())
+
 
 _UNKNOWN_TYPE_NAME_RE = _re.compile(r"unknown type name '([A-Za-z_][A-Za-z0-9_]*)'")
 _SCREAMING_MACRO_RE = _re.compile(r"^[A-Z][A-Z0-9_]*$")
@@ -242,20 +272,28 @@ def parse_cpp(source: str):
     # downstream type inference treats these as plain int constants.
     predefs = [
         "-DNULL=0",
-        "-DINT_MIN=(-2147483647 - 1)", "-DINT_MAX=2147483647",
-        "-DLONG_MIN=(-9223372036854775807L - 1)", "-DLONG_MAX=9223372036854775807L",
-        "-DLLONG_MIN=(-9223372036854775807LL - 1)", "-DLLONG_MAX=9223372036854775807LL",
+        "-DINT_MIN=(-2147483647 - 1)",
+        "-DINT_MAX=2147483647",
+        "-DLONG_MIN=(-9223372036854775807L - 1)",
+        "-DLONG_MAX=9223372036854775807L",
+        "-DLLONG_MIN=(-9223372036854775807LL - 1)",
+        "-DLLONG_MAX=9223372036854775807LL",
         "-DUINT_MAX=4294967295U",
-        "-DEXIT_SUCCESS=0", "-DEXIT_FAILURE=1",
+        "-DEXIT_SUCCESS=0",
+        "-DEXIT_FAILURE=1",
         # <cmath>/math.h's M_* constants are POSIX, not standard C++, but
         # ubiquitous in real-world math-heavy code (graphics, CAD, physics)
         # that assumes a POSIX libm rather than including them explicitly.
-        "-DM_PI=3.14159265358979323846", "-DM_PI_2=1.57079632679489661923",
-        "-DM_PI_4=0.78539816339744830962", "-DM_2_PI=0.63661977236758134308",
-        "-DM_E=2.71828182845904523536", "-DM_SQRT2=1.41421356237309504880",
+        "-DM_PI=3.14159265358979323846",
+        "-DM_PI_2=1.57079632679489661923",
+        "-DM_PI_4=0.78539816339744830962",
+        "-DM_2_PI=0.63661977236758134308",
+        "-DM_E=2.71828182845904523536",
+        "-DM_SQRT2=1.41421356237309504880",
         "-DM_SQRT1_2=0.70710678118654752440",
         # <cfloat>/float.h, same rationale as the M_* constants above.
-        "-DDBL_EPSILON=2.2204460492503131e-16", "-DFLT_EPSILON=1.19209290e-7F",
+        "-DDBL_EPSILON=2.2204460492503131e-16",
+        "-DFLT_EPSILON=1.19209290e-7F",
     ]
     triple_args = []
     triple = _host_triple()
@@ -274,7 +312,11 @@ def parse_cpp(source: str):
     # the first 20, so a file needing 5 distinct macro fixes could get stuck
     # rediscovering the same one or two forever, and _check_diagnostics's
     # final error report reflects an arbitrary prefix, not the real picture.
-    parse_args = ["-std=c++20", "-x", "c++", "-nostdinc++", "-ferror-limit=0"] + triple_args + predefs
+    parse_args = (
+        ["-std=c++20", "-x", "c++", "-nostdinc++", "-ferror-limit=0"]
+        + triple_args
+        + predefs
+    )
     # Project-specific declarations (EnergyPlus-style Real64) layer on
     # top of the parser preamble from preprocess_cpp. Both are no-ops
     # when empty. Must come BEFORE the user source (declare-before-use --
@@ -333,7 +375,6 @@ def _parse_cpp_legacy(source: str) -> hir.HirModule:
     return parse_cpp(source)[0]
 
 
-
 def _register_struct_names(cursors) -> None:
     for c in cursors:
         if not _from_input(c):
@@ -358,7 +399,10 @@ def _convert_top_level(c: ci.Cursor, body: list[hir.HirNode]) -> None:
     if c.kind == CursorKind.FUNCTION_DECL and c.is_definition():
         body.append(_set_loc(c, _convert_function(c)))
         return
-    if c.kind in (CursorKind.CXX_METHOD, CursorKind.CONSTRUCTOR, CursorKind.DESTRUCTOR) and c.is_default_method():
+    if (
+        c.kind in (CursorKind.CXX_METHOD, CursorKind.CONSTRUCTOR, CursorKind.DESTRUCTOR)
+        and c.is_default_method()
+    ):
         # `= default` (in-class or, rarer, out-of-line `Class::Class(...) =
         # default;`): no explicit body to convert -- see the identical skip
         # in _convert_class's in-class handling for why this can't just be
@@ -461,7 +505,7 @@ def _convert_top_level(c: ci.Cursor, body: list[hir.HirNode]) -> None:
         CursorKind.USING_DIRECTIVE,
         CursorKind.USING_DECLARATION,
         CursorKind.TYPEDEF_DECL,
-        CursorKind.TYPE_ALIAS_DECL,      # `using Real64 = double;`
+        CursorKind.TYPE_ALIAS_DECL,  # `using Real64 = double;`
         # The parser preamble declares several `template <...> class X {}`
         # shadow declarations for the `std::` namespace. These have
         # `CLASS_TEMPLATE` / `FUNCTION_TEMPLATE` kinds; we want to skip
@@ -476,6 +520,7 @@ def _convert_top_level(c: ci.Cursor, body: list[hir.HirNode]) -> None:
         # libclang type canonicalization (`Real64` -> `double` -> Float64).
         return
     raise UnsupportedConstruct(f"top-level {c.kind.name}")
+
 
 def _convert_enum(cursor: ci.Cursor) -> list[hir.HirNode]:
     """C-style `enum { A = 0, B = 1 }` → one module-level int constant per
@@ -513,13 +558,25 @@ def _convert_class(cursor: ci.Cursor) -> hir.HirStruct:
         if c.kind == ci.CursorKind.FIELD_DECL:
             fields.append(hir.HirParam(name=c.spelling, annotation=_type_text(c.type)))
             continue
-        if c.kind == ci.CursorKind.CXX_METHOD and c.is_definition() and not c.is_default_method():
+        if (
+            c.kind == ci.CursorKind.CXX_METHOD
+            and c.is_definition()
+            and not c.is_default_method()
+        ):
             methods.append(_convert_method(c, struct_name=name))
             continue
-        if c.kind == ci.CursorKind.CONSTRUCTOR and c.is_definition() and not c.is_default_method():
+        if (
+            c.kind == ci.CursorKind.CONSTRUCTOR
+            and c.is_definition()
+            and not c.is_default_method()
+        ):
             methods.append(_convert_constructor(c, struct_name=name))
             continue
-        if c.kind == ci.CursorKind.CONSTRUCTOR and c.is_default_method() and c.is_default_constructor():
+        if (
+            c.kind == ci.CursorKind.CONSTRUCTOR
+            and c.is_default_method()
+            and c.is_default_constructor()
+        ):
             # `gp_Vec() = default;` (or the implicit compiler-generated
             # equivalent) alongside other real, explicit constructors on the
             # same class (e.g. gp_Vec also declares `gp_Vec(double, double,
@@ -535,7 +592,11 @@ def _convert_class(cursor: ci.Cursor) -> hir.HirStruct:
             # *other* constructor ends up defined on this same class.
             has_defaulted_default_ctor = True
             continue
-        if c.kind in (ci.CursorKind.CXX_METHOD, ci.CursorKind.CONSTRUCTOR, ci.CursorKind.DESTRUCTOR):
+        if c.kind in (
+            ci.CursorKind.CXX_METHOD,
+            ci.CursorKind.CONSTRUCTOR,
+            ci.CursorKind.DESTRUCTOR,
+        ):
             # Declared-but-not-defined methods/ctors/dtors, and other
             # `= default` ones (no explicit body to convert -- e.g. `Dir&
             # operator=(const Dir&) = default;`, extremely common on
@@ -545,7 +606,9 @@ def _convert_class(cursor: ci.Cursor) -> hir.HirStruct:
             # it above too, this branch would never even see it.
             continue
         if c.kind == ci.CursorKind.CXX_BASE_SPECIFIER:
-            raise UnsupportedConstruct(f"C++ inheritance for class {name!r} not yet supported")
+            raise UnsupportedConstruct(
+                f"C++ inheritance for class {name!r} not yet supported"
+            )
         if c.kind == ci.CursorKind.FRIEND_DECL:
             # `friend class X;` / `friend void f(...);` only grants another
             # class/function access to this one's private members -- a
@@ -592,7 +655,9 @@ def _default_value_for_annotation(annotation: str) -> hir.HirNode:
     return hir.HirIntLiteral(value=0)
 
 
-def _synthesized_default_ctor(fields: list[hir.HirParam], *, struct_name: str) -> hir.HirFunction:
+def _synthesized_default_ctor(
+    fields: list[hir.HirParam], *, struct_name: str
+) -> hir.HirFunction:
     """A `__init__(out self):` that zero/value-initializes every field, for
     a class with an explicitly-defaulted (`= default`) 0-arg constructor
     alongside other real, explicit constructors. Mojo's `@fieldwise_init`
@@ -614,6 +679,7 @@ def _synthesized_default_ctor(fields: list[hir.HirParam], *, struct_name: str) -
         return_annotation="None",
         body=body,
     )
+
 
 def _param_name(cursor: ci.Cursor, index: int) -> str:
     """A PARM_DECL's identifier, or a synthesized placeholder if it has
@@ -639,7 +705,9 @@ def _convert_constructor(cursor: ci.Cursor, *, struct_name: str) -> hir.HirFunct
     while i < len(kids):
         c = kids[i]
         if c.kind == CursorKind.PARM_DECL:
-            params.append(hir.HirParam(name=_param_name(c, pidx), annotation=_type_text(c.type)))
+            params.append(
+                hir.HirParam(name=_param_name(c, pidx), annotation=_type_text(c.type))
+            )
             pidx += 1
         elif c.kind == CursorKind.MEMBER_REF and i + 1 < len(kids):
             field_inits.append(
@@ -667,12 +735,22 @@ def _convert_constructor(cursor: ci.Cursor, *, struct_name: str) -> hir.HirFunct
 # Note: `operator+` / `operator-` are spelling-identical for unary and binary
 # forms; we map to the binary dunder (the common case for member arithmetic).
 _OPERATOR_DUNDERS: dict[str, str] = {
-    "+": "__add__", "-": "__sub__", "*": "__mul__", "/": "__truediv__",
+    "+": "__add__",
+    "-": "__sub__",
+    "*": "__mul__",
+    "/": "__truediv__",
     "%": "__mod__",
-    "==": "__eq__", "!=": "__ne__",
-    "<": "__lt__", ">": "__gt__", "<=": "__le__", ">=": "__ge__",
-    "&": "__and__", "|": "__or__", "^": "__xor__",
-    "<<": "__lshift__", ">>": "__rshift__",
+    "==": "__eq__",
+    "!=": "__ne__",
+    "<": "__lt__",
+    ">": "__gt__",
+    "<=": "__le__",
+    ">=": "__ge__",
+    "&": "__and__",
+    "|": "__or__",
+    "^": "__xor__",
+    "<<": "__lshift__",
+    ">>": "__rshift__",
     "[]": "__getitem__",
     "()": "__call__",
     # Compound-assignment overloads (`gp_Mat::operator+=`, common on any
@@ -680,15 +758,22 @@ _OPERATOR_DUNDERS: dict[str, str] = {
     # this table has the same failure mode operator() did before it was
     # added: the literal invalid identifier `operator+=` gets emitted
     # instead of the target's dunder.
-    "+=": "__iadd__", "-=": "__isub__", "*=": "__imul__", "/=": "__itruediv__",
+    "+=": "__iadd__",
+    "-=": "__isub__",
+    "*=": "__imul__",
+    "/=": "__itruediv__",
     "%=": "__imod__",
-    "&=": "__iand__", "|=": "__ior__", "^=": "__ixor__",
-    "<<=": "__ilshift__", ">>=": "__irshift__",
+    "&=": "__iand__",
+    "|=": "__ior__",
+    "^=": "__ixor__",
+    "<<=": "__ilshift__",
+    ">>=": "__irshift__",
 }
 
 
 _UNARY_OPERATOR_DUNDERS: dict[str, str] = {
-    "-": "__neg__", "+": "__pos__",
+    "-": "__neg__",
+    "+": "__pos__",
 }
 
 
@@ -709,12 +794,18 @@ def _operator_name(cursor: ci.Cursor, *, unary_param_count: int) -> str:
     """
     spelling = cursor.spelling
     if spelling.startswith("operator"):
-        token = spelling[len("operator"):].strip()
-        n_params = sum(1 for c in cursor.get_children() if c.kind == ci.CursorKind.PARM_DECL)
+        token = spelling[len("operator") :].strip()
+        n_params = sum(
+            1 for c in cursor.get_children() if c.kind == ci.CursorKind.PARM_DECL
+        )
         if token in ("-", "+") and n_params == unary_param_count:
             return _UNARY_OPERATOR_DUNDERS[token]
-        if (token == "()" and n_params >= 2
-                and cursor.result_type.kind in (ci.TypeKind.LVALUEREFERENCE, ci.TypeKind.RVALUEREFERENCE)):
+        if (
+            token == "()"
+            and n_params >= 2
+            and cursor.result_type.kind
+            in (ci.TypeKind.LVALUEREFERENCE, ci.TypeKind.RVALUEREFERENCE)
+        ):
             # A multi-arg call operator RETURNING A REFERENCE is never a
             # generic functor invocation (a functor/predicate -- e.g. a
             # `std::sort` comparator -- returns a plain value like `bool`,
@@ -752,12 +843,16 @@ def _convert_method(cursor: ci.Cursor, *, struct_name: str) -> hir.HirFunction:
     # rejects a bodyless-of-self instance method with "self argument must
     # be present"), and a real call site never has an instance to pass.
     is_static = cursor.is_static_method()
-    params: list[hir.HirParam] = [] if is_static else [hir.HirParam(name="self", annotation=struct_name)]
+    params: list[hir.HirParam] = (
+        [] if is_static else [hir.HirParam(name="self", annotation=struct_name)]
+    )
     body: list[hir.HirNode] = []
     pidx = 0
     for c in cursor.get_children():
         if c.kind == CursorKind.PARM_DECL:
-            params.append(hir.HirParam(name=_param_name(c, pidx), annotation=_type_text(c.type)))
+            params.append(
+                hir.HirParam(name=_param_name(c, pidx), annotation=_type_text(c.type))
+            )
             pidx += 1
         elif c.kind == CursorKind.COMPOUND_STMT:
             body = _convert_compound(c)
@@ -769,11 +864,13 @@ def _convert_method(cursor: ci.Cursor, *, struct_name: str) -> hir.HirFunction:
         is_static=is_static,
     )
 
+
 def _check_diagnostics(tu: ci.TranslationUnit) -> None:
     fatal = [d for d in tu.diagnostics if d.severity >= ci.Diagnostic.Error]
     if fatal:
         msgs = "\n".join(f"  {d.spelling}" for d in fatal[:5])
         raise UnsupportedConstruct(f"libclang parse errors:\n{msgs}")
+
 
 def _from_input(cursor: ci.Cursor) -> bool:
     """True for cursors that come from the user code (not the parser
@@ -829,13 +926,16 @@ def _set_loc(cursor: ci.Cursor, node: "hir.HirNode") -> "hir.HirNode":
             pass
     return node
 
+
 def _convert_function(cursor: ci.Cursor) -> hir.HirFunction:
     params: list[hir.HirParam] = []
     body: list[hir.HirNode] = []
     idx = 0
     for c in cursor.get_children():
         if c.kind == CursorKind.PARM_DECL:
-            params.append(hir.HirParam(name=_param_name(c, idx), annotation=_type_text(c.type)))
+            params.append(
+                hir.HirParam(name=_param_name(c, idx), annotation=_type_text(c.type))
+            )
             idx += 1
         elif c.kind == CursorKind.COMPOUND_STMT:
             body = _convert_compound(c)
@@ -864,11 +964,13 @@ def _convert_function(cursor: ci.Cursor) -> hir.HirFunction:
         body=body,
     )
 
+
 def _convert_compound(cursor: ci.Cursor) -> list[hir.HirNode]:
     out: list[hir.HirNode] = []
     for c in cursor.get_children():
         out.extend(_convert_stmt(c))
     return out
+
 
 def _cursor_snippet(cursor: ci.Cursor) -> str:
     """Best-effort original source text for a cursor, for a HirRaw hole.
@@ -901,6 +1003,7 @@ def _convert_stmt(cursor: ci.Cursor) -> list[hir.HirNode]:
     finally:
         effects = _pop_postfix_frame()
     return result + effects
+
 
 def _convert_stmt_inner(cursor: ci.Cursor) -> list[hir.HirNode]:
     kind = cursor.kind
@@ -967,7 +1070,12 @@ def _convert_stmt_inner(cursor: ci.Cursor) -> list[hir.HirNode]:
             return _convert_stmt_inner(kids[0])
     raise UnsupportedConstruct(f"stmt {kind.name}")
 
-_ARRAY_TYPE_KINDS = (ci.TypeKind.CONSTANTARRAY, ci.TypeKind.INCOMPLETEARRAY, ci.TypeKind.VARIABLEARRAY)
+
+_ARRAY_TYPE_KINDS = (
+    ci.TypeKind.CONSTANTARRAY,
+    ci.TypeKind.INCOMPLETEARRAY,
+    ci.TypeKind.VARIABLEARRAY,
+)
 
 
 def _default_array_value(t: ci.Type) -> hir.HirNode:
@@ -977,7 +1085,9 @@ def _default_array_value(t: ci.Type) -> hir.HirNode:
     no-initializer array handling."""
     if t.kind in _ARRAY_TYPE_KINDS:
         count = t.element_count if t.kind == ci.TypeKind.CONSTANTARRAY else 0
-        return hir.HirList(elements=[_default_array_value(t.element_type) for _ in range(count)])
+        return hir.HirList(
+            elements=[_default_array_value(t.element_type) for _ in range(count)]
+        )
     ann = _type_text(t)
     if ann in _KNOWN_STRUCT_NAMES:
         return hir.HirStructInit(name=ann, args=[])
@@ -1004,7 +1114,9 @@ def _convert_var_decl(cursor: ci.Cursor) -> hir.HirNode:
         # one, emitting e.g. `var mymatrix: List[List[Float64]] = 3`. Zero-
         # fill a nested list literal matching the array's real shape instead.
         return hir.HirAssign(
-            target=cursor.spelling, value=_default_array_value(cursor.type), annotation=annotation
+            target=cursor.spelling,
+            value=_default_array_value(cursor.type),
+            annotation=annotation,
         )
     kids = list(cursor.get_children())
     if annotation in _KNOWN_STRUCT_NAMES:
@@ -1019,11 +1131,14 @@ def _convert_var_decl(cursor: ci.Cursor) -> hir.HirNode:
             # call. An `auto`-typed var whose initializer is an expression that
             # *returns* the struct (operator call `a+b`, factory `makeVec()`) must
             # NOT be re-read as a constructor — convert it as an expression.
-            is_ctor = (ctor.kind == ci.CursorKind.INIT_LIST_EXPR
-                       or (ctor.kind == ci.CursorKind.CALL_EXPR
-                           and (ctor.spelling or "") == annotation))
+            is_ctor = ctor.kind == ci.CursorKind.INIT_LIST_EXPR or (
+                ctor.kind == ci.CursorKind.CALL_EXPR
+                and (ctor.spelling or "") == annotation
+            )
             if is_ctor:
-                real = [c for c in ctor.get_children() if c.kind != ci.CursorKind.TYPE_REF]
+                real = [
+                    c for c in ctor.get_children() if c.kind != ci.CursorKind.TYPE_REF
+                ]
                 # Copy/move ctor (`Mat aCopy = *this;` / `Mat aCopy(other);`):
                 # a single arg whose own type is this same struct is a
                 # whole-value copy, not a partial fieldwise init. Collapse to
@@ -1038,10 +1153,17 @@ def _convert_var_decl(cursor: ci.Cursor) -> hir.HirNode:
                 # constructors (no @fieldwise_init-synthesized one accepts a
                 # same-type argument).
                 if len(real) == 1:
-                    arg_ty = (real[0].type.spelling or "").replace("const ", "").rstrip("&").strip()
+                    arg_ty = (
+                        (real[0].type.spelling or "")
+                        .replace("const ", "")
+                        .rstrip("&")
+                        .strip()
+                    )
                     if arg_ty == annotation:
                         init = _convert_expr(real[0])
-                        return hir.HirAssign(target=cursor.spelling, value=init, annotation=annotation)
+                        return hir.HirAssign(
+                            target=cursor.spelling, value=init, annotation=annotation
+                        )
                 args: list[hir.HirNode] = []
                 for c in ctor.get_children():
                     if c.kind == ci.CursorKind.TYPE_REF:
@@ -1066,7 +1188,9 @@ def _convert_var_decl(cursor: ci.Cursor) -> hir.HirNode:
         annotation = None
     return hir.HirAssign(target=cursor.spelling, value=init, annotation=annotation)
 
+
 _KNOWN_STRUCT_NAMES: set[str] = set()
+
 
 def _convert_if(cursor: ci.Cursor) -> hir.HirNode:
     kids = list(cursor.get_children())
@@ -1079,6 +1203,7 @@ def _convert_if(cursor: ci.Cursor) -> hir.HirNode:
         orelse = _convert_stmt(kids[2])
     return hir.HirIf(test=cond, body=body, orelse=orelse)
 
+
 def _convert_while(cursor: ci.Cursor) -> hir.HirNode:
     kids = list(cursor.get_children())
     test_cursor = kids[0]
@@ -1087,20 +1212,28 @@ def _convert_while(cursor: ci.Cursor) -> hir.HirNode:
     # means "test t != 0 then decrement". Desugar to a clean form rather
     # than refusing (which #4 made the default for postfix in expr context).
     stripped = _strip_unexposed(test_cursor)
-    if stripped.kind == CursorKind.UNARY_OPERATOR and _unary_token(stripped) in ("--", "++"):
+    if stripped.kind == CursorKind.UNARY_OPERATOR and _unary_token(stripped) in (
+        "--",
+        "++",
+    ):
         op = _unary_token(stripped)
         inner_kids = list(stripped.get_children())
         if inner_kids and inner_kids[0].kind == CursorKind.DECL_REF_EXPR:
             name = inner_kids[0].spelling
-            cond = hir.HirCompare(op="!=", left=hir.HirName(name=name), right=hir.HirIntLiteral(value=0))
+            cond = hir.HirCompare(
+                op="!=", left=hir.HirName(name=name), right=hir.HirIntLiteral(value=0)
+            )
             step = "-" if op == "--" else "+"
             update = hir.HirAssign(
-                target=name, value=hir.HirIntLiteral(value=1),
-                annotation=None, augmented_op=step,
+                target=name,
+                value=hir.HirIntLiteral(value=1),
+                annotation=None,
+                augmented_op=step,
             )
             return hir.HirWhile(test=cond, body=[update, *body])
     cond = _convert_expr(test_cursor)
     return hir.HirWhile(test=cond, body=body)
+
 
 def _convert_switch(cursor: ci.Cursor) -> list[hir.HirNode]:
     """`switch (x) { case A: ...; break; case B: ...; ... default: ...; }`
@@ -1116,7 +1249,11 @@ def _convert_switch(cursor: ci.Cursor) -> list[hir.HirNode]:
     cases: list[tuple[hir.HirNode, list[hir.HirNode]]] = []
     default_body: list[hir.HirNode] = []
 
-    body_kids = list(body_cursor.get_children()) if body_cursor.kind == CursorKind.COMPOUND_STMT else [body_cursor]
+    body_kids = (
+        list(body_cursor.get_children())
+        if body_cursor.kind == CursorKind.COMPOUND_STMT
+        else [body_cursor]
+    )
     current_value: hir.HirNode | None = None
     current_body: list[hir.HirNode] = []
     is_default = False
@@ -1156,12 +1293,15 @@ def _convert_switch(cursor: ci.Cursor) -> list[hir.HirNode]:
     # Build nested if/elif/else from the cases.
     chain: list[hir.HirNode] = _strip_break(default_body)
     for value, body in reversed(cases):
-        chain = [hir.HirIf(
-            test=hir.HirCompare(op="==", left=test_expr, right=value),
-            body=_strip_break(body),
-            orelse=chain,
-        )]
+        chain = [
+            hir.HirIf(
+                test=hir.HirCompare(op="==", left=test_expr, right=value),
+                body=_strip_break(body),
+                orelse=chain,
+            )
+        ]
     return chain
+
 
 def _convert_for_range(cursor: ci.Cursor) -> list[hir.HirNode]:
     """`for (auto x : xs)` → indexed loop with x = xs[i] inside.
@@ -1175,15 +1315,20 @@ def _convert_for_range(cursor: ci.Cursor) -> list[hir.HirNode]:
     body_cursor = next((c for c in kids if c.kind == CursorKind.COMPOUND_STMT), None)
     # Iterable: first non-VAR_DECL, non-COMPOUND_STMT, non-NULL_STMT child.
     iter_cursor = next(
-        (c for c in kids
-         if c.kind not in (CursorKind.VAR_DECL, CursorKind.COMPOUND_STMT, CursorKind.NULL_STMT)),
+        (
+            c
+            for c in kids
+            if c.kind
+            not in (CursorKind.VAR_DECL, CursorKind.COMPOUND_STMT, CursorKind.NULL_STMT)
+        ),
         None,
     )
     # Single-statement body (no braces): the last child that isn't the loop
     # variable or the iterable.
     if body_cursor is None and iter_cursor is not None:
         candidates = [
-            c for c in kids
+            c
+            for c in kids
             if c.kind not in (CursorKind.VAR_DECL, CursorKind.NULL_STMT)
             and c is not iter_cursor
         ]
@@ -1210,11 +1355,15 @@ def _convert_for_range(cursor: ci.Cursor) -> list[hir.HirNode]:
         target=idx_name,
         iter=hir.HirCall(
             func="range",
-            args=[hir.HirIntLiteral(value=0), hir.HirCall(func="len", args=[iter_expr])],
+            args=[
+                hir.HirIntLiteral(value=0),
+                hir.HirCall(func="len", args=[iter_expr]),
+            ],
         ),
         body=[bind, *body],
     )
     return [loop]
+
 
 def _convert_for(cursor: ci.Cursor) -> list[hir.HirNode]:
     """C-style for desugars at the frontend: init; while(cond) { body; step; }."""
@@ -1238,12 +1387,17 @@ def _convert_for(cursor: ci.Cursor) -> list[hir.HirNode]:
     out: list[hir.HirNode] = []
     if init_part is not None:
         out.extend(_convert_stmt(init_part))
-    cond = _convert_expr(cond_part) if cond_part is not None else hir.HirBoolLiteral(value=True)
+    cond = (
+        _convert_expr(cond_part)
+        if cond_part is not None
+        else hir.HirBoolLiteral(value=True)
+    )
     inner = _convert_stmt(body_node)
     if step_part is not None:
         inner.extend(_convert_stmt(step_part))
     out.append(hir.HirWhile(test=cond, body=inner))
     return out
+
 
 def _convert_expr_stmt(cursor: ci.Cursor) -> hir.HirNode:
     """Never-refuse expression conversion at a statement boundary.
@@ -1271,11 +1425,16 @@ def _convert_expr_stmt(cursor: ci.Cursor) -> hir.HirNode:
 # would still fail. Resolve these specific, well-known names to the value
 # we ourselves defined them as, rather than silently falling back to 0.
 _PREDEF_INT_MACROS: dict[str, int] = {
-    "NULL": 0, "EXIT_SUCCESS": 0, "EXIT_FAILURE": 1,
-    "INT_MIN": -2147483648, "INT_MAX": 2147483647,
+    "NULL": 0,
+    "EXIT_SUCCESS": 0,
+    "EXIT_FAILURE": 1,
+    "INT_MIN": -2147483648,
+    "INT_MAX": 2147483647,
     "UINT_MAX": 4294967295,
-    "LONG_MIN": -9223372036854775808, "LONG_MAX": 9223372036854775807,
-    "LLONG_MIN": -9223372036854775808, "LLONG_MAX": 9223372036854775807,
+    "LONG_MIN": -9223372036854775808,
+    "LONG_MAX": 9223372036854775807,
+    "LLONG_MIN": -9223372036854775808,
+    "LLONG_MAX": 9223372036854775807,
 }
 
 _PREDEF_FLOAT_MACROS: dict[str, float] = {
@@ -1330,7 +1489,14 @@ def _convert_expr(cursor: ci.Cursor) -> hir.HirNode:
         if len(spelling) >= 3 and spelling.startswith("'") and spelling.endswith("'"):
             inner = spelling[1:-1]
             # Common escapes only — the rest stay as their literal byte.
-            escape_map = {"\\n": 10, "\\t": 9, "\\r": 13, "\\0": 0, "\\'": 39, "\\\\": 92}
+            escape_map = {
+                "\\n": 10,
+                "\\t": 9,
+                "\\r": 13,
+                "\\0": 0,
+                "\\'": 39,
+                "\\\\": 92,
+            }
             if inner in escape_map:
                 return hir.HirIntLiteral(value=escape_map[inner])
             if len(inner) == 1:
@@ -1358,7 +1524,9 @@ def _convert_expr(cursor: ci.Cursor) -> hir.HirNode:
         # Inside a method body, libclang sometimes elides the implicit `this`;
         # in that case there's no child and we treat as a self-reference.
         if not kids:
-            return hir.HirFieldAccess(value=hir.HirName(name="self"), field=cursor.spelling)
+            return hir.HirFieldAccess(
+                value=hir.HirName(name="self"), field=cursor.spelling
+            )
         return hir.HirFieldAccess(value=_convert_expr(kids[0]), field=cursor.spelling)
     if kind == CursorKind.CXX_THIS_EXPR:
         # `this` → `self` in our HIR vocabulary; the method-conversion sets
@@ -1370,15 +1538,20 @@ def _convert_expr(cursor: ci.Cursor) -> hir.HirNode:
         # `arr[index]` — two children: the array expression and the index.
         kids = list(cursor.get_children())
         if len(kids) == 2:
-            return hir.HirSubscript(value=_convert_expr(kids[0]), index=_convert_expr(kids[1]))
+            return hir.HirSubscript(
+                value=_convert_expr(kids[0]), index=_convert_expr(kids[1])
+            )
     if kind == CursorKind.COMPOUND_ASSIGNMENT_OPERATOR:
         raise UnsupportedConstruct("compound assignment as expression")
     if kind in (CursorKind.GNU_NULL_EXPR, CursorKind.CXX_NULL_PTR_LITERAL_EXPR):
         # `NULL` / `nullptr` — lower as a zero literal. Lossy (no real null
         # type), but suffices for comparisons like `p == NULL`.
         return hir.HirIntLiteral(value=0)
-    if kind in (CursorKind.CSTYLE_CAST_EXPR, CursorKind.CXX_STATIC_CAST_EXPR,
-                CursorKind.CXX_FUNCTIONAL_CAST_EXPR):
+    if kind in (
+        CursorKind.CSTYLE_CAST_EXPR,
+        CursorKind.CXX_STATIC_CAST_EXPR,
+        CursorKind.CXX_FUNCTIONAL_CAST_EXPR,
+    ):
         # `(T)x` / `static_cast<T>(x)` / `T(x)`.
         #
         # A float->int cast in C truncates toward zero; dropping it would
@@ -1408,7 +1581,11 @@ def _convert_expr(cursor: ci.Cursor) -> hir.HirNode:
         if len(kids) == 3:
             return hir.HirCall(
                 func="__ternary__",
-                args=[_convert_expr(kids[0]), _convert_expr(kids[1]), _convert_expr(kids[2])],
+                args=[
+                    _convert_expr(kids[0]),
+                    _convert_expr(kids[1]),
+                    _convert_expr(kids[2]),
+                ],
             )
     if kind == CursorKind.INIT_LIST_EXPR:
         # `{1, 2, 3}` brace-init at expression position — emit as a list literal.
@@ -1447,6 +1624,7 @@ def _convert_expr(cursor: ci.Cursor) -> hir.HirNode:
         # parses. Lossy but matches our other I/O-strip behavior.
         return hir.HirIntLiteral(value=0)
     raise UnsupportedConstruct(f"expr {kind.name}")
+
 
 def _strip_paren_unexposed(cursor: ci.Cursor) -> ci.Cursor:
     while cursor.kind in (CursorKind.UNEXPOSED_EXPR, CursorKind.PAREN_EXPR):
@@ -1506,6 +1684,7 @@ def _convert_binop(cursor: ci.Cursor) -> hir.HirNode:
         return hir.HirBinOp(op=op, left=left, right=right)
     raise UnsupportedConstruct(f"binary op {op!r}")
 
+
 def _convert_assignment_stmt(cursor: ci.Cursor) -> hir.HirNode:
     """A BINARY_OPERATOR (or COMPOUND_ASSIGNMENT_OPERATOR) at statement position
     using `=` / `+=` / `-=` / etc. Field assignments (`obj.field = v`)
@@ -1523,7 +1702,10 @@ def _convert_assignment_stmt(cursor: ci.Cursor) -> hir.HirNode:
             value = rhs
         else:  # compound: obj.field op= v -> obj.field = obj.field op v
             value = hir.HirBinOp(
-                op=op[:-1], left=hir.HirFieldAccess(value=obj, field=lhs.spelling), right=rhs)
+                op=op[:-1],
+                left=hir.HirFieldAccess(value=obj, field=lhs.spelling),
+                right=rhs,
+            )
         return hir.HirFieldAssign(obj=obj, field=lhs.spelling, value=value)
     # Subscript assign, plain (`arr[i] = v`) or compound (`arr[i] += v`).
     # ARRAY_SUBSCRIPT for native arrays; CALL_EXPR for the std::vector operator[]
@@ -1544,9 +1726,15 @@ def _convert_assignment_stmt(cursor: ci.Cursor) -> hir.HirNode:
         # never-refuse hole) is more honest than reusing this 1-D
         # `(lk[0], lk[-1])` reduction, which would silently drop the row
         # index and emit a wrong single-index subscript assign.
-        lk = [c for c in lhs.get_children()
-              if c.kind not in (CursorKind.TYPE_REF, CursorKind.NAMESPACE_REF)
-              and not ((c.spelling or "").startswith("operator") and c.kind != CursorKind.CALL_EXPR)]
+        lk = [
+            c
+            for c in lhs.get_children()
+            if c.kind not in (CursorKind.TYPE_REF, CursorKind.NAMESPACE_REF)
+            and not (
+                (c.spelling or "").startswith("operator")
+                and c.kind != CursorKind.CALL_EXPR
+            )
+        ]
         if len(lk) >= 2:
             sub = (_convert_expr(lk[0]), _convert_expr(lk[-1]))
     if sub is not None:
@@ -1555,13 +1743,15 @@ def _convert_assignment_stmt(cursor: ci.Cursor) -> hir.HirNode:
             value = rhs
         else:  # compound: arr[i] op= v  ->  arr[i] = arr[i] op v
             value = hir.HirBinOp(
-                op=op[:-1], left=hir.HirSubscript(value=obj, index=index), right=rhs)
+                op=op[:-1], left=hir.HirSubscript(value=obj, index=index), right=rhs
+            )
         return hir.HirSubscriptAssign(obj=obj, index=index, value=value)
     target = _decl_name(lhs)
     if target is None:
         raise UnsupportedConstruct(f"assignment target {lhs.kind.name}")
     aug = None if op == "=" else op[:-1]
     return hir.HirAssign(target=target, value=rhs, annotation=None, augmented_op=aug)
+
 
 def _convert_unary_expr(cursor: ci.Cursor) -> hir.HirNode:
     op = _unary_token(cursor)
@@ -1587,22 +1777,31 @@ def _convert_unary_expr(cursor: ci.Cursor) -> hir.HirNode:
         operand = _convert_expr(kids[0])
         if target_name is not None:
             sign = "+" if op == "++" else "-"
-            _record_postfix_effect(hir.HirAssign(
-                target=target_name,
-                value=hir.HirIntLiteral(value=1),
-                annotation=None,
-                augmented_op=sign,
-            ))
+            _record_postfix_effect(
+                hir.HirAssign(
+                    target=target_name,
+                    value=hir.HirIntLiteral(value=1),
+                    annotation=None,
+                    augmented_op=sign,
+                )
+            )
             return operand
         # subscript postfix: `arr[i]++` / `m[k]++` -> defer `arr[i] = arr[i] + 1`
         if isinstance(operand, hir.HirSubscript):
             sign = "+" if op == "++" else "-"
-            _record_postfix_effect(hir.HirSubscriptAssign(
-                obj=operand.value, index=operand.index,
-                value=hir.HirBinOp(op=sign, left=operand, right=hir.HirIntLiteral(value=1))))
+            _record_postfix_effect(
+                hir.HirSubscriptAssign(
+                    obj=operand.value,
+                    index=operand.index,
+                    value=hir.HirBinOp(
+                        op=sign, left=operand, right=hir.HirIntLiteral(value=1)
+                    ),
+                )
+            )
             return operand
         raise UnsupportedConstruct(f"postfix {op!r} on complex expression")
     raise UnsupportedConstruct(f"unary op {op!r} as expression")
+
 
 def _convert_unary_stmt(cursor: ci.Cursor) -> hir.HirNode:
     """`i++` / `i--` as a statement."""
@@ -1623,24 +1822,43 @@ def _convert_unary_stmt(cursor: ci.Cursor) -> hir.HirNode:
     operand = _convert_expr(kids[0])
     if isinstance(operand, hir.HirSubscript):
         return hir.HirSubscriptAssign(
-            obj=operand.value, index=operand.index,
-            value=hir.HirBinOp(op=sign, left=operand, right=hir.HirIntLiteral(value=1)))
+            obj=operand.value,
+            index=operand.index,
+            value=hir.HirBinOp(op=sign, left=operand, right=hir.HirIntLiteral(value=1)),
+        )
     raise UnsupportedConstruct(f"++/-- on {kids[0].kind.name}")
+
 
 _TUPLE_CONSTRUCTORS = frozenset({"tuple", "pair", "make_pair", "make_tuple"})
 
 _LIST_CONSTRUCTORS = frozenset({"vector", "array", "deque", "list"})
 
-_OVERLOAD_BINOPS = frozenset({
-    "operator+", "operator-", "operator*", "operator/", "operator%",
-    "operator==", "operator!=", "operator<", "operator>", "operator<=",
-    "operator>=", "operator&&", "operator||",
-})
+_OVERLOAD_BINOPS = frozenset(
+    {
+        "operator+",
+        "operator-",
+        "operator*",
+        "operator/",
+        "operator%",
+        "operator==",
+        "operator!=",
+        "operator<",
+        "operator>",
+        "operator<=",
+        "operator>=",
+        "operator&&",
+        "operator||",
+    }
+)
 
 _OVERLOAD_AUGOPS = {
-    "operator+=": "+", "operator-=": "-", "operator*=": "*",
-    "operator/=": "/", "operator%=": "%",
+    "operator+=": "+",
+    "operator-=": "-",
+    "operator*=": "*",
+    "operator/=": "/",
+    "operator%=": "%",
 }
+
 
 def _lhs_as_subscript_or_name(lhs: ci.Cursor) -> hir.HirNode:
     """Convert an assignment LHS cursor to an expression for use in `return lhs`."""
@@ -1648,22 +1866,38 @@ def _lhs_as_subscript_or_name(lhs: ci.Cursor) -> hir.HirNode:
     if lhs.kind == CursorKind.ARRAY_SUBSCRIPT_EXPR:
         lk = list(lhs.get_children())
         if len(lk) == 2:
-            return hir.HirSubscript(value=_convert_expr(lk[0]), index=_convert_expr(lk[1]))
+            return hir.HirSubscript(
+                value=_convert_expr(lk[0]), index=_convert_expr(lk[1])
+            )
     if lhs.kind == CursorKind.CALL_EXPR:
         # operator[] overload: obj = first child, index = last meaningful arg
         lk = list(lhs.get_children())
         # Filter out TYPE_REF / operator-ref cursors; keep object + index
-        args = [c for c in lk if c.kind not in (CursorKind.TYPE_REF, CursorKind.NAMESPACE_REF)]
+        args = [
+            c
+            for c in lk
+            if c.kind not in (CursorKind.TYPE_REF, CursorKind.NAMESPACE_REF)
+        ]
         # First is typically the object; last meaningful arg is the index.
         # Filter the operator[] callee ref (any cursor kind) by spelling.
-        meaningful = [a for a in args if not ((a.spelling or "").startswith("operator") and a.kind != CursorKind.CALL_EXPR)]
+        meaningful = [
+            a
+            for a in args
+            if not (
+                (a.spelling or "").startswith("operator")
+                and a.kind != CursorKind.CALL_EXPR
+            )
+        ]
         if len(meaningful) >= 2:
-            return hir.HirSubscript(value=_convert_expr(meaningful[0]), index=_convert_expr(meaningful[-1]))
+            return hir.HirSubscript(
+                value=_convert_expr(meaningful[0]), index=_convert_expr(meaningful[-1])
+            )
     if lhs.kind == CursorKind.MEMBER_REF_EXPR:
         lk = list(lhs.get_children())
         obj = _convert_expr(lk[0]) if lk else hir.HirName(name="self")
         return hir.HirFieldAccess(value=obj, field=lhs.spelling)
     return _convert_expr(lhs)
+
 
 def _assign_to(target: hir.HirNode, value: hir.HirNode) -> hir.HirNode:
     """Build the right *Assign statement for a target expression shape
@@ -1697,11 +1931,17 @@ def _convert_std_swap_stmt(cursor: ci.Cursor) -> list[hir.HirNode] | None:
     if cursor.spelling != "swap":
         return None
     ref = cursor.referenced
-    if ref is None or ref.semantic_parent is None or ref.semantic_parent.spelling != "std":
+    if (
+        ref is None
+        or ref.semantic_parent is None
+        or ref.semantic_parent.spelling != "std"
+    ):
         return None
     kids = [
-        k for k in cursor.get_children()
-        if k.kind not in (CursorKind.NAMESPACE_REF, CursorKind.TYPE_REF, CursorKind.TEMPLATE_REF)
+        k
+        for k in cursor.get_children()
+        if k.kind
+        not in (CursorKind.NAMESPACE_REF, CursorKind.TYPE_REF, CursorKind.TEMPLATE_REF)
         and (k.spelling or "") != "swap"
     ]
     if len(kids) != 2:
@@ -1719,12 +1959,23 @@ def _convert_std_swap_stmt(cursor: ci.Cursor) -> list[hir.HirNode] | None:
 def _iter_index(node: "hir.HirNode"):
     """Interpret a vector iterator expr as (container, index): c.begin() -> (c,0),
     c.end() -> (c, len(c)), c.begin()+k -> (c, k). Returns None otherwise."""
-    if isinstance(node, hir.HirMethodCall) and node.method in ("begin", "end") and not node.args:
-        idx = hir.HirIntLiteral(value=0) if node.method == "begin" \
+    if (
+        isinstance(node, hir.HirMethodCall)
+        and node.method in ("begin", "end")
+        and not node.args
+    ):
+        idx = (
+            hir.HirIntLiteral(value=0)
+            if node.method == "begin"
             else hir.HirCall(func="len", args=[node.receiver])
+        )
         return (node.receiver, idx)
-    if (isinstance(node, hir.HirBinOp) and node.op == "+"
-            and isinstance(node.left, hir.HirMethodCall) and node.left.method == "begin"):
+    if (
+        isinstance(node, hir.HirBinOp)
+        and node.op == "+"
+        and isinstance(node.left, hir.HirMethodCall)
+        and node.left.method == "begin"
+    ):
         return (node.left.receiver, node.right)
     return None
 
@@ -1736,7 +1987,7 @@ def _convert_call(cursor: ci.Cursor) -> hir.HirNode:
     # kids [lhs, operator-ref, rhs]. Map to a real binop/compare so Mojo's struct
     # operator methods (__add__/__eq__/...) drive it.
     if cursor.spelling in _OVERLOAD_BINOPS:
-        op = cursor.spelling[len("operator"):]
+        op = cursor.spelling[len("operator") :]
         operands = [k for k in kids if (k.spelling or "") != cursor.spelling]
         if len(operands) == 2:
             lhs = _convert_expr(operands[0])
@@ -1744,7 +1995,9 @@ def _convert_call(cursor: ci.Cursor) -> hir.HirNode:
             if op in ("==", "!=", "<", ">", "<=", ">="):
                 return hir.HirCompare(op=op, left=lhs, right=rhs)
             if op in ("&&", "||"):
-                return hir.HirBoolOp(op="and" if op == "&&" else "or", left=lhs, right=rhs)
+                return hir.HirBoolOp(
+                    op="and" if op == "&&" else "or", left=lhs, right=rhs
+                )
             return hir.HirBinOp(op=op, left=lhs, right=rhs)
         # Unary form of the same token (1 operand after filtering, e.g.
         # `-vydir` calling a member `gp_Dir::operator-()` with no explicit
@@ -1774,16 +2027,25 @@ def _convert_call(cursor: ci.Cursor) -> hir.HirNode:
             aug = _OVERLOAD_AUGOPS.get(cursor.spelling)
             if lhs.kind == CursorKind.MEMBER_REF_EXPR:
                 lhs_kids = list(lhs.get_children())
-                obj = _convert_expr(lhs_kids[0]) if lhs_kids else hir.HirName(name="self")
+                obj = (
+                    _convert_expr(lhs_kids[0]) if lhs_kids else hir.HirName(name="self")
+                )
                 value = _convert_expr(rhs)
                 if aug is not None:
                     value = hir.HirBinOp(
-                        op=aug, left=hir.HirFieldAccess(value=obj, field=lhs.spelling), right=value)
+                        op=aug,
+                        left=hir.HirFieldAccess(value=obj, field=lhs.spelling),
+                        right=value,
+                    )
                 return hir.HirFieldAssign(obj=obj, field=lhs.spelling, value=value)
             target = _decl_name(lhs) or ("self" if _is_this_deref(lhs) else None)
             if target is not None:
-                return hir.HirAssign(target=target, value=_convert_expr(rhs),
-                                     annotation=None, augmented_op=aug)
+                return hir.HirAssign(
+                    target=target,
+                    value=_convert_expr(rhs),
+                    annotation=None,
+                    augmented_op=aug,
+                )
 
     # Struct constructor call `Vec2(a, b)` — including the implicit ctor libclang
     # materializes for brace-init `return {a, b};` when the type is fully known
@@ -1798,7 +2060,9 @@ def _convert_call(cursor: ci.Cursor) -> hir.HirNode:
         # this, hir_to_mir's trailing-field defaulting padded the "missing"
         # fields with a fabricated value, e.g. `return v;` -> `Vec(v, 0)`.
         if len(real) == 1:
-            arg_ty = (real[0].type.spelling or "").replace("const ", "").rstrip("&").strip()
+            arg_ty = (
+                (real[0].type.spelling or "").replace("const ", "").rstrip("&").strip()
+            )
             if arg_ty == cursor.spelling:
                 return _convert_expr(real[0])
         args = [_convert_expr(c) for c in real]
@@ -1808,41 +2072,70 @@ def _convert_call(cursor: ci.Cursor) -> hir.HirNode:
     # lowering turns into `[fill] * n` using the declared element type. The empty
     # `vector<T> v;` default-ctor has no kids and is handled below as a placeholder.
     if cursor.spelling == "vector":
-        real = [k for k in kids
-                if k.kind not in (CursorKind.TYPE_REF, CursorKind.TEMPLATE_REF, CursorKind.NAMESPACE_REF)]
+        real = [
+            k
+            for k in kids
+            if k.kind
+            not in (
+                CursorKind.TYPE_REF,
+                CursorKind.TEMPLATE_REF,
+                CursorKind.NAMESPACE_REF,
+            )
+        ]
         # Brace-init `vector<T>{a, b}` / `return {a, b}` is an ELEMENT list, not a
         # sized ctor (identical cursor shape — distinguish by `{` in the tokens).
         if "{" in [t.spelling for t in cursor.get_tokens()]:
-            if not real:                       # `{}` -> typed empty (lower_* knows the type)
+            if not real:  # `{}` -> typed empty (lower_* knows the type)
                 return hir.HirCall(func="__cpp_overloaded_op__", args=[])
             return hir.HirList(elements=[_convert_expr(k) for k in real])
         # copy/move ctor: vector<T>(otherVector) -> just the argument (Mojo copies
         # on assign/return). Distinguish from the sized ctor by the arg type.
         if len(real) == 1 and "vector" in (real[0].type.spelling or ""):
             return _convert_expr(real[0])
-        if len(real) == 2:  # iterator-range ctor: vector<T>(c.begin()[+a], c.end()|c.begin()+b)
+        if (
+            len(real) == 2
+        ):  # iterator-range ctor: vector<T>(c.begin()[+a], c.end()|c.begin()+b)
             a_hir, b_hir = _convert_expr(real[0]), _convert_expr(real[1])
             ia, ib = _iter_index(a_hir), _iter_index(b_hir)
             if ia and ib:
                 return hir.HirCall(func="__vector_slice__", args=[ia[0], ia[1], ib[1]])
         if real:  # sized ctor: (n) or (n, fill)
-            return hir.HirCall(func="__vector_fill__", args=[_convert_expr(k) for k in real])
+            return hir.HirCall(
+                func="__vector_fill__", args=[_convert_expr(k) for k in real]
+            )
 
     # map/set copy/move ctor (e.g. `return freq;` for a map return) -> the arg;
     # the empty default-ctor (no args) falls through to the placeholder below.
     if cursor.spelling in ("map", "unordered_map", "_mapbase", "set", "unordered_set"):
-        real = [k for k in kids
-                if k.kind not in (CursorKind.TYPE_REF, CursorKind.TEMPLATE_REF, CursorKind.NAMESPACE_REF)]
-        if len(real) == 1 and any(s in (real[0].type.spelling or "")
-                                  for s in ("map", "set")):
+        real = [
+            k
+            for k in kids
+            if k.kind
+            not in (
+                CursorKind.TYPE_REF,
+                CursorKind.TEMPLATE_REF,
+                CursorKind.NAMESPACE_REF,
+            )
+        ]
+        if len(real) == 1 and any(
+            s in (real[0].type.spelling or "") for s in ("map", "set")
+        ):
             return _convert_expr(real[0])
 
     # std::string copy / construct-from-value (`return r;`, `string(other)`,
     # `string("lit")`) -> the single argument; lower_return adds `.copy()` for a
     # bare String name. The 0-arg default ctor falls through to empty-string below.
     if cursor.spelling in ("string", "basic_string"):
-        real = [k for k in kids
-                if k.kind not in (CursorKind.TYPE_REF, CursorKind.TEMPLATE_REF, CursorKind.NAMESPACE_REF)]
+        real = [
+            k
+            for k in kids
+            if k.kind
+            not in (
+                CursorKind.TYPE_REF,
+                CursorKind.TEMPLATE_REF,
+                CursorKind.NAMESPACE_REF,
+            )
+        ]
         if len(real) == 1:
             return _convert_expr(real[0])
 
@@ -1850,16 +2143,22 @@ def _convert_call(cursor: ci.Cursor) -> hir.HirNode:
     # (non-const reads are ARRAY_SUBSCRIPT_EXPR, handled elsewhere). Mirror the
     # assign-side handling and lower to a subscript.
     if cursor.spelling == "operator[]" or any(
-        k.kind == CursorKind.DECL_REF_EXPR and "operator[]" in (k.spelling or "") for k in kids
+        k.kind == CursorKind.DECL_REF_EXPR and "operator[]" in (k.spelling or "")
+        for k in kids
     ):
         meaningful = [
-            c for c in kids
+            c
+            for c in kids
             if c.kind not in (CursorKind.TYPE_REF, CursorKind.NAMESPACE_REF)
-            and not ((c.spelling or "").startswith("operator") and c.kind != CursorKind.CALL_EXPR)
+            and not (
+                (c.spelling or "").startswith("operator")
+                and c.kind != CursorKind.CALL_EXPR
+            )
         ]
         if len(meaningful) >= 2:
             return hir.HirSubscript(
-                value=_convert_expr(meaningful[0]), index=_convert_expr(meaningful[-1]))
+                value=_convert_expr(meaningful[0]), index=_convert_expr(meaningful[-1])
+            )
 
     # 2D element-accessor idiom (`aMat(1, 1)`, `theMat(row, col)`): a common
     # matrix/grid class's `T& operator()(int, int)` overload, arriving as a
@@ -1875,18 +2174,27 @@ def _convert_call(cursor: ci.Cursor) -> hir.HirNode:
     # misrouted to a `__getitem__` the class was never given.
     if cursor.spelling == "operator()":
         op_ref = next(
-            (k for k in kids if (k.spelling or "").startswith("operator")
-             and k.kind != CursorKind.CALL_EXPR),
+            (
+                k
+                for k in kids
+                if (k.spelling or "").startswith("operator")
+                and k.kind != CursorKind.CALL_EXPR
+            ),
             None,
         )
         referenced = op_ref.referenced if op_ref is not None else None
         if referenced is not None and referenced.result_type.kind in (
-            ci.TypeKind.LVALUEREFERENCE, ci.TypeKind.RVALUEREFERENCE
+            ci.TypeKind.LVALUEREFERENCE,
+            ci.TypeKind.RVALUEREFERENCE,
         ):
             meaningful = [
-                c for c in kids
+                c
+                for c in kids
                 if c.kind not in (CursorKind.TYPE_REF, CursorKind.NAMESPACE_REF)
-                and not ((c.spelling or "").startswith("operator") and c.kind != CursorKind.CALL_EXPR)
+                and not (
+                    (c.spelling or "").startswith("operator")
+                    and c.kind != CursorKind.CALL_EXPR
+                )
             ]
             if len(meaningful) >= 3:
                 return hir.HirMethodCall(
@@ -1898,13 +2206,24 @@ def _convert_call(cursor: ci.Cursor) -> hir.HirNode:
     # Detect tuple/pair constructor: cursor.spelling is the type name ('tuple',
     # 'pair', etc.) and the first child is NOT a callee reference but an argument.
     if cursor.spelling in _TUPLE_CONSTRUCTORS and kids:
-        real = [k for k in kids if k.kind not in
-                (CursorKind.TYPE_REF, CursorKind.TEMPLATE_REF, CursorKind.NAMESPACE_REF)]
+        real = [
+            k
+            for k in kids
+            if k.kind
+            not in (
+                CursorKind.TYPE_REF,
+                CursorKind.TEMPLATE_REF,
+                CursorKind.NAMESPACE_REF,
+            )
+        ]
         # brace-init `{a, b}` (tokens contain `{`) is always an element list, even
         # when the first element is a variable (DECL_REF). Otherwise fall back to
         # the "first child isn't a callee ref" heuristic for make_pair/make_tuple.
         if "{" in [t.spelling for t in cursor.get_tokens()]:
-            return hir.HirCall(func="tuple", args=[hir.HirList(elements=[_convert_expr(c) for c in real])])
+            return hir.HirCall(
+                func="tuple",
+                args=[hir.HirList(elements=[_convert_expr(c) for c in real])],
+            )
         first = _strip_unexposed(kids[0])
         if first.kind not in (CursorKind.DECL_REF_EXPR, CursorKind.MEMBER_REF_EXPR):
             elements = [_convert_expr(c) for c in kids]
@@ -1928,9 +2247,7 @@ def _convert_call(cursor: ci.Cursor) -> hir.HirNode:
     if callee.kind == CursorKind.MEMBER_REF_EXPR:
         callee_kids = list(callee.get_children())
         receiver = (
-            _convert_expr(callee_kids[0])
-            if callee_kids
-            else hir.HirName(name="self")
+            _convert_expr(callee_kids[0]) if callee_kids else hir.HirName(name="self")
         )
         args = [_convert_expr(a) for a in kids[1:]]
         return hir.HirMethodCall(receiver=receiver, method=callee.spelling, args=args)
@@ -1945,7 +2262,9 @@ def _convert_call(cursor: ci.Cursor) -> hir.HirNode:
         # Operator overload or similar opaque callee — emit a placeholder
         # so the surrounding code parses (same rationale as the zero-kids
         # case above).
-        return hir.HirCall(func="__cpp_overloaded_op__", args=[_convert_expr(a) for a in kids[1:]])
+        return hir.HirCall(
+            func="__cpp_overloaded_op__", args=[_convert_expr(a) for a in kids[1:]]
+        )
     args = [_convert_expr(a) for a in kids[1:]]
     # Unqualified call to another method of the same class (`square(x)` inside
     # `cube()`, relying on implicit `this->`/no-qualifier lookup — including
@@ -1966,18 +2285,31 @@ def _convert_call(cursor: ci.Cursor) -> hir.HirNode:
     # which is not just unsupported but *wrong* — a different method on
     # (usually) an unrelated struct, if it exists on self at all.
     qualified = any(t.spelling == "::" for t in callee.get_tokens())
-    if referenced is not None and referenced.kind == CursorKind.CXX_METHOD and not qualified:
-        return hir.HirMethodCall(receiver=hir.HirName(name="self"), method=name, args=args)
+    if (
+        referenced is not None
+        and referenced.kind == CursorKind.CXX_METHOD
+        and not qualified
+    ):
+        return hir.HirMethodCall(
+            receiver=hir.HirName(name="self"), method=name, args=args
+        )
     # A qualified call to another class's *static* method (`Precision::
     # Angular()`, `gp::Resolution()`) — every target here maps a static
     # method to a receiver-less callable reached via the struct's own name
     # (Mojo: `@staticmethod` + `StructName.method(...)`), so the struct
     # name doubles as a valid "receiver" expression for a HirMethodCall
     # despite naming a type, not a value.
-    if (referenced is not None and referenced.kind == CursorKind.CXX_METHOD
-            and qualified and referenced.is_static_method() and referenced.semantic_parent is not None):
+    if (
+        referenced is not None
+        and referenced.kind == CursorKind.CXX_METHOD
+        and qualified
+        and referenced.is_static_method()
+        and referenced.semantic_parent is not None
+    ):
         struct_name = referenced.semantic_parent.spelling
-        return hir.HirMethodCall(receiver=hir.HirName(name=struct_name), method=name, args=args)
+        return hir.HirMethodCall(
+            receiver=hir.HirName(name=struct_name), method=name, args=args
+        )
     # SIMD intrinsic lifting: turn Intel `_mm*` calls into semantic HIR
     # operations on SIMD-typed values. Mojo will emit idiomatic `a + b`
     # on SIMD types; other targets fall back to the original call form.
@@ -1985,5 +2317,3 @@ def _convert_call(cursor: ci.Cursor) -> hir.HirNode:
     if lifted is not None:
         return lifted
     return hir.HirCall(func=name, args=args)
-
-

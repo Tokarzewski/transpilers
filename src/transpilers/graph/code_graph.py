@@ -128,7 +128,7 @@ def _extract_cpp_treesitter(source: str) -> tuple[list[str], dict[str, list[str]
     call_map: dict[str, list[str]] = {}
 
     def _node_text(node) -> str:
-        return source[node.start_byte:node.end_byte]
+        return source[node.start_byte : node.end_byte]
 
     def _find_calls(node) -> list[str]:
         calls: list[str] = []
@@ -176,6 +176,7 @@ def _extract_cpp(source: str) -> tuple[list[str], dict[str, list[str]]]:
 # Python extraction via stdlib ast
 # ---------------------------------------------------------------------------
 
+
 def _extract_python(source: str) -> tuple[list[str], dict[str, list[str]]]:
     """Return (defined_functions, call_map) using ast."""
     try:
@@ -221,6 +222,7 @@ def _extract_python(source: str) -> tuple[list[str], dict[str, list[str]]]:
 # ---------------------------------------------------------------------------
 # Core graph builder
 # ---------------------------------------------------------------------------
+
 
 def build_graph(path: str | Path, lang: str = "cpp") -> "nx.DiGraph":
     """Build a directed call graph from all source files under *path*.
@@ -281,6 +283,7 @@ def build_graph(path: str | Path, lang: str = "cpp") -> "nx.DiGraph":
 # Topological order with SCC collapsing for cycles
 # ---------------------------------------------------------------------------
 
+
 def topological_order(G: "nx.DiGraph") -> list[str]:
     """Return nodes in topological order (callees before callers).
 
@@ -315,6 +318,7 @@ def topological_order(G: "nx.DiGraph") -> list[str]:
 # ---------------------------------------------------------------------------
 # Migration report
 # ---------------------------------------------------------------------------
+
 
 def migration_report(G: "nx.DiGraph", translated: set[str]) -> dict:
     """Return a dict with migration progress statistics.
@@ -354,6 +358,7 @@ def migration_report(G: "nx.DiGraph", translated: set[str]) -> dict:
 # Persistence helpers
 # ---------------------------------------------------------------------------
 
+
 def save_graph(G: "nx.DiGraph", path: str | Path) -> None:
     """Serialise the graph to a JSON file at *path*.
 
@@ -384,6 +389,7 @@ def load_graph(path: str | Path) -> "nx.DiGraph":
 # ---------------------------------------------------------------------------
 # File-level topological ordering
 # ---------------------------------------------------------------------------
+
 
 def file_topological_order(path: str | Path, lang: str = "cpp") -> list[Path]:
     """Return source files under *path* in dependency order (callees before callers).

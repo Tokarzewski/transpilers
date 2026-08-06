@@ -12,7 +12,17 @@ a Zig-shaped dialect. Differences worth noting:
 from __future__ import annotations
 
 from transpilers.ir import lir, mir
-from transpilers.ir.types import BoolT, FloatT, IntT, ListT, NoneT, StrT, StructT, Type, UnknownT
+from transpilers.ir.types import (
+    BoolT,
+    FloatT,
+    IntT,
+    ListT,
+    NoneT,
+    StrT,
+    StructT,
+    Type,
+    UnknownT,
+)
 
 from ._mir_lower_base import (
     MirLoweringBase,
@@ -42,7 +52,9 @@ class _ZigLowering(MirLoweringBase):
         params = []
         for p in fn.params:
             param_name = f"{p.name}_" if p.name in reassigned_params else p.name
-            params.append((param_name, _zig_list_param_type(p.ty, p.name, mutated_list_params)))
+            params.append(
+                (param_name, _zig_list_param_type(p.ty, p.name, mutated_list_params))
+            )
         ret = _zig_type(fn.return_type)
         mut_names = collect_mutable(fn.body)
         declared: set[str] = param_names.copy()
@@ -50,12 +62,14 @@ class _ZigLowering(MirLoweringBase):
         for p in fn.params:
             if p.name in reassigned_params:
                 # `var n: i64 = n_;` — binds the renamed param into a mutable local.
-                preamble.append(lir.ZigVar(
-                    name=p.name,
-                    mutable=True,
-                    ty=_zig_type(p.ty) if not isinstance(p.ty, UnknownT) else None,
-                    value=lir.ZigName(name=f"{p.name}_"),
-                ))
+                preamble.append(
+                    lir.ZigVar(
+                        name=p.name,
+                        mutable=True,
+                        ty=_zig_type(p.ty) if not isinstance(p.ty, UnknownT) else None,
+                        value=lir.ZigName(name=f"{p.name}_"),
+                    )
+                )
         body = preamble + [self.lower_stmt(n, declared, mut_names) for n in fn.body]
         return lir.ZigFn(name=fn.name, params=params, return_type=ret, body=body)
 
@@ -71,7 +85,10 @@ class _ZigLowering(MirLoweringBase):
                 target = node.target
                 declared.add(target)
                 return self._stepped_while_explicit(
-                    target, node, declared, mut,
+                    target,
+                    node,
+                    declared,
+                    mut,
                     start=self.lower_expr(node.start),
                     stop=self.lower_expr(node.stop),
                 )
@@ -87,11 +104,20 @@ class _ZigLowering(MirLoweringBase):
         return self._stepped_while(target, node, declared, mut)
 
     def _stepped_while(self, target, node, declared, mut):
-        step = self.lower_expr(node.step) if node.step is not None else lir.ZigIntLiteral(value=1)
-        init = lir.ZigVar(name=target, mutable=True, ty="i64", value=self.lower_expr(node.start))
-        cond = lir.ZigCompare(op="<", left=lir.ZigName(name=target), right=self.lower_expr(node.stop))
+        step = (
+            self.lower_expr(node.step)
+            if node.step is not None
+            else lir.ZigIntLiteral(value=1)
+        )
+        init = lir.ZigVar(
+            name=target, mutable=True, ty="i64", value=self.lower_expr(node.start)
+        )
+        cond = lir.ZigCompare(
+            op="<", left=lir.ZigName(name=target), right=self.lower_expr(node.stop)
+        )
         incr = lir.ZigReassign(
-            name=target, value=lir.ZigBinOp(op="+", left=lir.ZigName(name=target), right=step)
+            name=target,
+            value=lir.ZigBinOp(op="+", left=lir.ZigName(name=target), right=step),
         )
         body = [self.lower_stmt(n, declared, mut) for n in node.body]
         body.append(incr)
@@ -103,7 +129,9 @@ class _ZigLowering(MirLoweringBase):
         cond = lir.ZigCompare(op="<", left=lir.ZigName(name=target), right=stop)
         incr = lir.ZigReassign(
             name=target,
-            value=lir.ZigBinOp(op="+", left=lir.ZigName(name=target), right=lir.ZigIntLiteral(value=1)),
+            value=lir.ZigBinOp(
+                op="+", left=lir.ZigName(name=target), right=lir.ZigIntLiteral(value=1)
+            ),
         )
         body = [self.lower_stmt(n, declared, mut) for n in node.body]
         body.append(incr)
@@ -132,7 +160,9 @@ class _ZigLowering(MirLoweringBase):
         # can be passed to both mutable and immutable slice parameters.
         if isinstance(lowered_value, lir.ZigArrayLit) and isinstance(node.ty, ListT):
             arr_name = f"_{node.target}_arr"
-            return _ZigMutableArrayDecl(name=node.target, arr_name=arr_name, array_lit=lowered_value)
+            return _ZigMutableArrayDecl(
+                name=node.target, arr_name=arr_name, array_lit=lowered_value
+            )
         if node.target in declared:
             return lir.ZigReassign(name=node.target, value=lowered_value)
         declared.add(node.target)
@@ -177,14 +207,20 @@ class _ZigLowering(MirLoweringBase):
         return lir.ZigBinOp(op=node.op, left=left, right=right)
 
     def lower_boolop(self, node: mir.MirBoolOp):
-        return lir.ZigBoolOp(op=node.op, left=self.lower_expr(node.left), right=self.lower_expr(node.right))
+        return lir.ZigBoolOp(
+            op=node.op,
+            left=self.lower_expr(node.left),
+            right=self.lower_expr(node.right),
+        )
 
     def lower_null(self, node: mir.MirNullLiteral):
         return lir.ZigName(name="null")
 
     def lower_list(self, node: mir.MirList):
         elem_ty = _zig_type(node.ty.elem) if isinstance(node.ty, ListT) else "i64"
-        return lir.ZigArrayLit(elem_ty=elem_ty, elements=[self.lower_expr(e) for e in node.elements])
+        return lir.ZigArrayLit(
+            elem_ty=elem_ty, elements=[self.lower_expr(e) for e in node.elements]
+        )
 
     def lower_call(self, node: mir.MirCall):
         args = [self.lower_expr(a) for a in node.args]
@@ -193,14 +229,18 @@ class _ZigLowering(MirLoweringBase):
         if node.func == "len":
             if len(args) != 1:
                 raise ValueError("len() takes exactly one argument")
-            return lir.ZigMethodCall(receiver=args[0], method="len", args=[], cast_to="i64")
+            return lir.ZigMethodCall(
+                receiver=args[0], method="len", args=[], cast_to="i64"
+            )
         # Stdlib mapping. Zig has @abs/@min/@max as builtins (prefixed `@`).
         # Print goes through std.debug.print with a format string and tuple.
         if node.func in ("print", "println"):
             # `std.debug.print("{}\n", .{<args>})`. Trailing newline matches
             # Python's print default and Rust's println!. Rewrap each arg so
             # bools render as "True"/"False" like Python.
-            rendered_args = [_pyprint_arg(orig, lowered) for orig, lowered in zip(node.args, args)]
+            rendered_args = [
+                _pyprint_arg(orig, lowered) for orig, lowered in zip(node.args, args)
+            ]
             specs = []
             for orig, rendered in zip(node.args, rendered_args):
                 orig_ty = getattr(orig, "ty", None)
@@ -226,7 +266,9 @@ class _ZigLowering(MirLoweringBase):
         if node.func == "float" and len(args) == 1:
             return lir.ZigCall(func="@floatFromInt", args=args)
         if node.func == "bool" and len(args) == 1:
-            return lir.ZigCompare(op="!=", left=args[0], right=lir.ZigIntLiteral(value=0))
+            return lir.ZigCompare(
+                op="!=", left=args[0], right=lir.ZigIntLiteral(value=0)
+            )
         return lir.ZigCall(func=node.func, args=args)
 
 
@@ -280,7 +322,9 @@ class _ZigIfExpr(lir.LirNode):
     """`if (<test>) <then_> else <else_>` — Zig if-expression used for
     bool-to-Python-string rendering in print args."""
 
-    def __init__(self, test: lir.LirNode, then_: lir.LirNode, else_: lir.LirNode) -> None:
+    def __init__(
+        self, test: lir.LirNode, then_: lir.LirNode, else_: lir.LirNode
+    ) -> None:
         self.test = test
         self.then_ = then_
         self.else_ = else_
@@ -291,7 +335,9 @@ class _ZigMethodCall(lir.LirNode):
     ZigMethodCall but distinguishable from the `.len`-style property
     access that the existing ZigMethodCall handles."""
 
-    def __init__(self, receiver: lir.LirNode, method: str, args: list[lir.LirNode]) -> None:
+    def __init__(
+        self, receiver: lir.LirNode, method: str, args: list[lir.LirNode]
+    ) -> None:
         self.receiver = receiver
         self.method = method
         self.args = args

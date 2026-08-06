@@ -86,9 +86,23 @@ _CBM_PROJECT_SEP: Final[str] = "-"
 # opaque shim below. It is NOT a real binding — just enough for libclang to
 # parse past the type (matching the scope documented in docs/occt_preamble.hpp).
 OCCT_PREFIXES: Final[tuple[str, ...]] = (
-    "TopoDS_", "TopAbs_", "BRep", "BRepBuilderAPI_", "Geom_", "GeomAPI_",
-    "gp_", "GC_Make", "Handle_", "TopTools_", "TopExp_", "TopLoc_",
-    "Poly_", "BOPAlgo_", "IntTools_", "ShapeAnalysis_", "STEPControl_",
+    "TopoDS_",
+    "TopAbs_",
+    "BRep",
+    "BRepBuilderAPI_",
+    "Geom_",
+    "GeomAPI_",
+    "gp_",
+    "GC_Make",
+    "Handle_",
+    "TopTools_",
+    "TopExp_",
+    "TopLoc_",
+    "Poly_",
+    "BOPAlgo_",
+    "IntTools_",
+    "ShapeAnalysis_",
+    "STEPControl_",
 )
 # Opaque shim mirroring docs/occt_preamble.hpp — broad enough for libclang to
 # parse, never semantically accurate.
@@ -143,13 +157,18 @@ def _project_slug(repo_root: str) -> str:
     p = os.path.normpath(repo_root)
     # Drop a trailing separator so it doesn't become a trailing '-'.
     p = p.rstrip("/\\")
-    slug = p.replace(":", "").replace("/", _CBM_PROJECT_SEP).replace("\\", _CBM_PROJECT_SEP)
+    slug = (
+        p.replace(":", "")
+        .replace("/", _CBM_PROJECT_SEP)
+        .replace("\\", _CBM_PROJECT_SEP)
+    )
     return slug.lower()
 
 
 # --------------------------------------------------------------------------
 # Pure payload -> C++ preamble mapping (no binary, fully unit-testable)
 # --------------------------------------------------------------------------
+
 
 def _normalize_param_type(text: str | None) -> str:
     """Map one cbm ``param_types`` entry to a C++ type spelling.
@@ -299,8 +318,10 @@ def payload_to_cpp(payload: dict) -> str:
     macro_lines: list[str] = []
     for mac in payload.get("macros", []) or []:
         mname = (mac.get("name") or "").strip()
-        if not mname or not mname.isupper() and not mname.endswith(
-            ("_EXPORT", "_IMPORT", "_API", "_DLL", "_DECL")
+        if (
+            not mname
+            or not mname.isupper()
+            and not mname.endswith(("_EXPORT", "_IMPORT", "_API", "_DLL", "_DECL"))
         ):
             continue
         macro_lines.append(f"#define {mname} ")
@@ -327,6 +348,7 @@ def payload_to_cpp(payload: dict) -> str:
 # Shell-out layer: query the codebase-memory-mcp graph
 # --------------------------------------------------------------------------
 
+
 def cbm_query(project: str, cypher: str, binary: str = CBM_BIN) -> list[dict]:
     """Run one openCypher query through the cbm CLI bridge; return row dicts.
 
@@ -340,11 +362,17 @@ def cbm_query(project: str, cypher: str, binary: str = CBM_BIN) -> list[dict]:
         return []
     try:
         proc = subprocess.run(
-            [binary, "cli", "query_graph",
-             json.dumps({"project": project, "query": cypher})],
-            capture_output=True, text=True, timeout=120,
+            [
+                binary,
+                "cli",
+                "query_graph",
+                json.dumps({"project": project, "query": cypher}),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=120,
         )
-    except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
+    except FileNotFoundError, subprocess.TimeoutExpired, OSError:
         return []
     if proc.returncode != 0:
         return []
@@ -391,16 +419,20 @@ def build_preamble_payload(
     proj = project or _project_slug(repo_root)
 
     # Namespaces the file lives in.
-    ns_rows = cbm_query(
-        proj,
-        "MATCH (f:File {file_path: $p})<-[:CONTAINS*0..]-(ns:Namespace) "
-        "RETURN ns.name AS name",
-        binary,
-    ) if False else cbm_query(  # parameterized form unsupported by cli; inline rel_path
-        proj,
-        f"MATCH (f:File)<-[:CONTAINS*0..]-(ns:Namespace) "
-        f"WHERE f.file_path ENDS WITH '{rel_path}' RETURN ns.name AS name",
-        binary,
+    ns_rows = (
+        cbm_query(
+            proj,
+            "MATCH (f:File {file_path: $p})<-[:CONTAINS*0..]-(ns:Namespace) "
+            "RETURN ns.name AS name",
+            binary,
+        )
+        if False
+        else cbm_query(  # parameterized form unsupported by cli; inline rel_path
+            proj,
+            f"MATCH (f:File)<-[:CONTAINS*0..]-(ns:Namespace) "
+            f"WHERE f.file_path ENDS WITH '{rel_path}' RETURN ns.name AS name",
+            binary,
+        )
     )
     namespaces = sorted({r.get("name") for r in ns_rows if r.get("name")})
 

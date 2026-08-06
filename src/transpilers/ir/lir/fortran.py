@@ -1,8 +1,10 @@
 """Fortran LIR dialect nodes."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from .base import LirNode
+
 
 @dataclass
 class FortranFieldAssign(LirNode):
@@ -10,12 +12,14 @@ class FortranFieldAssign(LirNode):
     field: str
     value: LirNode
 
+
 @dataclass
 class FortranStructInit(LirNode):
     """`Point(0, 0)` — Fortran derived-type structure constructor."""
 
     name: str
     field_values: list[tuple[str, LirNode]]
+
 
 @dataclass
 class FortranSubscriptAssign(LirNode):
@@ -25,18 +29,21 @@ class FortranSubscriptAssign(LirNode):
     index: LirNode
     value: LirNode
 
+
 @dataclass
 class FortranModule(LirNode):
     items: list[LirNode] = field(default_factory=list)
 
+
 @dataclass
 class FortranFn(LirNode):
     name: str
-    params: list[tuple[str, str]]      # (name, fortran_type)
-    return_type: str | None             # None for subroutines / void
-    result_name: str                     # name of the result variable to assign
-    locals: list[tuple[str, str]]      # extra declarations beyond params + result
+    params: list[tuple[str, str]]  # (name, fortran_type)
+    return_type: str | None  # None for subroutines / void
+    result_name: str  # name of the result variable to assign
+    locals: list[tuple[str, str]]  # extra declarations beyond params + result
     body: list[LirNode]
+
 
 @dataclass
 class FortranAssign(LirNode):
@@ -45,9 +52,11 @@ class FortranAssign(LirNode):
     name: str
     value: LirNode
 
+
 @dataclass
 class FortranReturn(LirNode):
     """Bare `return` — for early exit. The result variable carries the value."""
+
 
 @dataclass
 class FortranBinOp(LirNode):
@@ -55,11 +64,13 @@ class FortranBinOp(LirNode):
     left: LirNode
     right: LirNode
 
+
 @dataclass
 class FortranCompare(LirNode):
     op: str
     left: LirNode
     right: LirNode
+
 
 @dataclass
 class FortranBoolOp(LirNode):
@@ -67,30 +78,37 @@ class FortranBoolOp(LirNode):
     left: LirNode
     right: LirNode
 
+
 @dataclass
 class FortranUnary(LirNode):
     op: str  # ".not." / "-"
     operand: LirNode
 
+
 @dataclass
 class FortranName(LirNode):
     name: str
+
 
 @dataclass
 class FortranIntLiteral(LirNode):
     value: int
 
+
 @dataclass
 class FortranFloatLiteral(LirNode):
     value: float
+
 
 @dataclass
 class FortranBoolLiteral(LirNode):
     value: bool
 
+
 @dataclass
 class FortranStringLiteral(LirNode):
     value: str
+
 
 @dataclass
 class FortranIf(LirNode):
@@ -98,10 +116,12 @@ class FortranIf(LirNode):
     body: list[LirNode]
     orelse: list[LirNode]
 
+
 @dataclass
 class FortranWhile(LirNode):
     test: LirNode
     body: list[LirNode]
+
 
 @dataclass
 class FortranForRange(LirNode):
@@ -115,10 +135,12 @@ class FortranForRange(LirNode):
     step: LirNode | None
     body: list[LirNode]
 
+
 @dataclass
 class FortranCall(LirNode):
     func: str
     args: list[LirNode]
+
 
 @dataclass
 class FortranType(LirNode):
@@ -131,12 +153,14 @@ class FortranType(LirNode):
     fields: list[tuple[str, str]]
     methods: list["FortranFn"]
 
+
 @dataclass
 class FortranFieldAccess(LirNode):
     """`obj%field` — Fortran uses `%` for field access, not `.`."""
 
     value: LirNode
     field: str
+
 
 @dataclass
 class FortranArrayLit(LirNode):
@@ -147,6 +171,7 @@ class FortranArrayLit(LirNode):
     elements: list[LirNode]
     elem_type: str | None = None  # e.g. "logical", "integer"
 
+
 @dataclass
 class FortranSubscript(LirNode):
     """`xs(i + 1)` — Fortran is 1-indexed; emitter adds the +1 offset."""
@@ -154,9 +179,11 @@ class FortranSubscript(LirNode):
     value: LirNode
     index: LirNode
 
+
 @dataclass
 class FortranExit(LirNode):
     """Fortran's break-equivalent is `exit`."""
+
 
 @dataclass
 class FortranCycle(LirNode):
@@ -171,4 +198,32 @@ class FortranRaw(LirNode):
     snippet: str
 
 
-__all__ = ['FortranFieldAssign', 'FortranStructInit', 'FortranSubscriptAssign', 'FortranModule', 'FortranFn', 'FortranAssign', 'FortranReturn', 'FortranBinOp', 'FortranCompare', 'FortranBoolOp', 'FortranUnary', 'FortranName', 'FortranIntLiteral', 'FortranFloatLiteral', 'FortranBoolLiteral', 'FortranStringLiteral', 'FortranIf', 'FortranWhile', 'FortranForRange', 'FortranCall', 'FortranType', 'FortranFieldAccess', 'FortranArrayLit', 'FortranSubscript', 'FortranExit', 'FortranCycle', 'FortranRaw']
+__all__ = [
+    "FortranFieldAssign",
+    "FortranStructInit",
+    "FortranSubscriptAssign",
+    "FortranModule",
+    "FortranFn",
+    "FortranAssign",
+    "FortranReturn",
+    "FortranBinOp",
+    "FortranCompare",
+    "FortranBoolOp",
+    "FortranUnary",
+    "FortranName",
+    "FortranIntLiteral",
+    "FortranFloatLiteral",
+    "FortranBoolLiteral",
+    "FortranStringLiteral",
+    "FortranIf",
+    "FortranWhile",
+    "FortranForRange",
+    "FortranCall",
+    "FortranType",
+    "FortranFieldAccess",
+    "FortranArrayLit",
+    "FortranSubscript",
+    "FortranExit",
+    "FortranCycle",
+    "FortranRaw",
+]

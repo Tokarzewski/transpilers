@@ -199,6 +199,8 @@ def _build_provenance_map(
             pm.record(lir_node, prov)
 
     return pm
+
+
 @dataclass
 class StageTrace:
     """Every intermediate artifact of one source→target transpilation."""
@@ -247,6 +249,7 @@ def run_stages(
     attribution should drive the stages via ``transpilers.verify.taxonomy``.
     """
     from transpilers.passes.cpp_ground_truth import apply_ground_truth
+
     parse = FRONTENDS[source_lang]
     lower, emit, _ = TARGETS[target]
     # The C++ frontend returns (HirModule, TypeGroundTruth). The
@@ -270,7 +273,9 @@ def run_stages(
     # source languages this is a no-op (cpp_truth is None).
     if cpp_truth is not None:
         apply_ground_truth(mir_mod, cpp_truth, hir_mod)
-    infer_types(mir_mod, llm_fill=llm_fill, ir_hints=merged_hints if merged_hints else None)
+    infer_types(
+        mir_mod, llm_fill=llm_fill, ir_hints=merged_hints if merged_hints else None
+    )
     # Semantic-contract inference: runs after type resolution so it can
     # map resolved types to contracts (arbitrary-precision int → overflow
     # guard, Python ref → borrow annotation, etc.).

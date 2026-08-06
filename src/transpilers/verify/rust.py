@@ -19,7 +19,16 @@ def rust_compiles(source: str) -> CompileResult:
         src = Path(td) / "lib.rs"
         src.write_text(source)
         out = subprocess.run(
-            ["rustc", "--crate-type", "lib", "--edition", "2021", str(src), "-o", str(Path(td) / "out")],
+            [
+                "rustc",
+                "--crate-type",
+                "lib",
+                "--edition",
+                "2021",
+                str(src),
+                "-o",
+                str(Path(td) / "out"),
+            ],
             capture_output=True,
             text=True,
             timeout=30,

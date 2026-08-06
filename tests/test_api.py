@@ -44,7 +44,10 @@ def test_languages():
 
 
 def test_transpile_python_to_rust():
-    r = _client.post("/transpile", json={"source": _FIB_PY, "source_lang": "python", "target": "rust"})
+    r = _client.post(
+        "/transpile",
+        json={"source": _FIB_PY, "source_lang": "python", "target": "rust"},
+    )
     assert r.status_code == 200
     data = r.json()
     assert "output" in data
@@ -54,18 +57,25 @@ def test_transpile_python_to_rust():
 
 
 def test_transpile_python_to_mojo():
-    r = _client.post("/transpile", json={"source": _FIB_PY, "source_lang": "python", "target": "mojo"})
+    r = _client.post(
+        "/transpile",
+        json={"source": _FIB_PY, "source_lang": "python", "target": "mojo"},
+    )
     assert r.status_code == 200
     assert len(r.json()["output"]) > 0
 
 
 def test_transpile_unknown_source_lang():
-    r = _client.post("/transpile", json={"source": "x", "source_lang": "brainfuck", "target": "rust"})
+    r = _client.post(
+        "/transpile", json={"source": "x", "source_lang": "brainfuck", "target": "rust"}
+    )
     assert r.status_code == 422  # pydantic rejects unknown Literal
 
 
 def test_transpile_unknown_target():
-    r = _client.post("/transpile", json={"source": "x", "source_lang": "python", "target": "cobol"})
+    r = _client.post(
+        "/transpile", json={"source": "x", "source_lang": "python", "target": "cobol"}
+    )
     assert r.status_code == 422
 
 
@@ -93,10 +103,14 @@ def test_verify_maps_compiler_timeout_to_504(monkeypatch):
     def _timeout(*_a, **_kw):
         raise subprocess.TimeoutExpired(cmd=["rustc"], timeout=30)
 
-    monkeypatch.setattr(server, "TARGETS", {
-        **server.TARGETS,
-        "rust": (server.TARGETS["rust"][0], server.TARGETS["rust"][1], _timeout),
-    })
+    monkeypatch.setattr(
+        server,
+        "TARGETS",
+        {
+            **server.TARGETS,
+            "rust": (server.TARGETS["rust"][0], server.TARGETS["rust"][1], _timeout),
+        },
+    )
     r = _client.post(
         "/transpile/verify",
         json={"source": _FIB_PY, "source_lang": "python", "target": "rust"},
@@ -118,6 +132,7 @@ def test_auth_rejected_with_wrong_key(monkeypatch):
     # Reload the cached client after env change
     from transpilers.api import server
     from fastapi.testclient import TestClient
+
     c = TestClient(server.app)
     r = c.post(
         "/transpile",
@@ -131,6 +146,7 @@ def test_auth_accepted_with_correct_key(monkeypatch):
     monkeypatch.setenv("TRANSPILER_API_KEY", "secret")
     from transpilers.api import server
     from fastapi.testclient import TestClient
+
     c = TestClient(server.app)
     r = c.post(
         "/transpile",

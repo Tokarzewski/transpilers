@@ -18,7 +18,7 @@ backend must either emit a guard or refuse (never silently wrong).
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum, auto
 
 
@@ -28,11 +28,12 @@ class OverflowBehavior(Enum):
     The source language guarantees one of these.  The target language must
     match or guard.
     """
-    UNSPECIFIED = auto()       # No contract yet — infer or refuse
-    WRAP = auto()              # Two's-complement wrapping (Rust wrapping_*, u32/i32)
-    CHECKED = auto()           # Panic / trap on overflow (Rust debug, Zig)
-    SATURATE = auto()          # Clamp to min/max (Rust saturating_*)
-    ARBITRARY = auto()         # Python-style arbitrary precision (never overflows)
+
+    UNSPECIFIED = auto()  # No contract yet — infer or refuse
+    WRAP = auto()  # Two's-complement wrapping (Rust wrapping_*, u32/i32)
+    CHECKED = auto()  # Panic / trap on overflow (Rust debug, Zig)
+    SATURATE = auto()  # Clamp to min/max (Rust saturating_*)
+    ARBITRARY = auto()  # Python-style arbitrary precision (never overflows)
 
 
 class ValueCategory(Enum):
@@ -42,11 +43,12 @@ class ValueCategory(Enum):
     explicit, while also covering languages where everything is a reference
     (Python, Java) or everything is a value (C int, Fortran).
     """
+
     UNKNOWN = auto()
-    VALUE = auto()             # Plain value — copy on move (int, float, bool, small struct)
-    REF_IMMUTABLE = auto()     # Shared read-only reference (&T in Rust, const& in C++)
-    REF_MUTABLE = auto()       # Exclusive mutable reference (&mut T in Rust)
-    OWNED = auto()             # Owned pointer — move on assign, drop on scope exit
+    VALUE = auto()  # Plain value — copy on move (int, float, bool, small struct)
+    REF_IMMUTABLE = auto()  # Shared read-only reference (&T in Rust, const& in C++)
+    REF_MUTABLE = auto()  # Exclusive mutable reference (&mut T in Rust)
+    OWNED = auto()  # Owned pointer — move on assign, drop on scope exit
 
 
 class Ownership(Enum):
@@ -54,11 +56,14 @@ class Ownership(Enum):
 
     Only meaningful when ``ValueCategory`` is OWNED or REF_*.
     """
+
     UNKNOWN = auto()
-    OWNED = auto()             # Binding owns the value (Rust let, C++ unique_ptr)
-    BORROWED = auto()          # Binding borrows (Rust &, C++ const&)
-    MUT_BORROW = auto()        # Binding mutably borrows (Rust &mut)
-    SHARED = auto()            # GC / reference-counted (Python, Java, Swift)
+    OWNED = auto()  # Binding owns the value (Rust let, C++ unique_ptr)
+    BORROWED = auto()  # Binding borrows (Rust &, C++ const&)
+    MUT_BORROW = auto()  # Binding mutably borrows (Rust &mut)
+    SHARED = auto()  # GC / reference-counted (Python, Java, Swift)
+
+
 @dataclass(frozen=True)
 class SemanticContract:
     """Semantic contract attached to a MIR node.
@@ -73,7 +78,7 @@ class SemanticContract:
     """
 
     # ── Integer semantics ──────────────────────────────────────────────
-    int_width: int | None = None          # bits (32, 64, ...); None = unknown / arbitrary
+    int_width: int | None = None  # bits (32, 64, ...); None = unknown / arbitrary
     overflow: OverflowBehavior = OverflowBehavior.UNSPECIFIED
 
     # ── Value vs reference ─────────────────────────────────────────────
@@ -84,7 +89,7 @@ class SemanticContract:
 
     # ── Ownership / lifetime ───────────────────────────────────────────
     ownership: Ownership = Ownership.UNKNOWN
-    lifetime: str | None = None           # e.g. ``"'a"``, ``"'static"``
+    lifetime: str | None = None  # e.g. ``"'a"``, ``"'static"``
 
     # ── Purity / side effects ──────────────────────────────────────────
     pure: bool = False
@@ -132,13 +137,23 @@ class SemanticContract:
         """
         return SemanticContract(
             int_width=_merge_first(self.int_width, other.int_width),
-            overflow=_merge_first(self.overflow, other.overflow, skip=OverflowBehavior.UNSPECIFIED),
-            value_category=_merge_first(self.value_category, other.value_category, skip=ValueCategory.UNKNOWN),
+            overflow=_merge_first(
+                self.overflow, other.overflow, skip=OverflowBehavior.UNSPECIFIED
+            ),
+            value_category=_merge_first(
+                self.value_category, other.value_category, skip=ValueCategory.UNKNOWN
+            ),
             mutable=self.mutable or other.mutable,
-            ownership=_merge_first(self.ownership, other.ownership, skip=Ownership.UNKNOWN),
+            ownership=_merge_first(
+                self.ownership, other.ownership, skip=Ownership.UNKNOWN
+            ),
             lifetime=_merge_first(self.lifetime, other.lifetime),
             pure=self.pure and other.pure,
-            container_ownership=_merge_first(self.container_ownership, other.container_ownership, skip=Ownership.UNKNOWN),
+            container_ownership=_merge_first(
+                self.container_ownership,
+                other.container_ownership,
+                skip=Ownership.UNKNOWN,
+            ),
         )
 
     def is_compatible_with(self, target: SemanticContract) -> bool:
@@ -153,7 +168,10 @@ class SemanticContract:
         if self.overflow is OverflowBehavior.ARBITRARY:
             if target.int_width is not None:
                 return False
-        if self.overflow is OverflowBehavior.WRAP and target.overflow is OverflowBehavior.CHECKED:
+        if (
+            self.overflow is OverflowBehavior.WRAP
+            and target.overflow is OverflowBehavior.CHECKED
+        ):
             return False
         if self.ownership is Ownership.SHARED and target.ownership is Ownership.OWNED:
             return False

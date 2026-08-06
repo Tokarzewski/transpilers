@@ -110,8 +110,12 @@ def test_float_tolerance_allows_tiny_differences():
     # A target that adds a sub-tolerance epsilon still passes.
     tgt = "def half(x):\n    return x / 2.0 + 1e-9\n"
     r = check_behavioral_equivalence(
-        src, source_lang="python", target="python", target_code=tgt,
-        func_name="half", param_tags=["float"],
+        src,
+        source_lang="python",
+        target="python",
+        target_code=tgt,
+        func_name="half",
+        param_tags=["float"],
     )
     assert r.ok
 
@@ -159,13 +163,21 @@ def test_list_return_value_comparison():
     src = "def sq(xs):\n    return [x * x for x in xs]\n"
     bad = "def sq(xs):\n    return [x + x for x in xs]\n"
     ok = check_behavioral_equivalence(
-        src, source_lang="python", target="python", target_code=src,
-        func_name="sq", param_tags=["list[int]"],
+        src,
+        source_lang="python",
+        target="python",
+        target_code=src,
+        func_name="sq",
+        param_tags=["list[int]"],
     )
     assert ok.ok
     diff = check_behavioral_equivalence(
-        src, source_lang="python", target="python", target_code=bad,
-        func_name="sq", param_tags=["list[int]"],
+        src,
+        source_lang="python",
+        target="python",
+        target_code=bad,
+        func_name="sq",
+        param_tags=["list[int]"],
     )
     assert not diff.ok
 
@@ -177,8 +189,11 @@ def test_list_return_value_comparison():
 
 def test_non_python_source_is_unsupported_not_failed():
     r = check_behavioral_equivalence(
-        "int add(int a){return a;}", source_lang="c", target="python",
-        target_code="x", func_name="add",
+        "int add(int a){return a;}",
+        source_lang="c",
+        target="python",
+        target_code="x",
+        func_name="add",
     )
     assert r.supported is False
     assert r.total == 0
@@ -231,11 +246,17 @@ def test_python_to_rust_compile_failure_is_divergence():
 def test_python_to_rust_list_param_by_reference():
     # The transpiler emits collection params by reference (`& Vec<i64>`); the
     # harness must match that, not report a false divergence.
-    src = "def total(xs):\n    s = 0\n    for x in xs:\n        s = s + x\n    return s\n"
+    src = (
+        "def total(xs):\n    s = 0\n    for x in xs:\n        s = s + x\n    return s\n"
+    )
     rust = "fn total(xs: & Vec<i64>) -> i64 { let mut s = 0i64; for x in xs { s = s + x; } s }"
     r = check_behavioral_equivalence(
-        src, source_lang="python", target="rust", target_code=rust,
-        func_name="total", param_tags=["list[int]"],
+        src,
+        source_lang="python",
+        target="rust",
+        target_code=rust,
+        func_name="total",
+        param_tags=["list[int]"],
     )
     assert r.supported
     assert r.ok, r.summary()
@@ -246,8 +267,12 @@ def test_python_to_rust_bool_return():
     src = "def is_even(n):\n    return n % 2 == 0\n"
     rust = "fn is_even(n: i64) -> bool { n % 2 == 0 }"
     r = check_behavioral_equivalence(
-        src, source_lang="python", target="rust", target_code=rust,
-        func_name="is_even", param_tags=["int"],
+        src,
+        source_lang="python",
+        target="rust",
+        target_code=rust,
+        func_name="is_even",
+        param_tags=["int"],
     )
     assert r.ok, r.summary()
 
@@ -284,7 +309,10 @@ def test_verifier_unsupported_signature_does_not_fail_by_default():
     )
     assert verify(ADD).ok  # gate does not punish what it cannot drive
     strict = make_behavioral_verifier(
-        ADD, source_lang="python", target="haskell", func_name="add",
+        ADD,
+        source_lang="python",
+        target="haskell",
+        func_name="add",
         require_supported=True,
     )
     assert not strict(ADD).ok
@@ -338,8 +366,11 @@ def test_report_carries_divergence_class_on_int_mismatch():
         "    return q if (a < 0) == (b < 0) else -q\n"  # C-style truncation
     )
     rep = check_behavioral_equivalence(
-        src, source_lang="python", target="python",
-        target_code=wrong, func_name="fdiv",
+        src,
+        source_lang="python",
+        target="python",
+        target_code=wrong,
+        func_name="fdiv",
     )
     assert not rep.ok
     assert rep.divergence_class == DIV_FLOORED_MOD

@@ -1,4 +1,5 @@
 """Token / source-location / operator helpers (leaf utility)."""
+
 from __future__ import annotations
 
 import clang.cindex as ci
@@ -6,6 +7,7 @@ import clang.cindex as ci
 from transpilers.frontends.errors import UnsupportedConstruct
 
 CursorKind = ci.CursorKind
+
 
 def _strip_unexposed(cursor: ci.Cursor) -> ci.Cursor:
     """Recurse past UNEXPOSED_EXPR wrappers libclang inserts for things
@@ -17,6 +19,7 @@ def _strip_unexposed(cursor: ci.Cursor) -> ci.Cursor:
         cursor = inner[0]
     return cursor
 
+
 COMPARE_OPS = {"==", "!=", "<", "<=", ">", ">="}
 
 ARITH_OPS = {"+", "-", "*", "/", "%"}
@@ -24,6 +27,7 @@ ARITH_OPS = {"+", "-", "*", "/", "%"}
 LOGICAL_OPS = {"&&", "||"}
 
 ASSIGN_OPS = {"=", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<=", ">>="}
+
 
 def _decl_name(cursor: ci.Cursor) -> str | None:
     """Find the identifier name behind a DeclRefExpr / nested unwrapping."""
@@ -34,6 +38,7 @@ def _decl_name(cursor: ci.Cursor) -> str | None:
         if len(kids) == 1:
             return _decl_name(kids[0])
     return None
+
 
 def _is_this_deref(cursor: ci.Cursor) -> bool:
     """True for `*this` (however parenthesized/unexposed-wrapped) -- the
@@ -51,6 +56,7 @@ def _is_this_deref(cursor: ci.Cursor) -> bool:
         return False
     kids = list(cursor.get_children())
     return len(kids) == 1 and kids[0].kind == CursorKind.CXX_THIS_EXPR
+
 
 def _tokens_for(cursor: ci.Cursor) -> list:
     """*cursor*'s tokens, falling back to a widened whole-line retokenize
@@ -80,6 +86,7 @@ def _tokens_for(cursor: ci.Cursor) -> list:
     except Exception:
         return []
 
+
 def _literal_token(cursor: ci.Cursor):
     """The single token spelling out a literal cursor (INTEGER_LITERAL,
     FLOATING_LITERAL, ...), or None if it truly has none.
@@ -96,6 +103,7 @@ def _literal_token(cursor: ci.Cursor):
         if (tok.location.line, tok.location.column) == (start.line, start.column):
             return tok
     return None
+
 
 def _binop_token(cursor: ci.Cursor) -> str:
     """The operator token sits between the two child cursors. We slice
@@ -114,6 +122,7 @@ def _binop_token(cursor: ci.Cursor) -> str:
             return tok.spelling
     raise UnsupportedConstruct("could not locate binary-operator token")
 
+
 def _unary_token(cursor: ci.Cursor) -> str:
     """For a unary op, the operator is either before or after the single
     operand. We pick whichever non-operand token we find first within the
@@ -129,11 +138,27 @@ def _unary_token(cursor: ci.Cursor) -> str:
             return tok.spelling
     raise UnsupportedConstruct("could not locate unary-operator token")
 
+
 def _loc_ge(a: ci.SourceLocation, b: ci.SourceLocation) -> bool:
     return (a.line, a.column) >= (b.line, b.column)
+
 
 def _loc_lt(a: ci.SourceLocation, b: ci.SourceLocation) -> bool:
     return (a.line, a.column) < (b.line, b.column)
 
 
-__all__ = ['_strip_unexposed', 'COMPARE_OPS', 'ARITH_OPS', 'LOGICAL_OPS', 'ASSIGN_OPS', '_decl_name', '_is_this_deref', '_binop_token', '_unary_token', '_loc_ge', '_loc_lt', '_tokens_for', '_literal_token']
+__all__ = [
+    "_strip_unexposed",
+    "COMPARE_OPS",
+    "ARITH_OPS",
+    "LOGICAL_OPS",
+    "ASSIGN_OPS",
+    "_decl_name",
+    "_is_this_deref",
+    "_binop_token",
+    "_unary_token",
+    "_loc_ge",
+    "_loc_lt",
+    "_tokens_for",
+    "_literal_token",
+]

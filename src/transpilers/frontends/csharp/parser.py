@@ -11,7 +11,12 @@ from tree_sitter import Language, Node
 import tree_sitter_c_sharp
 
 from transpilers.ir import hir
-from transpilers.frontends._treesitter import make_parser, named_children, required_field, text
+from transpilers.frontends._treesitter import (
+    make_parser,
+    named_children,
+    required_field,
+    text,
+)
 
 
 from transpilers.frontends.errors import UnsupportedConstruct
@@ -48,9 +53,12 @@ def parse_csharp(source: str) -> hir.HirModule:
             body.extend(_extract_methods(c))
             continue
         if c.type in (
-            "using_directive", "global_using_directive",
-            "namespace_declaration", "file_scoped_namespace_declaration",
-            "comment", "extern_alias_directive",
+            "using_directive",
+            "global_using_directive",
+            "namespace_declaration",
+            "file_scoped_namespace_declaration",
+            "comment",
+            "extern_alias_directive",
         ):
             if c.type.endswith("namespace_declaration"):
                 body_node = c.child_by_field_name("body")
@@ -75,7 +83,11 @@ def _extract_methods(class_decl: Node) -> list[hir.HirFunction]:
     for c in named_children(body_node):
         if c.type == "method_declaration":
             out.append(_convert_method(c))
-        elif c.type in ("field_declaration", "property_declaration", "constructor_declaration"):
+        elif c.type in (
+            "field_declaration",
+            "property_declaration",
+            "constructor_declaration",
+        ):
             raise UnsupportedConstruct(f"class body {c.type}")
     return out
 
@@ -86,7 +98,9 @@ def _convert_method(node: Node) -> hir.HirFunction:
     name_node = required_field(node, "name")
     params_node = required_field(node, "parameters")
     body_node = required_field(node, "body")
-    params = [_convert_param(p) for p in named_children(params_node) if p.type == "parameter"]
+    params = [
+        _convert_param(p) for p in named_children(params_node) if p.type == "parameter"
+    ]
     return hir.HirFunction(
         name=text(name_node),
         params=params,
@@ -127,7 +141,12 @@ def _convert_stmt(node: Node) -> list[hir.HirNode]:
     if kind == "expression_statement":
         kids = named_children(node)
         return [_convert_expression_stmt(kids[0])] if kids else []
-    if kind in ("prefix_unary_expression", "postfix_unary_expression", "assignment_expression", "invocation_expression"):
+    if kind in (
+        "prefix_unary_expression",
+        "postfix_unary_expression",
+        "assignment_expression",
+        "invocation_expression",
+    ):
         # Same shapes that appear in `for (...; ...; <update>)` position.
         return [_convert_expression_stmt(node)]
     if kind == "block":
@@ -159,7 +178,11 @@ def _convert_for(node: Node) -> list[hir.HirNode]:
     body_node = required_field(node, "body")
     if init_node is not None:
         out.extend(_convert_stmt(init_node))
-    cond = _convert_expr(cond_node) if cond_node is not None else hir.HirBoolLiteral(value=True)
+    cond = (
+        _convert_expr(cond_node)
+        if cond_node is not None
+        else hir.HirBoolLiteral(value=True)
+    )
     inner = _convert_stmt(body_node)
     if update_node is not None:
         inner.append(_convert_expression_stmt(update_node))
@@ -181,8 +204,16 @@ def _convert_variable_declaration(var_decl: Node) -> list[hir.HirNode]:
             for sub in named_children(c):
                 if sub.id != name_node.id:
                     init_node = sub
-            value = _convert_expr(init_node) if init_node is not None else hir.HirIntLiteral(value=0)
-            out.append(hir.HirAssign(target=text(name_node), value=value, annotation=annotation))
+            value = (
+                _convert_expr(init_node)
+                if init_node is not None
+                else hir.HirIntLiteral(value=0)
+            )
+            out.append(
+                hir.HirAssign(
+                    target=text(name_node), value=value, annotation=annotation
+                )
+            )
     return out
 
 
@@ -203,7 +234,9 @@ def _convert_assignment(node: Node) -> hir.HirNode:
     if left.type != "identifier":
         raise UnsupportedConstruct(f"csharp assignment lhs {left.type}")
     aug = None if op == "=" else op[:-1]
-    return hir.HirAssign(target=text(left), value=_convert_expr(right), annotation=None, augmented_op=aug)
+    return hir.HirAssign(
+        target=text(left), value=_convert_expr(right), annotation=None, augmented_op=aug
+    )
 
 
 def _convert_update(node: Node) -> hir.HirNode:
@@ -218,18 +251,26 @@ def _convert_update(node: Node) -> hir.HirNode:
         raise UnsupportedConstruct(f"csharp update {op!r}")
     sign = "+" if op == "++" else "-"
     return hir.HirAssign(
-        target=text(operand), value=hir.HirIntLiteral(value=1), annotation=None, augmented_op=sign
+        target=text(operand),
+        value=hir.HirIntLiteral(value=1),
+        annotation=None,
+        augmented_op=sign,
     )
 
 
 # ---------- expressions ----------
 
+
 def _convert_expr(node: Node) -> hir.HirNode:
     kind = node.type
     if kind == "integer_literal":
-        return hir.HirIntLiteral(value=int(text(node).rstrip("uUlL").replace("_", ""), 0))
+        return hir.HirIntLiteral(
+            value=int(text(node).rstrip("uUlL").replace("_", ""), 0)
+        )
     if kind == "real_literal":
-        return hir.HirFloatLiteral(value=float(text(node).rstrip("fFdDmM").replace("_", "")))
+        return hir.HirFloatLiteral(
+            value=float(text(node).rstrip("fFdDmM").replace("_", ""))
+        )
     if kind == "boolean_literal":
         return hir.HirBoolLiteral(value=text(node) == "true")
     if kind == "string_literal":
@@ -304,6 +345,7 @@ LOGICAL_OPS = {"&&", "||"}
 
 
 # ---------- types ----------
+
 
 def _type_text(node: Node) -> str:
     if node.type == "predefined_type":

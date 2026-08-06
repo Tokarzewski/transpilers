@@ -152,7 +152,9 @@ def test_escalating_repair_first_try_passes_no_llm_call(tmp_path: Path):
 def test_escalation_runs_local_then_frontier(tmp_path: Path):
     """Local-tier fails, frontier-tier fixes it. We assert (a) the order
     of tier calls and (b) the result reports the fixing tier."""
-    local = _ScriptedTier(["fn f() -> i32 { 0_i32 }\n"])  # always returns the same broken code
+    local = _ScriptedTier(
+        ["fn f() -> i32 { 0_i32 }\n"]
+    )  # always returns the same broken code
     frontier = _ScriptedTier(["fn f() -> i32 { 0 }\n"])  # fixed
     client = TieredLlmClient(
         tiers={
@@ -350,7 +352,9 @@ def test_exhaustion_refuses_does_not_silently_swap_code(tmp_path: Path):
     assert not res.passed
     assert res.refused is True
     assert res.attempts == 3
-    assert res.code == "fn f() { BROKEN }"  # the last (broken) attempt (stripped by _strip_fences)
+    assert (
+        res.code == "fn f() { BROKEN }"
+    )  # the last (broken) attempt (stripped by _strip_fences)
 
 
 # ---------------------------------------------------------------------------

@@ -38,6 +38,14 @@ build-backend = "hatchling.build"
 # group, GPU-specific torch build) - not part of the routine test suite.
 testpaths = ["tests"]
 
+[tool.ruff.lint.per-file-ignores]
+# Deliberate re-export barrel: each backend LIR dialect is `from .x import *`
+# and re-exported. `__all__` covers every public name, so F403/F405 are noise.
+"src/transpilers/ir/lir/__init__.py" = ["F403", "F405"]
+# cpp/parser/core.py pulls in helper modules via deliberate star-imports
+# (types, tokens, libclang_config); the imported names are legal helpers.
+"src/transpilers/frontends/cpp/parser/core.py" = ["F405"]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/transpilers"]
 

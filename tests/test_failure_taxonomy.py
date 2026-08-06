@@ -22,8 +22,11 @@ def _t(src: str) -> str:
 
 # ---------- classify_exception ----------
 
+
 def test_unsupported_construct_is_parse_bucket():
-    bucket, construct = classify_exception("parse", UnsupportedConstruct("chained comparison (a < b < c)"))
+    bucket, construct = classify_exception(
+        "parse", UnsupportedConstruct("chained comparison (a < b < c)")
+    )
     assert bucket == "parse"
     assert "chained comparison" in construct
 
@@ -41,12 +44,20 @@ def test_frontend_parser_error_types_are_parse_bucket():
     class ParseError(Exception):
         pass
 
-    assert classify_exception("parse", ParserSyntaxError("Syntax Error @ 1:1."))[0] == "parse"
-    assert classify_exception("parse", ParseError(":23:1: Invalid function definition"))[0] == "parse"
+    assert (
+        classify_exception("parse", ParserSyntaxError("Syntax Error @ 1:1."))[0]
+        == "parse"
+    )
+    assert (
+        classify_exception("parse", ParseError(":23:1: Invalid function definition"))[0]
+        == "parse"
+    )
 
 
 def test_lowering_refusal_is_parse_bucket():
-    bucket, construct = classify_exception("hir-to-mir", NotImplementedError("HIR expr HirLambda"))
+    bucket, construct = classify_exception(
+        "hir-to-mir", NotImplementedError("HIR expr HirLambda")
+    )
     assert bucket == "parse"
     assert construct == "HIR expr HirLambda"
 
@@ -66,7 +77,9 @@ def test_timeout_bucket():
 
 
 def test_symbol_message_is_unresolved_symbol():
-    bucket, _ = classify_exception("lower", RuntimeError("unknown function `frobnicate`"))
+    bucket, _ = classify_exception(
+        "lower", RuntimeError("unknown function `frobnicate`")
+    )
     assert bucket == "unresolved-symbol"
 
 
@@ -77,6 +90,7 @@ def test_unexpected_exception_is_internal_error():
 
 
 # ---------- classify_compile_stderr ----------
+
 
 def test_rustc_type_error_is_type_inference_miss():
     stderr = "error[E0308]: mismatched types\n --> lib.rs:3:5\n"
@@ -91,7 +105,10 @@ def test_rustc_missing_symbol_is_unresolved_symbol():
 
 
 def test_go_undefined_is_unresolved_symbol():
-    assert classify_compile_stderr("./main.go:5:2: undefined: fmt\n")[0] == "unresolved-symbol"
+    assert (
+        classify_compile_stderr("./main.go:5:2: undefined: fmt\n")[0]
+        == "unresolved-symbol"
+    )
 
 
 def test_symbol_beats_type_when_both_present():
@@ -110,6 +127,7 @@ def test_other_compiler_error_is_target_compile_error():
 
 # ---------- classify_run ----------
 
+
 def test_matching_output_is_ok():
     assert classify_run("42\n", "42\n") == ("ok", "")
 
@@ -121,17 +139,22 @@ def test_output_mismatch_reports_first_diverging_line():
 
 
 def test_runtime_crash_is_output_mismatch():
-    bucket, detail = classify_run("42\n", "panicked at 'index out of bounds'", exit_ok=False)
+    bucket, detail = classify_run(
+        "42\n", "panicked at 'index out of bounds'", exit_ok=False
+    )
     assert bucket == "output-mismatch"
     assert "runtime failure" in detail
 
 
 # ---------- classify_unit (staged driver) ----------
 
+
 def test_unit_ok():
     rec = classify_unit(
         _t("def add(a: int, b: int) -> int:\n    return a + b\n"),
-        source_lang="python", target="rust", compile=False,
+        source_lang="python",
+        target="rust",
+        compile=False,
     )
     assert rec.bucket == "ok"
     assert "fn add" in rec.output
@@ -140,7 +163,9 @@ def test_unit_ok():
 def test_unit_parse_failure():
     rec = classify_unit(
         _t("def f(a: int) -> bool:\n    return 0 < a < 10\n"),
-        source_lang="python", target="rust", compile=False,
+        source_lang="python",
+        target="rust",
+        compile=False,
     )
     assert rec.bucket == "parse"
     assert rec.stage == "parse"
@@ -156,7 +181,9 @@ def test_unit_syntax_error():
 def test_unit_unfilled_hole():
     rec = classify_unit(
         _t("def f(a, b):\n    return a + b\n"),
-        source_lang="python", target="rust", compile=False,
+        source_lang="python",
+        target="rust",
+        compile=False,
     )
     assert rec.bucket == "unfilled-UnknownT-hole"
     assert rec.stage == "lower"
@@ -174,7 +201,10 @@ def test_unit_structural_gate_passes_on_clean_unit():
                 return total
             """
         ),
-        source_lang="python", target="rust", compile=False, structural=True,
+        source_lang="python",
+        target="rust",
+        compile=False,
+        structural=True,
     )
     assert rec.bucket == "ok"
 

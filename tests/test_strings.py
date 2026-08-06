@@ -27,6 +27,7 @@ def _zig(src: str) -> str:
 
 # ---------- Rust ----------
 
+
 def test_rust_string_literal_is_owned():
     out = _rust(
         """
@@ -95,6 +96,7 @@ def test_rust_strings_compile(src: str):
 
 
 # ---------- Zig ----------
+
 
 def test_zig_string_literal_native():
     out = _zig(

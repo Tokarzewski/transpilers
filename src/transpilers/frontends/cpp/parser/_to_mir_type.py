@@ -10,6 +10,7 @@ Kept small and total: any unknown spelling collapses to
 ``UnknownT()`` rather than raising, because the ground-truth
 extractor is on the hot path of every parse.
 """
+
 from __future__ import annotations
 
 
@@ -57,10 +58,10 @@ def text_to_type(text: str) -> Type:
     if text in _PRIMITIVES:
         return _PRIMITIVES[text]
     if text.startswith("list[") and text.endswith("]"):
-        inner = text[len("list["):-1].strip()
+        inner = text[len("list[") : -1].strip()
         return ListT(elem=text_to_type(inner))
     if text.startswith("simd[") and text.endswith("]"):
-        inner = text[len("simd["):-1].strip()
+        inner = text[len("simd[") : -1].strip()
         elem_text, _, lanes_text = inner.rpartition(",")
         try:
             lanes = int(lanes_text.strip())

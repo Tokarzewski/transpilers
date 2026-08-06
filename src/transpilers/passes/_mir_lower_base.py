@@ -45,6 +45,7 @@ __all__ = [
 
 # -- provenance helper -------------------------------------------------------
 
+
 def copy_provenance(lir_node: lir.LirNode, mir_node: mir.MirNode) -> lir.LirNode:
     """Copy ``mir_node._hir_provenance_id`` to ``lir_node._hir_provenance_id``.
 
@@ -212,7 +213,9 @@ class MirLoweringBase:
             items.append(self.lower_function(fn))
         return self.make_module(items, module)
 
-    def make_module(self, items: list[lir.LirNode], mir_node: mir.MirNode | None = None):
+    def make_module(
+        self, items: list[lir.LirNode], mir_node: mir.MirNode | None = None
+    ):
         assert self.module_cls is not None
         node = self.module_cls(items=items)
         if mir_node is not None:
@@ -348,7 +351,9 @@ class MirLoweringBase:
         lowered = [self.lower_stmt(n, declared, mut) for n in nodes]
         return [s for s in lowered if s is not None]
 
-    def lower_assign(self, node: mir.MirAssign, declared: set[str], mut: set[str]):  # pragma: no cover - abstract
+    def lower_assign(
+        self, node: mir.MirAssign, declared: set[str], mut: set[str]
+    ):  # pragma: no cover - abstract
         raise NotImplementedError
 
     # -- expressions ------------------------------------------------------- #

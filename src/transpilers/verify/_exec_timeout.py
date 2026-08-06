@@ -6,6 +6,7 @@ verifiers. Same SIGALRM pattern already used in
 `scripts/sft/build_algorithm_pairs.py`; shared here for the two in-tree
 verifiers that also `exec()` arbitrary source.
 """
+
 from __future__ import annotations
 
 import contextlib

@@ -41,7 +41,6 @@ from transpilers.ir.types import (
     StrT,
     StructT,
     Type,
-    UnknownT,
 )
 
 MAX_ITER = 8
@@ -97,29 +96,40 @@ def _type_to_contract(ty: Type) -> SemanticContract:
         if ty.bits is None or ty.bits > 64:
             return SemanticContract.arbitrary_precision_int()
         return SemanticContract(
-            int_width=ty.bits, overflow=OverflowBehavior.ARBITRARY,
-            value_category=ValueCategory.VALUE, mutable=False,
-            ownership=Ownership.OWNED, pure=True,
+            int_width=ty.bits,
+            overflow=OverflowBehavior.ARBITRARY,
+            value_category=ValueCategory.VALUE,
+            mutable=False,
+            ownership=Ownership.OWNED,
+            pure=True,
         )
     if isinstance(ty, FloatT):
         return SemanticContract(
-            value_category=ValueCategory.VALUE, mutable=False,
-            ownership=Ownership.OWNED, pure=True,
+            value_category=ValueCategory.VALUE,
+            mutable=False,
+            ownership=Ownership.OWNED,
+            pure=True,
         )
     if isinstance(ty, BoolT):
         return SemanticContract(
-            value_category=ValueCategory.VALUE, mutable=False,
-            ownership=Ownership.OWNED, pure=True,
+            value_category=ValueCategory.VALUE,
+            mutable=False,
+            ownership=Ownership.OWNED,
+            pure=True,
         )
     if isinstance(ty, StrT):
         return SemanticContract(
-            value_category=ValueCategory.REF_IMMUTABLE, mutable=False,
-            ownership=Ownership.SHARED, pure=True,
+            value_category=ValueCategory.REF_IMMUTABLE,
+            mutable=False,
+            ownership=Ownership.SHARED,
+            pure=True,
         )
     if isinstance(ty, NoneT):
         return SemanticContract(
-            value_category=ValueCategory.VALUE, mutable=False,
-            ownership=Ownership.OWNED, pure=True,
+            value_category=ValueCategory.VALUE,
+            mutable=False,
+            ownership=Ownership.OWNED,
+            pure=True,
         )
     if isinstance(ty, ListT):
         return SemanticContract.python_ref()
@@ -128,12 +138,18 @@ def _type_to_contract(ty: Type) -> SemanticContract:
     return WILDCARD
 
 
-def _visit_body(nodes: list[mir.MirNode], env: dict[str, SemanticContract], fn: mir.MirFunction | None) -> None:
+def _visit_body(
+    nodes: list[mir.MirNode],
+    env: dict[str, SemanticContract],
+    fn: mir.MirFunction | None,
+) -> None:
     for n in nodes:
         _visit_stmt(n, env, fn)
 
 
-def _visit_stmt(node: mir.MirNode, env: dict[str, SemanticContract], fn: mir.MirFunction | None) -> None:
+def _visit_stmt(
+    node: mir.MirNode, env: dict[str, SemanticContract], fn: mir.MirFunction | None
+) -> None:
     if isinstance(node, mir.MirReturn):
         if node.value is not None:
             _visit_expr(node.value, env)
@@ -161,9 +177,12 @@ def _visit_stmt(node: mir.MirNode, env: dict[str, SemanticContract], fn: mir.Mir
         if node.step is not None:
             _visit_expr(node.step, env)
         env[node.target] = SemanticContract(
-            int_width=None, overflow=OverflowBehavior.ARBITRARY,
-            value_category=ValueCategory.VALUE, mutable=True,
-            ownership=Ownership.OWNED, pure=True,
+            int_width=None,
+            overflow=OverflowBehavior.ARBITRARY,
+            value_category=ValueCategory.VALUE,
+            mutable=True,
+            ownership=Ownership.OWNED,
+            pure=True,
         )
         _visit_body(node.body, env, fn)
         return
@@ -179,26 +198,34 @@ def _visit_stmt(node: mir.MirNode, env: dict[str, SemanticContract], fn: mir.Mir
     _visit_expr(node, env)
 
 
-def _visit_expr(node: mir.MirNode, env: dict[str, SemanticContract]) -> SemanticContract:
+def _visit_expr(
+    node: mir.MirNode, env: dict[str, SemanticContract]
+) -> SemanticContract:
     if isinstance(node, mir.MirIntLiteral):
         node.contract = SemanticContract.arbitrary_precision_int()
         return node.contract
     if isinstance(node, mir.MirFloatLiteral):
         node.contract = SemanticContract(
-            value_category=ValueCategory.VALUE, mutable=False,
-            ownership=Ownership.OWNED, pure=True,
+            value_category=ValueCategory.VALUE,
+            mutable=False,
+            ownership=Ownership.OWNED,
+            pure=True,
         )
         return node.contract
     if isinstance(node, mir.MirBoolLiteral):
         node.contract = SemanticContract(
-            value_category=ValueCategory.VALUE, mutable=False,
-            ownership=Ownership.OWNED, pure=True,
+            value_category=ValueCategory.VALUE,
+            mutable=False,
+            ownership=Ownership.OWNED,
+            pure=True,
         )
         return node.contract
     if isinstance(node, mir.MirStringLiteral):
         node.contract = SemanticContract(
-            value_category=ValueCategory.REF_IMMUTABLE, mutable=False,
-            ownership=Ownership.SHARED, pure=True,
+            value_category=ValueCategory.REF_IMMUTABLE,
+            mutable=False,
+            ownership=Ownership.SHARED,
+            pure=True,
         )
         return node.contract
     if isinstance(node, mir.MirName):
@@ -211,24 +238,33 @@ def _visit_expr(node: mir.MirNode, env: dict[str, SemanticContract]) -> Semantic
         merged = lt.merge(rt)
         if isinstance(getattr(node, "ty", None), IntT):
             merged = SemanticContract(
-                int_width=merged.int_width, overflow=OverflowBehavior.ARBITRARY,
-                value_category=ValueCategory.VALUE, mutable=False,
-                ownership=Ownership.OWNED, pure=True,
+                int_width=merged.int_width,
+                overflow=OverflowBehavior.ARBITRARY,
+                value_category=ValueCategory.VALUE,
+                mutable=False,
+                ownership=Ownership.OWNED,
+                pure=True,
             )
         node.contract = merged
         return merged
     if isinstance(node, mir.MirCompare):
-        _visit_expr(node.left, env); _visit_expr(node.right, env)
+        _visit_expr(node.left, env)
+        _visit_expr(node.right, env)
         node.contract = SemanticContract(
-            value_category=ValueCategory.VALUE, mutable=False,
-            ownership=Ownership.OWNED, pure=True,
+            value_category=ValueCategory.VALUE,
+            mutable=False,
+            ownership=Ownership.OWNED,
+            pure=True,
         )
         return node.contract
     if isinstance(node, mir.MirBoolOp):
-        _visit_expr(node.left, env); _visit_expr(node.right, env)
+        _visit_expr(node.left, env)
+        _visit_expr(node.right, env)
         node.contract = SemanticContract(
-            value_category=ValueCategory.VALUE, mutable=False,
-            ownership=Ownership.OWNED, pure=True,
+            value_category=ValueCategory.VALUE,
+            mutable=False,
+            ownership=Ownership.OWNED,
+            pure=True,
         )
         return node.contract
     if isinstance(node, mir.MirUnaryOp):
@@ -238,8 +274,10 @@ def _visit_expr(node: mir.MirNode, env: dict[str, SemanticContract]) -> Semantic
         for a in node.args:
             _visit_expr(a, env)
         node.contract = SemanticContract(
-            value_category=ValueCategory.VALUE, mutable=False,
-            ownership=Ownership.OWNED, pure=False,
+            value_category=ValueCategory.VALUE,
+            mutable=False,
+            ownership=Ownership.OWNED,
+            pure=False,
         )
         return node.contract
     if isinstance(node, mir.MirList):
@@ -248,7 +286,8 @@ def _visit_expr(node: mir.MirNode, env: dict[str, SemanticContract]) -> Semantic
         node.contract = SemanticContract.python_ref().merge(merged)
         return node.contract
     if isinstance(node, mir.MirSubscript):
-        _visit_expr(node.value, env); _visit_expr(node.index, env)
+        _visit_expr(node.value, env)
+        _visit_expr(node.index, env)
         node.contract = SemanticContract.python_ref()
         return node.contract
     if isinstance(node, mir.MirFieldAccess):
@@ -260,8 +299,10 @@ def _visit_expr(node: mir.MirNode, env: dict[str, SemanticContract]) -> Semantic
         for a in node.args:
             _visit_expr(a, env)
         node.contract = SemanticContract(
-            value_category=ValueCategory.VALUE, mutable=False,
-            ownership=Ownership.OWNED, pure=False,
+            value_category=ValueCategory.VALUE,
+            mutable=False,
+            ownership=Ownership.OWNED,
+            pure=False,
         )
         return node.contract
     if isinstance(node, mir.MirStructInit):
@@ -303,8 +344,10 @@ def _ip_walk_node(node: mir.MirNode, fn_map: FnMap) -> None:
         callee = fn_map.get(node.func)
         if callee is not None:
             node.contract = SemanticContract(
-                value_category=ValueCategory.VALUE, mutable=False,
-                ownership=Ownership.OWNED, pure=callee.contract.pure,
+                value_category=ValueCategory.VALUE,
+                mutable=False,
+                ownership=Ownership.OWNED,
+                pure=callee.contract.pure,
             )
         for a in node.args:
             _ip_walk_node(a, fn_map)

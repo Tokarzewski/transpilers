@@ -1,14 +1,17 @@
 """Zig LIR dialect nodes."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from .base import LirNode
+
 
 @dataclass
 class ZigFieldAssign(LirNode):
     obj: LirNode
     field: str
     value: LirNode
+
 
 @dataclass
 class ZigStructInit(LirNode):
@@ -17,15 +20,18 @@ class ZigStructInit(LirNode):
     name: str
     field_values: list[tuple[str, LirNode]]
 
+
 @dataclass
 class ZigSubscriptAssign(LirNode):
     obj: LirNode
     index: LirNode
     value: LirNode
 
+
 @dataclass
 class ZigModule(LirNode):
     items: list[LirNode] = field(default_factory=list)
+
 
 @dataclass
 class ZigFn(LirNode):
@@ -34,9 +40,11 @@ class ZigFn(LirNode):
     return_type: str
     body: list[LirNode]
 
+
 @dataclass
 class ZigReturn(LirNode):
     value: LirNode | None
+
 
 @dataclass
 class ZigBinOp(LirNode):
@@ -44,11 +52,13 @@ class ZigBinOp(LirNode):
     left: LirNode
     right: LirNode
 
+
 @dataclass
 class ZigCompare(LirNode):
     op: str
     left: LirNode
     right: LirNode
+
 
 @dataclass
 class ZigBoolOp(LirNode):
@@ -56,30 +66,37 @@ class ZigBoolOp(LirNode):
     left: LirNode
     right: LirNode
 
+
 @dataclass
 class ZigUnary(LirNode):
     op: str  # "!" / "-"
     operand: LirNode
 
+
 @dataclass
 class ZigName(LirNode):
     name: str
+
 
 @dataclass
 class ZigIntLiteral(LirNode):
     value: int
 
+
 @dataclass
 class ZigFloatLiteral(LirNode):
     value: float
+
 
 @dataclass
 class ZigBoolLiteral(LirNode):
     value: bool
 
+
 @dataclass
 class ZigStringLiteral(LirNode):
     value: str
+
 
 @dataclass
 class ZigIf(LirNode):
@@ -87,10 +104,12 @@ class ZigIf(LirNode):
     body: list[LirNode]
     orelse: list[LirNode]
 
+
 @dataclass
 class ZigWhile(LirNode):
     test: LirNode
     body: list[LirNode]
+
 
 @dataclass
 class ZigForRange(LirNode):
@@ -103,6 +122,7 @@ class ZigForRange(LirNode):
     stop: LirNode
     body: list[LirNode]
 
+
 @dataclass
 class ZigVar(LirNode):
     """`var <name>: <ty> = <value>;` (mutable) or `const <name>: <ty> = <value>;`."""
@@ -112,10 +132,12 @@ class ZigVar(LirNode):
     ty: str | None
     value: LirNode
 
+
 @dataclass
 class ZigReassign(LirNode):
     name: str
     value: LirNode
+
 
 @dataclass
 class ZigArrayLit(LirNode):
@@ -129,10 +151,12 @@ class ZigArrayLit(LirNode):
     elements: list[LirNode]
     ref: bool = False
 
+
 @dataclass
 class ZigIndex(LirNode):
     value: LirNode
     index: LirNode
+
 
 @dataclass
 class ZigMethodCall(LirNode):
@@ -141,10 +165,12 @@ class ZigMethodCall(LirNode):
     args: list[LirNode]
     cast_to: str | None = None
 
+
 @dataclass
 class ZigCall(LirNode):
     func: str
     args: list[LirNode]
+
 
 @dataclass
 class ZigStruct(LirNode):
@@ -152,16 +178,21 @@ class ZigStruct(LirNode):
     fields: list[tuple[str, str]]
     methods: list["ZigFn"]
 
+
 @dataclass
 class ZigFieldAccess(LirNode):
     value: LirNode
     field: str
 
-@dataclass
-class ZigBreak(LirNode): pass
 
 @dataclass
-class ZigContinue(LirNode): pass
+class ZigBreak(LirNode):
+    pass
+
+
+@dataclass
+class ZigContinue(LirNode):
+    pass
 
 
 @dataclass
@@ -172,4 +203,34 @@ class ZigRaw(LirNode):
     snippet: str
 
 
-__all__ = ['ZigFieldAssign', 'ZigStructInit', 'ZigSubscriptAssign', 'ZigModule', 'ZigFn', 'ZigReturn', 'ZigBinOp', 'ZigCompare', 'ZigBoolOp', 'ZigUnary', 'ZigName', 'ZigIntLiteral', 'ZigFloatLiteral', 'ZigBoolLiteral', 'ZigStringLiteral', 'ZigIf', 'ZigWhile', 'ZigForRange', 'ZigVar', 'ZigReassign', 'ZigArrayLit', 'ZigIndex', 'ZigMethodCall', 'ZigCall', 'ZigStruct', 'ZigFieldAccess', 'ZigBreak', 'ZigContinue', 'ZigRaw']
+__all__ = [
+    "ZigFieldAssign",
+    "ZigStructInit",
+    "ZigSubscriptAssign",
+    "ZigModule",
+    "ZigFn",
+    "ZigReturn",
+    "ZigBinOp",
+    "ZigCompare",
+    "ZigBoolOp",
+    "ZigUnary",
+    "ZigName",
+    "ZigIntLiteral",
+    "ZigFloatLiteral",
+    "ZigBoolLiteral",
+    "ZigStringLiteral",
+    "ZigIf",
+    "ZigWhile",
+    "ZigForRange",
+    "ZigVar",
+    "ZigReassign",
+    "ZigArrayLit",
+    "ZigIndex",
+    "ZigMethodCall",
+    "ZigCall",
+    "ZigStruct",
+    "ZigFieldAccess",
+    "ZigBreak",
+    "ZigContinue",
+    "ZigRaw",
+]

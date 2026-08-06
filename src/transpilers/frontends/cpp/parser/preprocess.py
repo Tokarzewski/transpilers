@@ -24,6 +24,7 @@ Usage::
     preprocessed = preprocess_cpp("int x = 1;")
     # -> "namespace std { ... }\nint x = 1;"
 """
+
 from __future__ import annotations
 
 import re
@@ -394,7 +395,7 @@ def preprocess_cpp(
             text=True,
             timeout=timeout,
         )
-    except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
+    except FileNotFoundError, subprocess.TimeoutExpired, OSError:
         return PARSER_PREAMBLE + _strip_directives(source)
 
     if proc.returncode != 0 or not proc.stdout:

@@ -98,10 +98,19 @@ def _ensure_pyghidra_started() -> None:
 # CRT / linker-injected stubs that Ghidra always recovers but the user never
 # wants. Filter at the source so they don't pollute the parse.
 CRT_FUNCTION_NAMES = {
-    "_init", "_fini", "_start", "_dl_relocate_static_pie",
-    "deregister_tm_clones", "register_tm_clones",
-    "__do_global_dtors_aux", "frame_dummy", "__libc_csu_init", "__libc_csu_fini",
-    "_DT_INIT", "call_gmon_start", "__do_global_ctors_aux",
+    "_init",
+    "_fini",
+    "_start",
+    "_dl_relocate_static_pie",
+    "deregister_tm_clones",
+    "register_tm_clones",
+    "__do_global_dtors_aux",
+    "frame_dummy",
+    "__libc_csu_init",
+    "__libc_csu_fini",
+    "_DT_INIT",
+    "call_gmon_start",
+    "__do_global_ctors_aux",
 }
 
 
@@ -160,12 +169,37 @@ GHIDRA_TYPE_REWRITES = {
 # context. Everything else that *looks* like a type but isn't in this set
 # becomes `void *` so pycparser can swallow it (the user can refine later).
 KNOWN_C_TYPES = {
-    "void", "char", "short", "int", "long", "float", "double", "_Bool", "signed", "unsigned",
-    "const", "volatile", "struct", "union", "enum", "static", "extern", "register", "inline",
+    "void",
+    "char",
+    "short",
+    "int",
+    "long",
+    "float",
+    "double",
+    "_Bool",
+    "signed",
+    "unsigned",
+    "const",
+    "volatile",
+    "struct",
+    "union",
+    "enum",
+    "static",
+    "extern",
+    "register",
+    "inline",
     # stdint flavors after our rewrites:
-    "int8_t", "int16_t", "int32_t", "int64_t",
-    "uint8_t", "uint16_t", "uint32_t", "uint64_t",
-    "size_t", "ssize_t", "ptrdiff_t",
+    "int8_t",
+    "int16_t",
+    "int32_t",
+    "int64_t",
+    "uint8_t",
+    "uint16_t",
+    "uint32_t",
+    "uint64_t",
+    "size_t",
+    "ssize_t",
+    "ptrdiff_t",
     "FILE",
 }
 
@@ -186,6 +220,7 @@ def _clean_ghidra_c(text: str) -> str:
         "__attribute__((__noreturn__)) ",
     ):
         text = text.replace(cc, "")
+
     # Replace unknown library-recovered type names (`EVP_PKEY_CTX`, etc.) with
     # `void *`. Heuristic: identifiers that appear in a pointer-decl position
     # `<TYPE> *<ident>` where <TYPE> is uppercase / underscored and not a
@@ -210,7 +245,9 @@ def _assemble_and_decompile(asm_source: str) -> hir.HirModule:
         src = Path(td) / "input.s"
         obj = Path(td) / "input.o"
         src.write_text(asm_source)
-        result = subprocess.run(["as", str(src), "-o", str(obj)], capture_output=True, text=True)
+        result = subprocess.run(
+            ["as", str(src), "-o", str(obj)], capture_output=True, text=True
+        )
         if result.returncode != 0:
             raise UnsupportedConstruct(f"assembly failed:\n{result.stderr}")
         return parse_asm(str(obj))

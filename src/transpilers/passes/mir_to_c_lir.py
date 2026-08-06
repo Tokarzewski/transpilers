@@ -13,7 +13,17 @@ mangling, slice-literal construction, and the builtin call table.
 from __future__ import annotations
 
 from transpilers.ir import lir, mir
-from transpilers.ir.types import BoolT, FloatT, IntT, ListT, NoneT, StrT, StructT, Type, UnknownT
+from transpilers.ir.types import (
+    BoolT,
+    FloatT,
+    IntT,
+    ListT,
+    NoneT,
+    StrT,
+    StructT,
+    Type,
+    UnknownT,
+)
 
 from ._mir_lower_base import MirLoweringBase, is_string_concat
 
@@ -57,7 +67,9 @@ class _CLowering(MirLoweringBase):
 
     def lower_field_access(self, node: mir.MirFieldAccess):
         via_ptr = isinstance(node.value, mir.MirName) and node.value.name == "self"
-        return lir.CFieldAccess(value=self.lower_expr(node.value), field=node.field, via_pointer=via_ptr)
+        return lir.CFieldAccess(
+            value=self.lower_expr(node.value), field=node.field, via_pointer=via_ptr
+        )
 
     # -- assign: every local is a plain decl / reassign -------------------- #
 
@@ -80,7 +92,11 @@ class _CLowering(MirLoweringBase):
     def lower_expr_special(self, node: mir.MirNode):
         if isinstance(node, mir.MirBinOp) and node.op == "//":
             # C: integer division is `/` on integer types.
-            return lir.CBinOp(op="/", left=self.lower_expr(node.left), right=self.lower_expr(node.right))
+            return lir.CBinOp(
+                op="/",
+                left=self.lower_expr(node.left),
+                right=self.lower_expr(node.right),
+            )
         return None
 
     def lower_method_call(self, node: mir.MirMethodCall):
@@ -91,7 +107,8 @@ class _CLowering(MirLoweringBase):
         if isinstance(recv_ty, StructT):
             return lir.CCall(
                 func=f"{recv_ty.name}_{node.method}",
-                args=[_AddressOf(self.lower_expr(recv))] + [self.lower_expr(a) for a in node.args],
+                args=[_AddressOf(self.lower_expr(recv))]
+                + [self.lower_expr(a) for a in node.args],
             )
         raise NotImplementedError(f"C method call on receiver with type {recv_ty}")
 
@@ -101,11 +118,17 @@ class _CLowering(MirLoweringBase):
                 "string concatenation in C requires allocator-aware emission "
                 "(snprintf or asprintf), not yet supported"
             )
-        return lir.CBinOp(op=node.op, left=self.lower_expr(node.left), right=self.lower_expr(node.right))
+        return lir.CBinOp(
+            op=node.op,
+            left=self.lower_expr(node.left),
+            right=self.lower_expr(node.right),
+        )
 
     def lower_boolop(self, node: mir.MirBoolOp):
         op = "&&" if node.op == "and" else "||"
-        return lir.CBoolOp(op=op, left=self.lower_expr(node.left), right=self.lower_expr(node.right))
+        return lir.CBoolOp(
+            op=op, left=self.lower_expr(node.left), right=self.lower_expr(node.right)
+        )
 
     def lower_null(self, node: mir.MirNullLiteral):
         return lir.CName(name="NULL")
@@ -148,11 +171,13 @@ class _CLowering(MirLoweringBase):
                 ty = getattr(orig, "ty", None)
                 if isinstance(ty, BoolT):
                     fmt_parts.append("%s")
-                    final_args.append(lir.CTernary(
-                        test=lowered,
-                        then_=lir.CStringLiteral(value="True"),
-                        else_=lir.CStringLiteral(value="False"),
-                    ))
+                    final_args.append(
+                        lir.CTernary(
+                            test=lowered,
+                            then_=lir.CStringLiteral(value="True"),
+                            else_=lir.CStringLiteral(value="False"),
+                        )
+                    )
                 elif isinstance(ty, FloatT):
                     fmt_parts.append("%s")
                     final_args.append(_CPyFloat(value=lowered))
@@ -168,11 +193,17 @@ class _CLowering(MirLoweringBase):
             # C's stdlib has abs/labs/llabs — use llabs for int64.
             return lir.CCall(func="llabs", args=args)
         if node.func == "min" and len(args) == 2:
-            return lir.CTernary(test=lir.CCompare(op="<", left=args[0], right=args[1]),
-                                then_=args[0], else_=args[1])
+            return lir.CTernary(
+                test=lir.CCompare(op="<", left=args[0], right=args[1]),
+                then_=args[0],
+                else_=args[1],
+            )
         if node.func == "max" and len(args) == 2:
-            return lir.CTernary(test=lir.CCompare(op=">", left=args[0], right=args[1]),
-                                then_=args[0], else_=args[1])
+            return lir.CTernary(
+                test=lir.CCompare(op=">", left=args[0], right=args[1]),
+                then_=args[0],
+                else_=args[1],
+            )
         if node.func == "int" and len(args) == 1:
             return lir.CCall(func="(int64_t)", args=args)
         if node.func == "float" and len(args) == 1:
@@ -202,7 +233,9 @@ def _c_list_elem_type(ty) -> str:
 class _CSliceLiteral(lir.LirNode):
     """`((slice_T_t){(T[]){a,b,c}, 3})` — compound-literal slice ctor."""
 
-    def __init__(self, slice_ty: str, elem_ty: str, elements: list[lir.LirNode]) -> None:
+    def __init__(
+        self, slice_ty: str, elem_ty: str, elements: list[lir.LirNode]
+    ) -> None:
         self.slice_ty = slice_ty
         self.elem_ty = elem_ty
         self.elements = elements
@@ -245,7 +278,9 @@ def _c_type(ty: Type) -> str:
             return "slice_bool_t"
         if isinstance(ty.elem, FloatT):
             return "slice_f64_t"
-        raise NotImplementedError(f"no C slice type for list element {type(ty.elem).__name__}")
+        raise NotImplementedError(
+            f"no C slice type for list element {type(ty.elem).__name__}"
+        )
     if isinstance(ty, StructT):
         return ty.name
     if isinstance(ty, UnknownT):

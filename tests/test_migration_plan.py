@@ -80,15 +80,15 @@ def test_fan_in_counts_dependents():
 def test_fan_in_dedups_parallel_edges_and_ignores_external():
     g = {"a": ["c", "c"], "c": [], "b": ["external"]}
     fi = mp.fan_in(g)
-    assert fi["c"] == 1          # duplicate a->c edge counted once
+    assert fi["c"] == 1  # duplicate a->c edge counted once
     assert "external" not in fi  # external node not scored
 
 
 def test_fanin_ranked_orders_by_dependents_then_name():
     g = {"hi": [], "lo": [], "a": ["hi"], "b": ["hi"], "c": ["lo"]}
     ranked, fi = mp.fanin_ranked(g)
-    assert ranked[0] == "hi"     # fan-in 2 beats everything
-    assert ranked[1] == "lo"     # fan-in 1
+    assert ranked[0] == "hi"  # fan-in 2 beats everything
+    assert ranked[1] == "lo"  # fan-in 1
     assert fi["hi"] == 2 and fi["lo"] == 1
 
 
@@ -117,6 +117,7 @@ def test_graph_node_link_roundtrips_via_networkx_if_available():
     if nx is None:
         return  # networkx optional; schema is still the node-link standard
     import networkx as nxmod  # noqa
+
     g = {"a": ["b"], "b": []}
     d = mp.graph_node_link(g)
     G = nxmod.node_link_graph(d, edges="links")

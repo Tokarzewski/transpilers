@@ -14,7 +14,12 @@ import tree_sitter_go
 
 from transpilers.ir import hir
 from transpilers.frontends._markers import FlattenBlock
-from transpilers.frontends._treesitter import make_parser, named_children, required_field, text
+from transpilers.frontends._treesitter import (
+    make_parser,
+    named_children,
+    required_field,
+    text,
+)
 
 
 from transpilers.frontends.errors import UnsupportedConstruct
@@ -53,7 +58,12 @@ def parse_go(source: str) -> hir.HirModule:
             continue
         if c.type in ("package_clause", "import_declaration", "comment"):
             continue
-        if c.type in ("method_declaration", "type_declaration", "const_declaration", "var_declaration"):
+        if c.type in (
+            "method_declaration",
+            "type_declaration",
+            "const_declaration",
+            "var_declaration",
+        ):
             raise UnsupportedConstruct(f"top-level {c.type}")
         raise UnsupportedConstruct(f"top-level {c.type}")
     return hir.HirModule(source_lang="go", body=body)
@@ -68,7 +78,9 @@ def _convert_function(node: Node) -> hir.HirFunction:
     return hir.HirFunction(
         name=text(name_node),
         params=params,
-        return_annotation=_type_text(result_node) if result_node is not None else "None",
+        return_annotation=_type_text(result_node)
+        if result_node is not None
+        else "None",
         body=_convert_block(body_node),
     )
 
@@ -156,10 +168,10 @@ def _convert_if(node: Node) -> hir.HirNode:
 
 def _convert_for(node: Node) -> list[hir.HirNode]:
     """Go for forms:
-        for { ... }                   -> infinite — refuse
-        for cond { ... }              -> while(cond)
-        for init; cond; update { ... }-> init; while(cond) { body; update }
-        for x := range ... { ... }    -> refuse (ranges over collections)
+    for { ... }                   -> infinite — refuse
+    for cond { ... }              -> while(cond)
+    for init; cond; update { ... }-> init; while(cond) { body; update }
+    for x := range ... { ... }    -> refuse (ranges over collections)
     """
     body_node = required_field(node, "body")
     inner = _convert_block(body_node)
@@ -176,7 +188,9 @@ def _convert_for(node: Node) -> list[hir.HirNode]:
     if header is None:
         raise UnsupportedConstruct("`for {}` (infinite loop) not supported")
     if header.type == "range_clause":
-        raise UnsupportedConstruct("`for ... := range ...` not supported in initial subset")
+        raise UnsupportedConstruct(
+            "`for ... := range ...` not supported in initial subset"
+        )
     if header.type == "for_clause":
         init_node = header.child_by_field_name("initializer")
         cond_node = header.child_by_field_name("condition")
@@ -184,7 +198,11 @@ def _convert_for(node: Node) -> list[hir.HirNode]:
         out: list[hir.HirNode] = []
         if init_node is not None:
             out.extend(_convert_stmt(init_node))
-        cond = _convert_expr(cond_node) if cond_node is not None else hir.HirBoolLiteral(value=True)
+        cond = (
+            _convert_expr(cond_node)
+            if cond_node is not None
+            else hir.HirBoolLiteral(value=True)
+        )
         if update_node is not None:
             inner.extend(_convert_stmt(update_node))
         out.append(hir.HirWhile(test=cond, body=inner))
@@ -230,10 +248,18 @@ def _convert_var_decl(node: Node) -> list[hir.HirNode]:
                 raise UnsupportedConstruct("multi-name go var spec")
             if value_node is not None:
                 value_kids = named_children(value_node)
-                value = _convert_expr(value_kids[0]) if value_kids else hir.HirIntLiteral(value=0)
+                value = (
+                    _convert_expr(value_kids[0])
+                    if value_kids
+                    else hir.HirIntLiteral(value=0)
+                )
             else:
                 value = hir.HirIntLiteral(value=0)
-            out.append(hir.HirAssign(target=text(name_nodes[0]), value=value, annotation=annotation))
+            out.append(
+                hir.HirAssign(
+                    target=text(name_nodes[0]), value=value, annotation=annotation
+                )
+            )
     return out
 
 
@@ -244,7 +270,9 @@ def _convert_assignment(node: Node) -> hir.HirNode:
     right_kids = named_children(right)
     real_lhs = [c for c in left_kids if not (c.type == "identifier" and text(c) == "_")]
     if not real_lhs or not right_kids:
-        return hir.HirAssign(target="_", value=hir.HirIntLiteral(value=0), annotation=None)
+        return hir.HirAssign(
+            target="_", value=hir.HirIntLiteral(value=0), annotation=None
+        )
     op = None
     for child in node.children:
         if not child.is_named:
@@ -263,7 +291,9 @@ def _convert_assignment(node: Node) -> hir.HirNode:
     target = real_lhs[0]
     rhs = _convert_expr(right_kids[0])
     if target.type == "identifier":
-        return hir.HirAssign(target=text(target), value=rhs, annotation=None, augmented_op=aug)
+        return hir.HirAssign(
+            target=text(target), value=rhs, annotation=None, augmented_op=aug
+        )
     if target.type == "index_expression":
         return hir.HirSubscriptAssign(
             obj=_convert_expr(required_field(target, "operand")),
@@ -284,23 +314,31 @@ def _tuple_swap(targets: list[Node], rhs_nodes: list[Node]) -> hir.HirNode:
     tmps = [f"__xpile_swap_{i}" for i in range(len(targets))]
     stmts: list[hir.HirNode] = []
     for tmp, rhs in zip(tmps, rhs_nodes):
-        stmts.append(hir.HirAssign(target=tmp, value=_convert_expr(rhs), annotation=None))
+        stmts.append(
+            hir.HirAssign(target=tmp, value=_convert_expr(rhs), annotation=None)
+        )
     for slot, tmp in zip(targets, tmps):
         rhs_expr = hir.HirName(name=tmp)
         if slot.type == "identifier":
-            stmts.append(hir.HirAssign(target=text(slot), value=rhs_expr, annotation=None))
+            stmts.append(
+                hir.HirAssign(target=text(slot), value=rhs_expr, annotation=None)
+            )
         elif slot.type == "index_expression":
-            stmts.append(hir.HirSubscriptAssign(
-                obj=_convert_expr(required_field(slot, "operand")),
-                index=_convert_expr(required_field(slot, "index")),
-                value=rhs_expr,
-            ))
+            stmts.append(
+                hir.HirSubscriptAssign(
+                    obj=_convert_expr(required_field(slot, "operand")),
+                    index=_convert_expr(required_field(slot, "index")),
+                    value=rhs_expr,
+                )
+            )
         elif slot.type == "selector_expression":
-            stmts.append(hir.HirFieldAssign(
-                obj=_convert_expr(required_field(slot, "operand")),
-                field=text(required_field(slot, "field")),
-                value=rhs_expr,
-            ))
+            stmts.append(
+                hir.HirFieldAssign(
+                    obj=_convert_expr(required_field(slot, "operand")),
+                    field=text(required_field(slot, "field")),
+                    value=rhs_expr,
+                )
+            )
         else:
             raise UnsupportedConstruct(f"go tuple-assign slot {slot.type}")
     return FlattenBlock(stmts=stmts)
@@ -321,6 +359,7 @@ def _convert_inc_dec(node: Node) -> hir.HirNode:
 
 
 # ---------- expressions ----------
+
 
 def _convert_expr(node: Node) -> hir.HirNode:
     kind = node.type
@@ -361,7 +400,9 @@ def _convert_expr(node: Node) -> hir.HirNode:
     if kind == "index_expression":
         operand = required_field(node, "operand")
         index = required_field(node, "index")
-        return hir.HirSubscript(value=_convert_expr(operand), index=_convert_expr(index))
+        return hir.HirSubscript(
+            value=_convert_expr(operand), index=_convert_expr(index)
+        )
     if kind == "composite_literal":
         # `[]int{1, 2, 3}` / `T{...}` — only the slice/array literal form
         # maps cleanly to HirList. Structs would need user-type tracking.
@@ -421,7 +462,9 @@ def _convert_call(node: Node) -> hir.HirNode:
         # parse.
         operand = func_node.child_by_field_name("operand")
         field = func_node.child_by_field_name("field")
-        receiver = _convert_expr(operand) if operand is not None else hir.HirName(name="_")
+        receiver = (
+            _convert_expr(operand) if operand is not None else hir.HirName(name="_")
+        )
         method = text(field) if field is not None else "_"
         return hir.HirMethodCall(receiver=receiver, method=method, args=args)
     raise UnsupportedConstruct(f"go call target {func_node.type}")
@@ -433,6 +476,7 @@ LOGICAL_OPS = {"&&", "||"}
 
 
 # ---------- types ----------
+
 
 def _type_text(node: Node) -> str:
     if node is None:

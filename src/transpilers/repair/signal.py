@@ -217,4 +217,3 @@ def signal_from_internal(
         attempt=attempt,
         extra={"exception": type(exc).__name__, "message": str(exc)},
     )
-

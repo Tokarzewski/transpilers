@@ -45,12 +45,12 @@ PREAMBLE = (
     "static const char* _py_float_buf(double v, char *buf) {\n"
     "    int prec;\n"
     "    for (prec = 1; prec <= 17; prec++) {\n"
-    "        snprintf(buf, 32, \"%.*g\", prec, v);\n"
-    "        double back; sscanf(buf, \"%lf\", &back);\n"
+    '        snprintf(buf, 32, "%.*g", prec, v);\n'
+    '        double back; sscanf(buf, "%lf", &back);\n'
     "        if (back == v) break;\n"
     "    }\n"
     "    if (!strchr(buf, '.') && !strchr(buf, 'e') && !strchr(buf, 'E'))\n"
-    "        strcat(buf, \".0\");\n"
+    '        strcat(buf, ".0");\n'
     "    return buf;\n"
     "}\n"
     "\n"
@@ -135,7 +135,9 @@ def _emit_stmt(node: lir.LirNode, depth: int) -> str:
     if isinstance(node, lir.CContinue):
         return f"{pad}continue;"
     if isinstance(node, lir.CReturn):
-        return f"{pad}return {_emit_expr(node.value)};" if node.value else f"{pad}return;"
+        return (
+            f"{pad}return {_emit_expr(node.value)};" if node.value else f"{pad}return;"
+        )
     if isinstance(node, lir.CDecl):
         return f"{pad}{node.ty} {node.name} = {_emit_expr(node.value)};"
     if isinstance(node, lir.CReassign):
@@ -143,6 +145,7 @@ def _emit_stmt(node: lir.LirNode, depth: int) -> str:
         # Lower it to element-wise push() onto the realloc-backed slice — a
         # struct `+=` is invalid C and the old emission produced exactly that.
         from transpilers.passes.mir_to_c_lir import _CSliceLiteral
+
         val = node.value
         if (
             isinstance(val, lir.CBinOp)
@@ -165,7 +168,9 @@ def _emit_stmt(node: lir.LirNode, depth: int) -> str:
         return f"{pad}{node.name} = {_emit_expr(node.value)};"
     if isinstance(node, lir.CFieldAssign):
         sep = "->" if node.via_pointer else "."
-        return f"{pad}{_emit_expr(node.obj)}{sep}{node.field} = {_emit_expr(node.value)};"
+        return (
+            f"{pad}{_emit_expr(node.obj)}{sep}{node.field} = {_emit_expr(node.value)};"
+        )
     if isinstance(node, lir.CSubscriptAssign):
         # Slice element write — every CSubscriptAssign in this pipeline
         # targets a `slice_*_t` carrier, so the index lands on `.data[i]`.
@@ -187,7 +192,9 @@ def _emit_stmt(node: lir.LirNode, depth: int) -> str:
     if isinstance(node, lir.CForRange):
         # Native C for-loop. Step expressed as either `i++` (None or +1) or
         # explicit `i += <step>`.
-        step_expr = "i++" if node.step is None else f"{node.target} += {_emit_expr(node.step)}"
+        step_expr = (
+            "i++" if node.step is None else f"{node.target} += {_emit_expr(node.step)}"
+        )
         # Rebuild with the real target name when step is None:
         if node.step is None:
             step_expr = f"{node.target}++"
@@ -208,7 +215,10 @@ def _op_of(node: lir.LirNode) -> str | None:
 
 def _paren(child: lir.LirNode, parent_op: str, *, on_right: bool) -> str:
     from transpilers.backends._precedence import paren_emit
-    return paren_emit(child, parent_op, on_right=on_right, emit_expr=_emit_expr, op_of=_op_of)
+
+    return paren_emit(
+        child, parent_op, on_right=on_right, emit_expr=_emit_expr, op_of=_op_of
+    )
 
 
 def _emit_expr(node: lir.LirNode | None) -> str:
@@ -241,6 +251,7 @@ def _emit_expr(node: lir.LirNode | None) -> str:
         # slice value, so step through `.data` to reach the element.
         return f"{_emit_expr(node.value)}.data[{_emit_expr(node.index)}]"
     from transpilers.passes.mir_to_c_lir import _CSliceLiteral, _CPyFloat
+
     if isinstance(node, _CSliceLiteral):
         # Empty list → zeroed growable slice (data=NULL, len=cap=0) so a
         # later push() reallocs from scratch. Non-empty literals keep their
@@ -267,6 +278,7 @@ def _emit_expr(node: lir.LirNode | None) -> str:
         body = ", ".join(f".{n} = {_emit_expr(v)}" for n, v in node.field_values)
         return f"({node.name}){{{body}}}"
     from transpilers.passes.mir_to_c_lir import _AddressOf as _AO
+
     if isinstance(node, _AO):
         return f"&{_emit_expr(node.value)}"
     raise NotImplementedError(f"LIR node {type(node).__name__}")

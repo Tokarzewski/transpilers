@@ -32,7 +32,7 @@ from transpilers.ir import mir
 OPAQUE_PATTERNS = [
     re.compile(r"^local_[0-9a-f]+$"),
     re.compile(r"^param_[0-9]+$"),
-    re.compile(r"^[ipuc]Var[0-9]+$"),     # iVar1, pVar2, uVar3, cVar4
+    re.compile(r"^[ipuc]Var[0-9]+$"),  # iVar1, pVar2, uVar3, cVar4
     re.compile(r"^var_[0-9a-f]+$"),
     re.compile(r"^[A-Z]+[0-9]+_[0-9]+$"),  # DAT_00112233 style globals
 ]
@@ -76,6 +76,7 @@ def _rename_function(fn: mir.MirFunction, llm_fill: LlmFill) -> None:
 
 
 # ---------- discovery ----------
+
 
 def _find_opaque_names(fn: mir.MirFunction) -> set[str]:
     found: set[str] = set()
@@ -127,6 +128,7 @@ def _collect_all_names(nodes: list[mir.MirNode], out: set[str]) -> None:
 
 
 # ---------- apply ----------
+
 
 def _apply_renames(fn: mir.MirFunction, mapping: dict[str, str]) -> None:
     if not mapping:
@@ -202,6 +204,7 @@ def _rewrite_node(node: mir.MirNode, mapping: dict[str, str]) -> None:
 
 
 # ---------- LLM context dump ----------
+
 
 def _mir_dump(fn: mir.MirFunction) -> str:
     """Dump an MIR function in a human-readable shape so the LLM has

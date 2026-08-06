@@ -137,7 +137,9 @@ def test_mojo_foreach_index_names_are_deterministic():
     """
     first = _m(src)
     # Lower an unrelated module in between to bump the global counter.
-    _m("def g(ys: list[int]) -> int:\n    s: int = 0\n    for y in ys:\n        s = s + y\n    return s\n")
+    _m(
+        "def g(ys: list[int]) -> int:\n    s: int = 0\n    for y in ys:\n        s = s + y\n    return s\n"
+    )
     second = _m(src)
     assert first == second
     assert "__xpile_idx_0" in first and "__xpile_idx_1" not in first
@@ -154,7 +156,10 @@ def test_mojo_keyword_only_params_preserved():
             return t_zone_c + t_si_c
         """
     )
-    assert "def h(tilt_deg: Float64, t_zone_c: Float64, t_si_c: Float64) -> Float64:" in out
+    assert (
+        "def h(tilt_deg: Float64, t_zone_c: Float64, t_si_c: Float64) -> Float64:"
+        in out
+    )
 
 
 def test_mojo_variadic_params_refused():

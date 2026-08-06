@@ -1,4 +1,5 @@
 """Transpile C++ -> Mojo via OpenRouter (config-driven, per-file, parallel)."""
+
 from __future__ import annotations
 
 import argparse
@@ -15,11 +16,12 @@ RAW_DIR: Path | None = None
 
 try:
     from dotenv import load_dotenv
+
     load_dotenv(Path.cwd() / ".env", override=True)
 except ImportError:
     pass
 
-from openrouter import OpenRouter
+from openrouter import OpenRouter  # noqa: E402  (after env bootstrap)
 
 PROMPT_TEMPLATE = """\
 Convert this C++ file to Mojo. Faithful 1:1 translation, no refactoring.
@@ -77,13 +79,15 @@ def extract_file_block(text: str) -> str | None:
     # Try with closing tag first
     m = re.search(
         r"<<<\s*FILE\s+(?P<path>[^\n]+?)\s*>>>\n(?P<body>.*?)\n<<<\s*END\s*>>>",
-        text, re.DOTALL,
+        text,
+        re.DOTALL,
     )
     if not m:
         # Fallback: missing closing tag — take everything after <<<FILE>>> to end
         m = re.search(
             r"<<<\s*FILE\s+(?P<path>[^\n]+?)\s*>>>\n(?P<body>.*)\Z",
-            text, re.DOTALL,
+            text,
+            re.DOTALL,
         )
     if not m:
         return None
@@ -97,7 +101,9 @@ def mojo_compile(path: Path) -> tuple[bool, str]:
     try:
         p = subprocess.run(
             ["mojo", "build", str(path)],
-            capture_output=True, text=True, timeout=120,
+            capture_output=True,
+            text=True,
+            timeout=120,
         )
         return p.returncode == 0, p.stderr
     except FileNotFoundError:
@@ -106,8 +112,9 @@ def mojo_compile(path: Path) -> tuple[bool, str]:
         return False, "timed out"
 
 
-def transpile_one(entry: dict, model: str, client: OpenRouter,
-                  repair: bool, max_retries: int) -> dict:
+def transpile_one(
+    entry: dict, model: str, client: OpenRouter, repair: bool, max_retries: int
+) -> dict:
     cc_path = Path(entry["source"])
     target_path = Path(entry["target"])
     result = dict(entry)
@@ -148,7 +155,8 @@ def transpile_one(entry: dict, model: str, client: OpenRouter,
             response = client.chat.send(
                 model=model,
                 messages=[{"role": "user", "content": prompt}],
-                temperature=0.0, max_tokens=16000,
+                temperature=0.0,
+                max_tokens=16000,
             )
             raw = response.choices[0].message.content
 
@@ -217,31 +225,54 @@ def main() -> int:
         description="Transpile C++/Fortran to Mojo via OpenRouter from a JSON config",
     )
     ap.add_argument("config", help="JSON config file from build_config.py")
-    ap.add_argument("--model", default="deepseek/deepseek-v4-flash",
-                    help="OpenRouter model")
-    ap.add_argument("--repair", action="store_true",
-                    help="Enable compile-driven repair loop")
+    ap.add_argument(
+        "--model", default="deepseek/deepseek-v4-flash", help="OpenRouter model"
+    )
+    ap.add_argument(
+        "--repair", action="store_true", help="Enable compile-driven repair loop"
+    )
     ap.add_argument("--max-retries", type=int, default=3)
-    ap.add_argument("--timeout", type=int, default=600,
-                    help="Timeout in seconds per file")
-    ap.add_argument("--workers", type=int, default=1,
-                    help="Number of parallel workers")
-    ap.add_argument("--limit", type=int, default=0,
-                    help="Transpile first N pending files")
-    ap.add_argument("--ids", type=int, nargs="+", default=None,
-                    help="Transpile only these entry ids")
-    ap.add_argument("--files", nargs="+", default=None,
-                    help="Transpile only these source paths (substring match)")
-    ap.add_argument("--dry-run", action="store_true",
-                    help="Show what would be done without calling LLM")
-    ap.add_argument("--status", action="store_true",
-                    help="Show config summary and exit")
-    ap.add_argument("--resolve", action="store_true",
-                    help="Retry entries with decision=done but missing .mojo")
-    ap.add_argument("--raw-dir", default=None,
-                    help="Directory to save raw LLM responses for debugging")
-    ap.add_argument("--force", action="store_true",
-                    help="Re-transpile even if decision=done")
+    ap.add_argument(
+        "--timeout", type=int, default=600, help="Timeout in seconds per file"
+    )
+    ap.add_argument("--workers", type=int, default=1, help="Number of parallel workers")
+    ap.add_argument(
+        "--limit", type=int, default=0, help="Transpile first N pending files"
+    )
+    ap.add_argument(
+        "--ids",
+        type=int,
+        nargs="+",
+        default=None,
+        help="Transpile only these entry ids",
+    )
+    ap.add_argument(
+        "--files",
+        nargs="+",
+        default=None,
+        help="Transpile only these source paths (substring match)",
+    )
+    ap.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what would be done without calling LLM",
+    )
+    ap.add_argument(
+        "--status", action="store_true", help="Show config summary and exit"
+    )
+    ap.add_argument(
+        "--resolve",
+        action="store_true",
+        help="Retry entries with decision=done but missing .mojo",
+    )
+    ap.add_argument(
+        "--raw-dir",
+        default=None,
+        help="Directory to save raw LLM responses for debugging",
+    )
+    ap.add_argument(
+        "--force", action="store_true", help="Re-transpile even if decision=done"
+    )
     args = ap.parse_args()
 
     config_path = Path(args.config)
@@ -280,14 +311,18 @@ def main() -> int:
                 if pat in e["source"] and e not in entries:
                     entries.append(e)
     elif args.resolve:
-        entries = [e for e in config if e.get("decision") == "done" and not Path(e["target"]).exists()]
+        entries = [
+            e
+            for e in config
+            if e.get("decision") == "done" and not Path(e["target"]).exists()
+        ]
     elif args.force:
         entries = list(config)
     else:
         entries = [e for e in config if e.get("decision") != "done"]
 
     if args.limit and len(entries) > args.limit:
-        entries = entries[:args.limit]
+        entries = entries[: args.limit]
 
     if not entries:
         print("No entries to transpile")
@@ -302,15 +337,17 @@ def main() -> int:
         print(f"Dry run: {len(entries)} file(s)")
         for e in entries:
             hdr = f" (header: {e.get('header', 'none')})" if e.get("header") else ""
-            print(f"  id={e.get('id','?')}: {e['source']} -> {e['target']}{hdr}")
+            print(f"  id={e.get('id', '?')}: {e['source']} -> {e['target']}{hdr}")
         return 0
 
     RAW_DIR = Path(args.raw_dir).resolve() if args.raw_dir else None
 
-    print(f"Transpiling {len(entries)} file(s) with model={args.model} "
-          f"repair={'on' if args.repair else 'off'} "
-          f"workers={args.workers} timeout={args.timeout}s"
-          + (f" raw_dir={RAW_DIR}" if RAW_DIR else ""))
+    print(
+        f"Transpiling {len(entries)} file(s) with model={args.model} "
+        f"repair={'on' if args.repair else 'off'} "
+        f"workers={args.workers} timeout={args.timeout}s"
+        + (f" raw_dir={RAW_DIR}" if RAW_DIR else "")
+    )
 
     config_lock = threading.Lock()
     ok_count = 0
@@ -320,8 +357,9 @@ def main() -> int:
     def work(entry: dict) -> dict:
         nonlocal ok_count, completed
         with OpenRouter(api_key=api_key) as client:
-            result = transpile_one(entry, args.model, client,
-                                   args.repair, args.max_retries)
+            result = transpile_one(
+                entry, args.model, client, args.repair, args.max_retries
+            )
         status = result["status"]
         with config_lock:
             entry["decision"] = "done" if status == "ok" else "error"
@@ -331,7 +369,10 @@ def main() -> int:
             bar = step_bar(completed, total)
             eid = entry.get("id", "?")
             short_src = Path(entry["source"]).name
-            print(f"  {bar} id={eid} {short_src} {'OK' if status=='ok' else 'FAIL'} {status}", flush=True)
+            print(
+                f"  {bar} id={eid} {short_src} {'OK' if status == 'ok' else 'FAIL'} {status}",
+                flush=True,
+            )
             save_config(config_path, config)
         return result
 

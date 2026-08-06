@@ -37,7 +37,10 @@ def test_extract_json_raises_when_absent():
 
 
 def test_rows_of_zips_columns():
-    payload = {"columns": ["src", "dst", "owner"], "rows": [["f", "x", "EnergyPlusData"]]}
+    payload = {
+        "columns": ["src", "dst", "owner"],
+        "rows": [["f", "x", "EnergyPlusData"]],
+    }
     assert cg.rows_of(payload) == [{"src": "f", "dst": "x", "owner": "EnergyPlusData"}]
 
 
@@ -72,12 +75,19 @@ def test_annotate_calls_adds_scc_and_fanin_on_call_subgraph():
     # b <-> c is a call cycle; both write field f (field edges must NOT pollute
     # the call-graph scc/fan-in computation)
     g = cg.rows_to_multigraph(
-        calls=[{"src": "b", "dst": "c"}, {"src": "c", "dst": "b"}, {"src": "a", "dst": "b"}],
-        writes=[{"src": "b", "dst": "f", "owner": "S"}, {"src": "c", "dst": "f", "owner": "S"}],
+        calls=[
+            {"src": "b", "dst": "c"},
+            {"src": "c", "dst": "b"},
+            {"src": "a", "dst": "b"},
+        ],
+        writes=[
+            {"src": "b", "dst": "f", "owner": "S"},
+            {"src": "c", "dst": "f", "owner": "S"},
+        ],
     )
     cycles, n_scc = cg.annotate_calls(g)
-    assert sorted(cycles[0]) == ["b", "c"]              # cycle detected among callables
+    assert sorted(cycles[0]) == ["b", "c"]  # cycle detected among callables
     by_id = {n["id"]: n for n in g["nodes"]}
-    assert by_id["b"]["fan_in"] == 2                    # a->b and c->b
-    assert "scc" not in by_id["f"]                      # field node not annotated
-    assert by_id["b"]["scc"] == by_id["c"]["scc"]       # same component
+    assert by_id["b"]["fan_in"] == 2  # a->b and c->b
+    assert "scc" not in by_id["f"]  # field node not annotated
+    assert by_id["b"]["scc"] == by_id["c"]["scc"]  # same component

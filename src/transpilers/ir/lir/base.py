@@ -1,4 +1,5 @@
 """LIR base node (shared marker for every target dialect)."""
+
 from __future__ import annotations
 
 
@@ -24,4 +25,4 @@ class LirNode:
         cls.__post_init__ = _post_init
 
 
-__all__ = ['LirNode']
+__all__ = ["LirNode"]

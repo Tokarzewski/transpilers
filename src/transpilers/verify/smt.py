@@ -45,15 +45,17 @@ _EXEC_TIMEOUT_S = 5
 @dataclass
 class SMTConfig:
     """Configuration for the SMT verifier."""
-    bound: int = 1000          # Integer domain: [-bound, +bound]
-    sample_limit: int = 50_000 # Max concrete samples when z3 is unavailable
+
+    bound: int = 1000  # Integer domain: [-bound, +bound]
+    sample_limit: int = 50_000  # Max concrete samples when z3 is unavailable
     recursion_depth: int = 10  # Unrolling depth for recursive funcs
-    timeout_ms: int = 30_000   # z3 solver timeout in milliseconds
+    timeout_ms: int = 30_000  # z3 solver timeout in milliseconds
 
 
 @dataclass
 class SMTResult:
     """Result of an SMT verification run."""
+
     verified: bool = False
     skipped: bool = False
     skip_reason: str = ""
@@ -66,6 +68,7 @@ class SMTResult:
 def _try_import_z3():
     try:
         import z3  # type: ignore
+
         return z3
     except ImportError:
         return None
@@ -78,7 +81,7 @@ def _exec_fn(code: str, func_name: str) -> Callable | None:
         with time_limit(_EXEC_TIMEOUT_S):
             exec(code, ns)
         return ns.get(func_name)
-    except (ExecTimeout, Exception):
+    except ExecTimeout, Exception:
         return None
 
 
@@ -296,25 +299,34 @@ if __name__ == "__main__":
     import json
 
     parser = argparse.ArgumentParser(description="SMT equivalence checker")
-    parser.add_argument("--ref",   required=True, help="Path to reference Python file")
+    parser.add_argument("--ref", required=True, help="Path to reference Python file")
     parser.add_argument("--trans", required=True, help="Path to translated Python file")
-    parser.add_argument("--func",  required=True, help="Function name to verify")
-    parser.add_argument("--types", required=True, help="Comma-separated param types: int,bool")
-    parser.add_argument("--bound", type=int, default=1000, help="Integer bound (default 1000)")
+    parser.add_argument("--func", required=True, help="Function name to verify")
+    parser.add_argument(
+        "--types", required=True, help="Comma-separated param types: int,bool"
+    )
+    parser.add_argument(
+        "--bound", type=int, default=1000, help="Integer bound (default 1000)"
+    )
     args = parser.parse_args()
 
-    ref_code   = open(args.ref).read()
+    ref_code = open(args.ref).read()
     trans_code = open(args.trans).read()
     param_types = args.types.split(",")
     config = SMTConfig(bound=args.bound)
 
     result = smt_verify(ref_code, trans_code, args.func, param_types, config=config)
-    print(json.dumps({
-        "verified":        result.verified,
-        "skipped":         result.skipped,
-        "skip_reason":     result.skip_reason,
-        "counterexample":  result.counterexample,
-        "error":           result.error,
-        "backend":         result.backend,
-        "elapsed_ms":      result.elapsed_ms,
-    }, indent=2))
+    print(
+        json.dumps(
+            {
+                "verified": result.verified,
+                "skipped": result.skipped,
+                "skip_reason": result.skip_reason,
+                "counterexample": result.counterexample,
+                "error": result.error,
+                "backend": result.backend,
+                "elapsed_ms": result.elapsed_ms,
+            },
+            indent=2,
+        )
+    )

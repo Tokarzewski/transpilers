@@ -26,19 +26,19 @@ from transpilers.ir.types import BoolT, FloatT, IntT, NoneT, Type, UnknownT
 # ---------------------------------------------------------------------------
 
 _LLVM_PRIMITIVES: dict[str, Type] = {
-    "void":     NoneT(),
-    "i1":       BoolT(),
-    "i8":       IntT(),
-    "i16":      IntT(),
-    "i32":      IntT(),
-    "i64":      IntT(),
-    "i128":     IntT(),
-    "float":    FloatT(),
-    "double":   FloatT(),
-    "half":     FloatT(),
-    "fp128":    FloatT(),
+    "void": NoneT(),
+    "i1": BoolT(),
+    "i8": IntT(),
+    "i16": IntT(),
+    "i32": IntT(),
+    "i64": IntT(),
+    "i128": IntT(),
+    "float": FloatT(),
+    "double": FloatT(),
+    "half": FloatT(),
+    "fp128": FloatT(),
     "x86_fp80": FloatT(),
-    "bfloat":   FloatT(),
+    "bfloat": FloatT(),
 }
 
 # LLVM IR function definition line (handles common attribute keywords)
@@ -83,7 +83,7 @@ def _parse_ir(ir_text: str) -> dict[str, tuple[list[Type], Type]]:
         params_str = m.group(2).strip()
 
         line_start = ir_text.rfind("\n", 0, m.start()) + 1
-        define_line = ir_text[line_start: m.start() + len("define") + 200]
+        define_line = ir_text[line_start : m.start() + len("define") + 200]
         ret_type = _parse_ret_type(define_line)
 
         param_types: list[Type] = []
@@ -131,7 +131,7 @@ def extract_ir_types(
         cmd.extend(extra_args)
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-    except (FileNotFoundError, subprocess.TimeoutExpired):
+    except FileNotFoundError, subprocess.TimeoutExpired:
         return {}
     if proc.returncode != 0:
         return {}
@@ -149,6 +149,6 @@ def demangle_name(mangled: str) -> str | None:
         if proc.returncode == 0 and proc.stdout.strip():
             demangled = proc.stdout.strip()
             return demangled.split("(")[0].split("::")[-1]
-    except (FileNotFoundError, subprocess.TimeoutExpired):
+    except FileNotFoundError, subprocess.TimeoutExpired:
         pass
     return None

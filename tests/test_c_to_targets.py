@@ -23,6 +23,7 @@ def _zig(src: str) -> str:
 
 # ---------- shape ----------
 
+
 def test_c_add_to_rust():
     out = _rust("int add(int a, int b) { return a + b; }")
     assert "fn add(a: i64, b: i64) -> i64" in out
@@ -115,6 +116,7 @@ def test_c_void_return():
 
 # ---------- compile checks ----------
 
+
 @pytest.mark.skipif(shutil.which("rustc") is None, reason="rustc not installed")
 @pytest.mark.parametrize(
     "src",
@@ -188,6 +190,7 @@ def test_c_to_zig_compiles(src: str):
 
 
 # ---------- cross-frontend: inference works for C too ----------
+
 
 def test_interprocedural_inference_on_c():
     """C usually has annotations everywhere, but the interprocedural pass

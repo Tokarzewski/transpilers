@@ -40,11 +40,11 @@ def strip_cpp_comments(text: str) -> str:
     result = []
     i = 0
     n = len(text)
-    
+
     while i < n:
         c = text[i]
-        nc = text[i + 1] if i + 1 < n else ''
-        
+        nc = text[i + 1] if i + 1 < n else ""
+
         # String literal (double or single quoted)
         if c in ('"', "'"):
             quote = c
@@ -53,7 +53,7 @@ def strip_cpp_comments(text: str) -> str:
             while i < n:
                 ch = text[i]
                 result.append(ch)
-                if ch == '\\' and i + 1 < n:
+                if ch == "\\" and i + 1 < n:
                     i += 1
                     result.append(text[i])
                 elif ch == quote:
@@ -61,23 +61,23 @@ def strip_cpp_comments(text: str) -> str:
                 i += 1
             i += 1
             continue
-        
+
         # Line comment //
-        if c == '/' and nc == '/':
+        if c == "/" and nc == "/":
             i += 2
-            while i < n and text[i] != '\n':
+            while i < n and text[i] != "\n":
                 i += 1
             # Preserve the newline
-            if i < n and text[i] == '\n':
-                result.append('\n')
+            if i < n and text[i] == "\n":
+                result.append("\n")
                 i += 1
             continue
-        
+
         # Block comment /* */
-        if c == '/' and nc == '*':
+        if c == "/" and nc == "*":
             i += 2
             while i + 1 < n:
-                if text[i] == '*' and text[i + 1] == '/':
+                if text[i] == "*" and text[i + 1] == "/":
                     i += 2
                     break
                 i += 1
@@ -85,27 +85,27 @@ def strip_cpp_comments(text: str) -> str:
                 # Unterminated comment - reached end of file
                 pass
             continue
-        
+
         result.append(c)
         i += 1
-    
-    return ''.join(result)
+
+    return "".join(result)
 
 
 def strip_file(path: Path, dry_run: bool = False) -> tuple[bool, int]:
     """Strip comments from a file. Returns (modified, bytes_saved)."""
     if not path.exists():
         return False, 0
-    
+
     original = path.read_text(encoding="utf-8", errors="replace")
     stripped = strip_cpp_comments(original)
-    
+
     if original == stripped:
         return False, 0
-    
+
     if not dry_run:
         path.write_text(stripped)
-    
+
     return True, len(original) - len(stripped)
 
 
@@ -114,14 +114,30 @@ def main() -> int:
         description="Strip C++ comments from source files referenced in a config",
     )
     ap.add_argument("target", help="JSON config file or a single source file")
-    ap.add_argument("--ids", type=int, nargs="+", default=None,
-                    help="Only strip these entry ids (only with config)")
-    ap.add_argument("--files", nargs="+", default=None,
-                    help="Only strip these source paths (substring match, only with config)")
-    ap.add_argument("--dry-run", "-n", action="store_true",
-                    help="Show what would be stripped without modifying")
-    ap.add_argument("--in-place", action="store_true",
-                    help="Strip comments from a single file (used with direct file target)")
+    ap.add_argument(
+        "--ids",
+        type=int,
+        nargs="+",
+        default=None,
+        help="Only strip these entry ids (only with config)",
+    )
+    ap.add_argument(
+        "--files",
+        nargs="+",
+        default=None,
+        help="Only strip these source paths (substring match, only with config)",
+    )
+    ap.add_argument(
+        "--dry-run",
+        "-n",
+        action="store_true",
+        help="Show what would be stripped without modifying",
+    )
+    ap.add_argument(
+        "--in-place",
+        action="store_true",
+        help="Strip comments from a single file (used with direct file target)",
+    )
     args = ap.parse_args()
 
     target = Path(args.target)
@@ -129,19 +145,23 @@ def main() -> int:
     # Single file mode
     if target.suffix in (".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp", ".mojo"):
         if not args.in_place:
-            print("Use --in-place to strip comments from a single file", file=sys.stderr)
+            print(
+                "Use --in-place to strip comments from a single file", file=sys.stderr
+            )
             return 1
         modified, saved = strip_file(target, dry_run=args.dry_run)
         if modified:
-            print(f"{'Would strip' if args.dry_run else 'Stripped'} {target} "
-                  f"({saved:,} bytes)")
+            print(
+                f"{'Would strip' if args.dry_run else 'Stripped'} {target} "
+                f"({saved:,} bytes)"
+            )
         else:
             print(f"{target}: no comments found")
         return 0
 
     # Config mode
     config = json.loads(target.read_text())
-    
+
     # Filter entries
     if args.ids:
         id_set = set(args.ids)
@@ -154,21 +174,25 @@ def main() -> int:
                     entries.append(e)
     else:
         entries = config
-    
+
     total_modified = 0
     total_saved = 0
-    
+
     for entry in entries:
         src = Path(entry["source"])
         modified, saved = strip_file(src, dry_run=args.dry_run)
         if modified:
             total_modified += 1
             total_saved += saved
-            print(f"  {'would strip' if args.dry_run else 'stripped'} {src.name} "
-                  f"({saved:,} bytes)")
-    
-    print(f"\n{'Would strip' if args.dry_run else 'Stripped'} {total_modified}/{len(entries)} files, "
-          f"{total_saved:,} bytes saved")
+            print(
+                f"  {'would strip' if args.dry_run else 'stripped'} {src.name} "
+                f"({saved:,} bytes)"
+            )
+
+    print(
+        f"\n{'Would strip' if args.dry_run else 'Stripped'} {total_modified}/{len(entries)} files, "
+        f"{total_saved:,} bytes saved"
+    )
     return 0
 
 

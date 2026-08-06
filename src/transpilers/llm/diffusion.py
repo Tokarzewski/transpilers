@@ -256,15 +256,23 @@ class DiffusionGemmaClient:
         sampler = cfg.sampler
         args = [
             self._llamacpp_binary,
-            "-m", self.model,
-            "-ngl", "99",  # offload all layers to GPU
+            "-m",
+            self.model,
+            "-ngl",
+            "99",  # offload all layers to GPU
             "-cnv",  # multi-turn conversation mode
-            "-n", str(cfg.max_new_tokens),
-            "--diffusion-eb-max-steps", str(sampler.max_steps),
-            "--diffusion-eb-t-max", str(sampler.temperature_start),
-            "--diffusion-eb-t-min", str(sampler.temperature_end),
-            "--diffusion-eb-entropy-bound", str(sampler.entropy_bound),
-            "--diffusion-eb-confidence", str(sampler.confidence),
+            "-n",
+            str(cfg.max_new_tokens),
+            "--diffusion-eb-max-steps",
+            str(sampler.max_steps),
+            "--diffusion-eb-t-max",
+            str(sampler.temperature_start),
+            "--diffusion-eb-t-min",
+            str(sampler.temperature_end),
+            "--diffusion-eb-entropy-bound",
+            str(sampler.entropy_bound),
+            "--diffusion-eb-confidence",
+            str(sampler.confidence),
         ]
         if not sampler.adaptive_stopping:
             args.append("--no-diffusion-eb-adaptive")
@@ -275,9 +283,7 @@ class DiffusionGemmaClient:
     def _generate_llamacpp(self, prompt: str, cfg: DiffusionGenerationConfig) -> str:
         """Run llama-diffusion-cli with the given prompt and return output."""
         args = self._llamacpp_args(cfg)
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".txt", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
             f.write(prompt)
             prompt_file = f.name
 
@@ -299,9 +305,7 @@ class DiffusionGemmaClient:
     def _generate_llamacpp_stream(self, prompt: str, cfg: DiffusionGenerationConfig):
         """Stream tokens from llama-diffusion-cli."""
         args = self._llamacpp_args(cfg)
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".txt", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
             f.write(prompt)
             prompt_file = f.name
 
@@ -346,9 +350,7 @@ class DiffusionGemmaClient:
             data=json.dumps(body).encode(),
             headers={
                 "Content-Type": "application/json",
-                "Authorization": (
-                    f"Bearer {os.environ.get('HF_TOKEN', 'EMPTY')}"
-                ),
+                "Authorization": (f"Bearer {os.environ.get('HF_TOKEN', 'EMPTY')}"),
             },
         )
         with urllib.request.urlopen(req, timeout=300) as resp:
@@ -382,9 +384,7 @@ class DiffusionGemmaClient:
             data=json.dumps(body).encode(),
             headers={
                 "Content-Type": "application/json",
-                "Authorization": (
-                    f"Bearer {os.environ.get('HF_TOKEN', 'EMPTY')}"
-                ),
+                "Authorization": (f"Bearer {os.environ.get('HF_TOKEN', 'EMPTY')}"),
             },
         )
         with urllib.request.urlopen(req, timeout=300) as resp:
@@ -417,7 +417,7 @@ class DiffusionGemmaClient:
             For one-shot inference, use the llama.cpp or vLLM backends instead.
         """
         try:
-            from unsloth import FastLanguageModel  # noqa: F811
+            from unsloth import FastLanguageModel  # noqa: F401,F811
         except ImportError:
             raise RuntimeError(
                 "Unsloth backend requires the `unsloth` package. "
@@ -486,7 +486,11 @@ class DiffusionGemmaClient:
             text,
             flags=re.DOTALL,
         )
-        text = text.replace("<|think|>", "").replace("<|channel>", "").replace("<channel|>", "")
+        text = (
+            text.replace("<|think|>", "")
+            .replace("<|channel>", "")
+            .replace("<channel|>", "")
+        )
         return text.strip()
 
     @staticmethod

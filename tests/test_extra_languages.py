@@ -21,10 +21,13 @@ def _has(name: str) -> bool:
 
 
 def _t(source_lang: str, src: str, target: str = "rust") -> str:
-    return transpile(textwrap.dedent(src).lstrip(), source_lang=source_lang, target=target)
+    return transpile(
+        textwrap.dedent(src).lstrip(), source_lang=source_lang, target=target
+    )
 
 
 # ---------- Fortran ----------
+
 
 def test_fortran_add_to_rust():
     out = _t(
@@ -100,6 +103,7 @@ def test_fortran_factorial_compiles():
 
 # ---------- Go (source) ----------
 
+
 def test_go_function_to_rust():
     out = _t(
         "go",
@@ -157,6 +161,7 @@ def test_go_while_via_for_cond():
 
 # ---------- Go (target) ----------
 
+
 def test_python_to_go_emission():
     out = _t(
         "python",
@@ -207,6 +212,7 @@ def test_python_to_go_compiles():
 
 # ---------- Python (target) ----------
 
+
 def test_c_to_python_round_trip_shape():
     out = _t(
         "c",
@@ -254,6 +260,7 @@ def test_python_target_first_assignment_carries_annotation():
 
 
 # ---------- VB ----------
+
 
 def test_vb_function_to_rust():
     out = _t(
@@ -306,6 +313,7 @@ def test_vb_for_to_inclusive_endpoint():
 
 # ---------- Assembly via Ghidra ----------
 
+
 def test_asm_requires_binary_path():
     """The asm frontend expects a path to a binary, not raw assembly text —
     the actual decompilation runs through Ghidra. Verify the path check
@@ -332,8 +340,13 @@ def test_asm_pipeline_end_to_end():
     with tempfile.TemporaryDirectory() as td:
         c_src = Path(td) / "tiny.c"
         binary = Path(td) / "tiny"
-        c_src.write_text("int add(int a, int b) { return a + b; }\nint main() { return add(2, 3); }\n")
-        subprocess.run(["cc", "-O0", "-fno-pic", "-no-pie", str(c_src), "-o", str(binary)], check=True)
+        c_src.write_text(
+            "int add(int a, int b) { return a + b; }\nint main() { return add(2, 3); }\n"
+        )
+        subprocess.run(
+            ["cc", "-O0", "-fno-pic", "-no-pie", str(c_src), "-o", str(binary)],
+            check=True,
+        )
 
         # PyGhidra has a high cold-start cost; skip by default so `just check`
         # stays fast, but only when the caller hasn't explicitly asked for

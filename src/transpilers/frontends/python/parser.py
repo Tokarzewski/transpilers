@@ -97,10 +97,14 @@ def _convert(node: cst.CSTNode) -> hir.HirNode:
             raise UnsupportedConstruct("multi-target assignment")
         target = node.targets[0].target
         if isinstance(target, cst.Name):
-            return hir.HirAssign(target=target.value, value=_convert(node.value), annotation=None)
+            return hir.HirAssign(
+                target=target.value, value=_convert(node.value), annotation=None
+            )
         if isinstance(target, cst.Subscript):
             # `xs[i] = v` — only plain single-index form (no slice).
-            if len(target.slice) != 1 or not isinstance(target.slice[0].slice, cst.Index):
+            if len(target.slice) != 1 or not isinstance(
+                target.slice[0].slice, cst.Index
+            ):
                 raise UnsupportedConstruct("slice / multi-index subscript-assignment")
             idx = target.slice[0].slice.value
             return hir.HirSubscriptAssign(
@@ -120,7 +124,9 @@ def _convert(node: cst.CSTNode) -> hir.HirNode:
 
     if isinstance(node, cst.AnnAssign):
         if not isinstance(node.target, cst.Name):
-            raise UnsupportedConstruct(f"annotated-assignment target {type(node.target).__name__}")
+            raise UnsupportedConstruct(
+                f"annotated-assignment target {type(node.target).__name__}"
+            )
         if node.value is None:
             raise UnsupportedConstruct("declaration without initializer")
         return hir.HirAssign(
@@ -131,7 +137,9 @@ def _convert(node: cst.CSTNode) -> hir.HirNode:
 
     if isinstance(node, cst.AugAssign):
         if not isinstance(node.target, cst.Name):
-            raise UnsupportedConstruct(f"aug-assignment target {type(node.target).__name__}")
+            raise UnsupportedConstruct(
+                f"aug-assignment target {type(node.target).__name__}"
+            )
         return hir.HirAssign(
             target=node.target.value,
             value=_convert(node.value),
@@ -152,7 +160,11 @@ def _convert(node: cst.CSTNode) -> hir.HirNode:
         return _convert(node.value)
 
     if isinstance(node, cst.BinaryOperation):
-        return hir.HirBinOp(op=_op_symbol(node.operator), left=_convert(node.left), right=_convert(node.right))
+        return hir.HirBinOp(
+            op=_op_symbol(node.operator),
+            left=_convert(node.left),
+            right=_convert(node.right),
+        )
 
     if isinstance(node, cst.Comparison):
         if len(node.comparisons) != 1:
@@ -166,7 +178,9 @@ def _convert(node: cst.CSTNode) -> hir.HirNode:
 
     if isinstance(node, cst.BooleanOperation):
         op = "and" if isinstance(node.operator, cst.And) else "or"
-        return hir.HirBoolOp(op=op, left=_convert(node.left), right=_convert(node.right))
+        return hir.HirBoolOp(
+            op=op, left=_convert(node.left), right=_convert(node.right)
+        )
 
     if isinstance(node, cst.IfExp):
         # `<body> if <test> else <orelse>` → the shared `__ternary__` builtin
@@ -206,7 +220,9 @@ def _convert(node: cst.CSTNode) -> hir.HirNode:
 
     if isinstance(node, cst.Call):
         if isinstance(node.func, cst.Name):
-            return hir.HirCall(func=node.func.value, args=[_convert(a.value) for a in node.args])
+            return hir.HirCall(
+                func=node.func.value, args=[_convert(a.value) for a in node.args]
+            )
         if isinstance(node.func, cst.Attribute):
             # `obj.method(args)` — method call.
             receiver = _convert(node.func.value)
@@ -241,7 +257,9 @@ def _convert(node: cst.CSTNode) -> hir.HirNode:
                     target = item.asname.name
                     if isinstance(target, cst.Name):
                         prelude.append(
-                            hir.HirAssign(target=target.value, value=ctx_expr, annotation=None)
+                            hir.HirAssign(
+                                target=target.value, value=ctx_expr, annotation=None
+                            )
                         )
                 # No `as`: the context expression is evaluated for side
                 # effect; we drop it.
@@ -279,21 +297,23 @@ def _tuple_assign(target: cst.Tuple, value: cst.BaseExpression) -> hir.HirNode:
         elif isinstance(slot, cst.Subscript):
             if len(slot.slice) != 1 or not isinstance(slot.slice[0].slice, cst.Index):
                 raise UnsupportedConstruct("slice subscript in tuple unpacking")
-            stmts.append(hir.HirSubscriptAssign(
-                obj=_convert(slot.value),
-                index=_convert(slot.slice[0].slice.value),
-                value=rhs,
-            ))
-        elif isinstance(slot, cst.Attribute):
-            stmts.append(hir.HirFieldAssign(
-                obj=_convert(slot.value),
-                field=slot.attr.value,
-                value=rhs,
-            ))
-        else:
-            raise UnsupportedConstruct(
-                f"tuple unpacking slot {type(slot).__name__}"
+            stmts.append(
+                hir.HirSubscriptAssign(
+                    obj=_convert(slot.value),
+                    index=_convert(slot.slice[0].slice.value),
+                    value=rhs,
+                )
             )
+        elif isinstance(slot, cst.Attribute):
+            stmts.append(
+                hir.HirFieldAssign(
+                    obj=_convert(slot.value),
+                    field=slot.attr.value,
+                    value=rhs,
+                )
+            )
+        else:
+            raise UnsupportedConstruct(f"tuple unpacking slot {type(slot).__name__}")
     return FlattenBlock(stmts=stmts)
 
 
@@ -318,7 +338,9 @@ def _convert_function(fn: cst.FunctionDef) -> hir.HirFunction:
     params = [_convert_param(p) for p in cst_params]
     ret = _annotation_text(fn.returns.annotation) if fn.returns else None
     body = _convert_block(fn.body)
-    return hir.HirFunction(name=fn.name.value, params=params, return_annotation=ret, body=body)
+    return hir.HirFunction(
+        name=fn.name.value, params=params, return_annotation=ret, body=body
+    )
 
 
 def _convert_param(p: cst.Param) -> hir.HirParam:
@@ -376,18 +398,24 @@ def _convert_for(node: cst.For) -> hir.HirNode:
 
     # `for <name> in range(...)` — the original indexed-range form, untouched.
     if isinstance(target, cst.Name) and _is_call_named(it, "range"):
-        return hir.HirFor(target=target.value, iter=_convert(it), body=_convert_block(node.body))
+        return hir.HirFor(
+            target=target.value, iter=_convert(it), body=_convert_block(node.body)
+        )
 
     # `for <index>, <value> in enumerate(<name>)` — indexed iteration.
     if isinstance(target, cst.Tuple) and _is_call_named(it, "enumerate"):
         elts = [e.value for e in target.elements if isinstance(e, cst.Element)]
         if len(elts) != 2 or not all(isinstance(e, cst.Name) for e in elts):
-            raise UnsupportedConstruct("enumerate target must be two names `index, value`")
+            raise UnsupportedConstruct(
+                "enumerate target must be two names `index, value`"
+            )
         eargs = [a.value for a in it.args]
         if len(eargs) != 1:
             raise UnsupportedConstruct("enumerate(seq, start) is not supported yet")
         if not isinstance(eargs[0], cst.Name):
-            raise UnsupportedConstruct("enumerate(<expr>): only a bare-name iterable is supported")
+            raise UnsupportedConstruct(
+                "enumerate(<expr>): only a bare-name iterable is supported"
+            )
         return hir.HirForEach(
             value_name=elts[1].value,
             iterable=eargs[0].value,
@@ -428,16 +456,30 @@ def _annotation_text(node: cst.BaseExpression) -> str:
 
 def _op_symbol(op: cst.BaseBinaryOp | cst.BaseAugOp) -> str:
     table = {
-        cst.Add: "+", cst.Subtract: "-", cst.Multiply: "*", cst.Divide: "/",
-        cst.Modulo: "%", cst.FloorDivide: "//", cst.Power: "**",
-        cst.BitAnd: "&", cst.BitOr: "|", cst.BitXor: "^",
-        cst.LeftShift: "<<", cst.RightShift: ">>",
-        cst.AddAssign: "+", cst.SubtractAssign: "-",
-        cst.MultiplyAssign: "*", cst.DivideAssign: "/",
-        cst.FloorDivideAssign: "//", cst.ModuloAssign: "%",
+        cst.Add: "+",
+        cst.Subtract: "-",
+        cst.Multiply: "*",
+        cst.Divide: "/",
+        cst.Modulo: "%",
+        cst.FloorDivide: "//",
+        cst.Power: "**",
+        cst.BitAnd: "&",
+        cst.BitOr: "|",
+        cst.BitXor: "^",
+        cst.LeftShift: "<<",
+        cst.RightShift: ">>",
+        cst.AddAssign: "+",
+        cst.SubtractAssign: "-",
+        cst.MultiplyAssign: "*",
+        cst.DivideAssign: "/",
+        cst.FloorDivideAssign: "//",
+        cst.ModuloAssign: "%",
         cst.PowerAssign: "**",
-        cst.BitAndAssign: "&", cst.BitOrAssign: "|", cst.BitXorAssign: "^",
-        cst.LeftShiftAssign: "<<", cst.RightShiftAssign: ">>",
+        cst.BitAndAssign: "&",
+        cst.BitOrAssign: "|",
+        cst.BitXorAssign: "^",
+        cst.LeftShiftAssign: "<<",
+        cst.RightShiftAssign: ">>",
     }
     for kls, sym in table.items():
         if isinstance(op, kls):
@@ -447,10 +489,14 @@ def _op_symbol(op: cst.BaseBinaryOp | cst.BaseAugOp) -> str:
 
 def _cmp_symbol(op: cst.BaseCompOp) -> str:
     table = {
-        cst.Equal: "==", cst.NotEqual: "!=",
-        cst.LessThan: "<", cst.LessThanEqual: "<=",
-        cst.GreaterThan: ">", cst.GreaterThanEqual: ">=",
-        cst.Is: "==", cst.IsNot: "!=",  # `x is None` → `x == None` at MIR
+        cst.Equal: "==",
+        cst.NotEqual: "!=",
+        cst.LessThan: "<",
+        cst.LessThanEqual: "<=",
+        cst.GreaterThan: ">",
+        cst.GreaterThanEqual: ">=",
+        cst.Is: "==",
+        cst.IsNot: "!=",  # `x is None` → `x == None` at MIR
     }
     for kls, sym in table.items():
         if isinstance(op, kls):

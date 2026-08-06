@@ -16,6 +16,7 @@ Lift conventions:
   * x.size()                -> len(x)
   * unknown node            -> `# TODO[lift]` + raw snippet
 """
+
 from __future__ import annotations
 
 import keyword
@@ -33,13 +34,24 @@ _SOFT_KW = {"match", "case", "type"}  # contextual keywords / common shadows
 
 
 _OP_DUNDER = {
-    "operator==": "__eq__", "operator!=": "__ne__", "operator<": "__lt__",
-    "operator<=": "__le__", "operator>": "__gt__", "operator>=": "__ge__",
-    "operator()": "__call__", "operator[]": "__getitem__",
-    "operator+": "__add__", "operator-": "__sub__", "operator*": "__mul__",
-    "operator/": "__truediv__", "operator%": "__mod__",
-    "operator+=": "__iadd__", "operator-=": "__isub__", "operator*=": "__imul__",
-    "operator bool": "__bool__", "operator<<": "__lshift__",
+    "operator==": "__eq__",
+    "operator!=": "__ne__",
+    "operator<": "__lt__",
+    "operator<=": "__le__",
+    "operator>": "__gt__",
+    "operator>=": "__ge__",
+    "operator()": "__call__",
+    "operator[]": "__getitem__",
+    "operator+": "__add__",
+    "operator-": "__sub__",
+    "operator*": "__mul__",
+    "operator/": "__truediv__",
+    "operator%": "__mod__",
+    "operator+=": "__iadd__",
+    "operator-=": "__isub__",
+    "operator*=": "__imul__",
+    "operator bool": "__bool__",
+    "operator<<": "__lshift__",
 }
 
 
@@ -48,8 +60,8 @@ def _py_method_name(spelling: str) -> str:
     matching dunder (`operator==` -> `__eq__`) so the emitted `def` is valid."""
     if spelling in _OP_DUNDER:
         return _OP_DUNDER[spelling]
-    if spelling.startswith("operator"):       # unmapped operator -> safe name
-        return "_op_" + re.sub(r"\W+", "_", spelling[len("operator"):]).strip("_")
+    if spelling.startswith("operator"):  # unmapped operator -> safe name
+        return "_op_" + re.sub(r"\W+", "_", spelling[len("operator") :]).strip("_")
     return snake(spelling)
 
 
@@ -71,7 +83,7 @@ def toks(c) -> list[str]:
 def src(c) -> str:
     try:
         e = c.extent
-        raw = open(e.start.file.name, "rb").read()[e.start.offset:e.end.offset]
+        raw = open(e.start.file.name, "rb").read()[e.start.offset : e.end.offset]
         return raw.decode("utf-8", "replace")
     except Exception:
         return c.spelling or "?"
@@ -79,36 +91,71 @@ def src(c) -> str:
 
 # tokens we can faithfully re-emit from a degraded AST node (no type info)
 _TOK_OK = re.compile(
-    r"[A-Za-z_]\w*"                                  # identifiers
-    r"|->|\.|::|\(|\)|\[|\]|,"                        # access / call / subscript
-    r"|&&|\|\||!"                                     # logical
-    r"|==|!=|<=|>=|<|>"                               # comparison
-    r"|\+|-|\*|/|%"                                   # arithmetic
-    r"|[0-9][0-9.eExXa-fA-F+]*"                       # numeric literal
-    r'|".*"|\'.*\''                                   # string / char literal
+    r"[A-Za-z_]\w*"  # identifiers
+    r"|->|\.|::|\(|\)|\[|\]|,"  # access / call / subscript
+    r"|&&|\|\||!"  # logical
+    r"|==|!=|<=|>=|<|>"  # comparison
+    r"|\+|-|\*|/|%"  # arithmetic
+    r"|[0-9][0-9.eExXa-fA-F+]*"  # numeric literal
+    r'|".*"|\'.*\''  # string / char literal
 )
 # binary operators that want surrounding whitespace in the emitted Python
 _SPACED = {"==", "!=", "<=", ">=", "<", ">", "+", "-", "*", "/", "%"}
 _LOGIC = {"&&": " and ", "||": " or "}
 # operators `e()` may legitimately emit for a BINARY_OPERATOR; anything else
 # means a degraded/macro-mangled node — fall back rather than emit garbage.
-_PY_BINOPS = {"+", "-", "*", "/", "%", "//", "**", "==", "!=", "<", "<=",
-              ">", ">=", "and", "or", "&", "|", "^", "<<", ">>"}
+_PY_BINOPS = {
+    "+",
+    "-",
+    "*",
+    "/",
+    "%",
+    "//",
+    "**",
+    "==",
+    "!=",
+    "<",
+    "<=",
+    ">",
+    ">=",
+    "and",
+    "or",
+    "&",
+    "|",
+    "^",
+    "<<",
+    ">>",
+}
 
 
 # Python binary-operator precedence (higher binds tighter). Emission decisions
 # use PYTHON's table (not C++'s): clang already resolved the C++ parse into the
 # AST shape; what matters is how the emitted text re-parses in Python.
 _PY_PREC = {
-    "or": 1, "and": 2,
-    "==": 4, "!=": 4, "<": 4, "<=": 4, ">": 4, ">=": 4, "in": 4, "is": 4,
-    "|": 5, "^": 6, "&": 7,
-    "<<": 8, ">>": 8,
-    "+": 9, "-": 9,
-    "*": 10, "/": 10, "//": 10, "%": 10,
+    "or": 1,
+    "and": 2,
+    "==": 4,
+    "!=": 4,
+    "<": 4,
+    "<=": 4,
+    ">": 4,
+    ">=": 4,
+    "in": 4,
+    "is": 4,
+    "|": 5,
+    "^": 6,
+    "&": 7,
+    "<<": 8,
+    ">>": 8,
+    "+": 9,
+    "-": 9,
+    "*": 10,
+    "/": 10,
+    "//": 10,
+    "%": 10,
     "**": 12,
 }
-_CMP_PREC = 4          # Python CHAINS comparisons; C++ nests them left-to-right
+_CMP_PREC = 4  # Python CHAINS comparisons; C++ nests them left-to-right
 _UNARY_MINUS_PREC = 11  # binds tighter than every binary operator except **
 
 
@@ -134,7 +181,7 @@ def _min_top_prec(s: str):
             depth -= 1
         elif depth == 0 and ch == " ":
             j = s.find(" ", i + 1)
-            p = _PY_PREC.get(s[i + 1:j]) if j != -1 else None
+            p = _PY_PREC.get(s[i + 1 : j]) if j != -1 else None
             if p is not None and (best is None or p < best):
                 best = p
         i += 1
@@ -168,11 +215,36 @@ def _paren_operand(s: str, parent_op: str, right: bool = False) -> str:
 
 
 _CAST_NAMES = {"static_cast", "dynamic_cast", "reinterpret_cast", "const_cast"}
-_PRIM_TYPES = {"int", "long", "short", "char", "double", "float", "bool",
-               "unsigned", "signed", "size_t", "void", "const",
-               "Real64", "Real32", "Int", "Int64", "int64_t", "int32_t",
-               "intptr_t", "uintptr_t", "ptrdiff_t", "wchar_t", "uint8_t",
-               "uint32_t", "uint64_t", "int8_t", "int16_t", "uint16_t"}
+_PRIM_TYPES = {
+    "int",
+    "long",
+    "short",
+    "char",
+    "double",
+    "float",
+    "bool",
+    "unsigned",
+    "signed",
+    "size_t",
+    "void",
+    "const",
+    "Real64",
+    "Real32",
+    "Int",
+    "Int64",
+    "int64_t",
+    "int32_t",
+    "intptr_t",
+    "uintptr_t",
+    "ptrdiff_t",
+    "wchar_t",
+    "uint8_t",
+    "uint32_t",
+    "uint64_t",
+    "int8_t",
+    "int16_t",
+    "uint16_t",
+}
 _ASSIGN_OPS = {"=", "+=", "-=", "*=", "/=", "%="}
 
 
@@ -199,8 +271,12 @@ def _strip_casts(ts: list[str]) -> list[str]:
             j = i + 1
             while j < n and ts[j] in _PRIM_TYPES or (j < n and ts[j] == "*"):
                 j += 1
-            if j > i + 1 and j < n and ts[j] == ")" and all(
-                    t in _PRIM_TYPES or t == "*" for t in ts[i + 1:j]):
+            if (
+                j > i + 1
+                and j < n
+                and ts[j] == ")"
+                and all(t in _PRIM_TYPES or t == "*" for t in ts[i + 1 : j])
+            ):
                 i = j + 1  # drop `( types )`, keep the cast operand
                 continue
         out.append(ts[i])
@@ -212,7 +288,7 @@ def _num(t: str) -> str:
     """Strip C numeric suffixes, but NOT from hex literals — `F`/`f` are hex
     digits there, so `0xFF`.rstrip('uUlLfF') would wrongly become `0x`."""
     if t[:2].lower() == "0x":
-        return t.rstrip("uUlL")          # only u/U/l/L are hex suffixes
+        return t.rstrip("uUlL")  # only u/U/l/L are hex suffixes
     return t.rstrip("uUlLfF")
 
 
@@ -249,7 +325,7 @@ def _valid_target(s: str) -> bool:
     try:
         compile(f"{s} = 0", "<lhs>", "exec")
         return True
-    except (SyntaxError, ValueError):
+    except SyntaxError, ValueError:
         return False
 
 
@@ -266,7 +342,7 @@ def _to_lvalue(s: str) -> str:
         elif s[i] == "(":
             depth -= 1
             if depth == 0:
-                inner = s[i + 1:-1]
+                inner = s[i + 1 : -1]
                 return s[:i] + "[" + inner + "]" if inner else s
     return s
 
@@ -283,7 +359,7 @@ def _toks_to_py(ts: list[str]) -> str:
             depth -= 1
         elif depth == 0 and t in _ASSIGN_OPS:
             lhs = _to_lvalue(_toks_to_py(ts[:idx]))
-            rhs = _toks_to_py(ts[idx + 1:])
+            rhs = _toks_to_py(ts[idx + 1 :])
             return f"{lhs} {t} {rhs}"
     """Best-effort: turn a degraded operand token stream into Python.
 
@@ -317,10 +393,32 @@ def _toks_to_py(ts: list[str]) -> str:
             out.append(_LOGIC[t])
         elif t == ",":
             out.append(", ")
-        elif t in ("*", "&") and (not out or out[-1].strip() in
-                                  ("", "(", "[", ",", "+", "-", "*", "/", "%",
-                                   "==", "!=", "<", "<=", ">", ">=",
-                                   "and", "or", "not", "return", "=")):
+        elif t in ("*", "&") and (
+            not out
+            or out[-1].strip()
+            in (
+                "",
+                "(",
+                "[",
+                ",",
+                "+",
+                "-",
+                "*",
+                "/",
+                "%",
+                "==",
+                "!=",
+                "<",
+                "<=",
+                ">",
+                ">=",
+                "and",
+                "or",
+                "not",
+                "return",
+                "=",
+            )
+        ):
             pass  # prefix `*`/`&` (deref / address-of) — no-op once pointers
             # collapse to values; drop so `(*ptr).f` -> `(ptr).f`
         elif t in _SPACED:
@@ -355,14 +453,21 @@ class _Lifter:
     def e(self, c) -> str:
         self.nodes += 1
         k = c.kind
-        if k in (K.UNEXPOSED_EXPR, K.PAREN_EXPR, K.CXX_STATIC_CAST_EXPR,
-                 K.CSTYLE_CAST_EXPR, K.CXX_FUNCTIONAL_CAST_EXPR,
-                 K.CXX_DYNAMIC_CAST_EXPR, K.CXX_CONST_CAST_EXPR,
-                 K.CXX_REINTERPRET_CAST_EXPR):
+        if k in (
+            K.UNEXPOSED_EXPR,
+            K.PAREN_EXPR,
+            K.CXX_STATIC_CAST_EXPR,
+            K.CSTYLE_CAST_EXPR,
+            K.CXX_FUNCTIONAL_CAST_EXPR,
+            K.CXX_DYNAMIC_CAST_EXPR,
+            K.CXX_CONST_CAST_EXPR,
+            K.CXX_REINTERPRET_CAST_EXPR,
+        ):
             kids = [x for x in c.get_children() if x.kind != K.TYPE_REF]
             return self.e(kids[-1]) if kids else self._tok_fallback(c)
         if k in (K.INTEGER_LITERAL, K.FLOATING_LITERAL):
-            t = toks(c); return (_num(t[0]) if t else "0")
+            t = toks(c)
+            return _num(t[0]) if t else "0"
         if k == K.CXX_BOOL_LITERAL_EXPR:
             return "True" if (toks(c) or ["false"])[0] == "true" else "False"
         if k == K.STRING_LITERAL:
@@ -381,7 +486,8 @@ class _Lifter:
             # name-degraded chain: reconstruct from tokens (recovers state.dataX->f)
             return self._tok_fallback(c)
         if k == K.ARRAY_SUBSCRIPT_EXPR:
-            a, i = list(c.get_children()); return f"{self.e(a)}[{self.e(i)}]"
+            a, i = list(c.get_children())
+            return f"{self.e(a)}[{self.e(i)}]"
         if k == K.INIT_LIST_EXPR:
             # C++ brace-init `{a, b, c}` -> Python list (faithful Phase-1 form;
             # works for aggregate/vector/array init and {key, value} pairs).
@@ -398,9 +504,11 @@ class _Lifter:
                 # garbage like `nsides ) 0` — recover from tokens or TODO.
                 return self._tok_fallback(c)
         if k == K.UNARY_OPERATOR:
-            kids = list(c.get_children()); op = (toks(c) or ["?"])[0]
+            kids = list(c.get_children())
+            op = (toks(c) or ["?"])[0]
             inner = self.e(kids[0]) if kids else "None"
-            if op == "!": return f"(not {inner})"
+            if op == "!":
+                return f"(not {inner})"
             if op == "-":
                 # `-(a + b)` must not emit `(-a + b)`: unary minus binds
                 # tighter than the unwrapped binary, so re-wrap the operand.
@@ -412,7 +520,9 @@ class _Lifter:
         if k == K.CONDITIONAL_OPERATOR:
             kids = list(c.get_children())
             if len(kids) == 3:
-                return f"({self.e(kids[1])} if {self.e(kids[0])} else {self.e(kids[2])})"
+                return (
+                    f"({self.e(kids[1])} if {self.e(kids[0])} else {self.e(kids[2])})"
+                )
         if k == K.CALL_EXPR:
             return self._call(c)
         if k == K.LAMBDA_EXPR:
@@ -424,8 +534,11 @@ class _Lifter:
         body shape (pervasive in EnergyPlus root-finder callbacks, e.g.
         `[&](Real64 x){ return f(x); }`); multi-statement bodies degrade to a
         TODO so we never emit invalid syntax."""
-        params = [snake(a.spelling) or "arg"
-                  for a in c.get_children() if a.kind == K.PARM_DECL]
+        params = [
+            snake(a.spelling) or "arg"
+            for a in c.get_children()
+            if a.kind == K.PARM_DECL
+        ]
         body = next((x for x in c.get_children() if x.kind == K.COMPOUND_STMT), None)
         stmts = [x for x in body.get_children()] if body is not None else []
         if len(stmts) == 1 and stmts[0].kind == K.RETURN_STMT:
@@ -438,15 +551,20 @@ class _Lifter:
         ts = toks(c)
         # only re-emit when EVERY token is one we know how to translate, and
         # the expression isn't an assignment (handled structurally elsewhere)
-        if (ts and "=" not in ts and _balanced(ts)
-                and all(_TOK_OK.fullmatch(t) for t in ts)):
+        if (
+            ts
+            and "=" not in ts
+            and _balanced(ts)
+            and all(_TOK_OK.fullmatch(t) for t in ts)
+        ):
             return _toks_to_py(ts)
         return self.todo_expr(c)
 
     def _binop(self, c) -> str:
         kids = list(c.get_children())
         if len(kids) == 2:
-            n = len(list(kids[0].get_tokens())); tk = toks(c)
+            n = len(list(kids[0].get_tokens()))
+            tk = toks(c)
             if n < len(tk):
                 return {"&&": "and", "||": "or"}.get(tk[n], tk[n])
         return "?"
@@ -456,10 +574,11 @@ class _Lifter:
         ref = c.referenced
         opname = (ref.spelling if ref else "") or c.spelling or ""
         if opname.startswith("operator"):
-            op = opname[len("operator"):]
-            recv = argl[0] if argl else None          # receiver is the object
+            op = opname[len("operator") :]
+            recv = argl[0] if argl else None  # receiver is the object
             rest = argl[1:]
-            if op in ("->", "*") and rest: return self.e(rest[-1])
+            if op in ("->", "*") and rest:
+                return self.e(rest[-1])
             if op == "[]" and recv is not None and rest:
                 base = self.e(recv)
                 if base:
@@ -474,18 +593,26 @@ class _Lifter:
                 if base:
                     return f"{base}({', '.join(self.e(a) for a in rest)})"
                 return self._tok_fallback(c)
-            if op in ("+", "-", "*", "/", "%", "==", "!=", "<", "<=", ">", ">=") and len(rest) == 2:
+            if (
+                op in ("+", "-", "*", "/", "%", "==", "!=", "<", "<=", ">", ">=")
+                and len(rest) == 2
+            ):
                 lhs = _paren_operand(self.e(rest[0]), op)
                 rhs = _paren_operand(self.e(rest[1]), op, right=True)
                 return f"{lhs} {op} {rhs}"
             return self.e(rest[-1]) if rest else "None"
         if argl and argl[0].kind == K.MEMBER_REF_EXPR:
-            recv = argl[0]; meth = snake(recv.spelling)
+            recv = argl[0]
+            meth = snake(recv.spelling)
             rest = [self.e(a) for a in argl[1:]]
-            if not meth:        # name-degraded method -> recover the whole receiver chain from tokens
+            if (
+                not meth
+            ):  # name-degraded method -> recover the whole receiver chain from tokens
                 return f"{self._tok_fallback(recv)}({', '.join(rest)})"
-            rk = list(recv.get_children()); base = self.e(rk[0]) if rk else "self"
-            if meth == "size" and not rest: return f"len({base})"
+            rk = list(recv.get_children())
+            base = self.e(rk[0]) if rk else "self"
+            if meth == "size" and not rest:
+                return f"len({base})"
             return f"{base}.{meth}({', '.join(rest)})"
         # free call (or call through a name-degraded callee -> recover from tokens)
         if not opname and argl:
@@ -496,7 +623,8 @@ class _Lifter:
     # ----------------------------- statements ------------------------------ #
     def stmt(self, c, ind) -> list[str]:
         self.nodes += 1
-        k = c.kind; p = ind * IND
+        k = c.kind
+        p = ind * IND
         if k == K.COMPOUND_STMT:
             out = []
             for ch in c.get_children():
@@ -506,9 +634,14 @@ class _Lifter:
             out = []
             for v in c.get_children():
                 if v.kind == K.VAR_DECL:
-                    init = [x for x in v.get_children()
-                            if x.kind not in (K.TYPE_REF, K.TEMPLATE_REF, K.NAMESPACE_REF)]
-                    out.append(f"{p}{snake(v.spelling)} = {self.e(init[-1]) if init else 'None'}")
+                    init = [
+                        x
+                        for x in v.get_children()
+                        if x.kind not in (K.TYPE_REF, K.TEMPLATE_REF, K.NAMESPACE_REF)
+                    ]
+                    out.append(
+                        f"{p}{snake(v.spelling)} = {self.e(init[-1]) if init else 'None'}"
+                    )
             return out or [p + "pass"]
         if k == K.RETURN_STMT:
             kids = list(c.get_children())
@@ -535,7 +668,7 @@ class _Lifter:
         if k == K.WHILE_STMT:
             kids = list(c.get_children())
             hoist, cond = self._hoist_cond(kids[0], ind + 1)
-            if hoist:           # assignment in the test -> while True/break form
+            if hoist:  # assignment in the test -> while True/break form
                 out = [f"{p}while True:"] + hoist
                 out += [f"{p}{IND}if not ({cond}):", f"{p}{IND}{IND}break"]
                 out += self._body(kids[-1], ind + 1)
@@ -561,8 +694,15 @@ class _Lifter:
             return [p + "continue"]
         if k == K.NULL_STMT:
             return []
-        if k in (K.CALL_EXPR, K.BINARY_OPERATOR, K.COMPOUND_ASSIGNMENT_OPERATOR,
-                 K.UNARY_OPERATOR, K.UNEXPOSED_EXPR, K.MEMBER_REF_EXPR, K.PAREN_EXPR):
+        if k in (
+            K.CALL_EXPR,
+            K.BINARY_OPERATOR,
+            K.COMPOUND_ASSIGNMENT_OPERATOR,
+            K.UNARY_OPERATOR,
+            K.UNEXPOSED_EXPR,
+            K.MEMBER_REF_EXPR,
+            K.PAREN_EXPR,
+        ):
             # C++ comma operator `a, b, c;` -> one Python statement per operand.
             parts = self._comma_split(c)
             return [p + self._exprstmt(x) for x in parts]
@@ -577,11 +717,18 @@ class _Lifter:
         kids = list(c.get_children())
         body = kids[-1] if kids and kids[-1].kind == K.COMPOUND_STMT else None
         clauses = kids[:-1] if body is not None else kids
-        if len(clauses) != 3:           # only the canonical for(init;cond;inc) form
+        if len(clauses) != 3:  # only the canonical for(init;cond;inc) form
             self.todo += 1
-            return [f"{p}# TODO[lift]: {c.kind.name} :: {' '.join(src(c).split())[:70]}", p + "pass"]
+            return [
+                f"{p}# TODO[lift]: {c.kind.name} :: {' '.join(src(c).split())[:70]}",
+                p + "pass",
+            ]
         init, cond, inc = clauses
-        out = (self.stmt(init, ind) if init.kind == K.DECL_STMT else [p + self._exprstmt(init)])
+        out = (
+            self.stmt(init, ind)
+            if init.kind == K.DECL_STMT
+            else [p + self._exprstmt(init)]
+        )
         out.append(f"{p}while {self.e(cond)}:")
         out += self.stmt(body, ind + 1) if body is not None else [p + IND + "pass"]
         out.append(p + IND + self._exprstmt(inc))
@@ -664,7 +811,9 @@ class _Lifter:
         cond = rest[0] if rest else None
         if body is None or cond is None:
             self.todo += 1
-            return [f"{p}pass  # TODO[lift]: SWITCH_STMT :: {' '.join(src(c).split())[:60]}"]
+            return [
+                f"{p}pass  # TODO[lift]: SWITCH_STMT :: {' '.join(src(c).split())[:60]}"
+            ]
         subj = _paren_operand(self.e(cond), "==")  # subject feeds `subj == v` tests
         items = []
         for ch in body.get_children():
@@ -700,10 +849,15 @@ class _Lifter:
                 if emitted_if:
                     out.append(f"{p}else:")
                     out += stmt_lines
-                else:                       # default-only switch: emit unguarded
-                    out += [ln[len(IND):] if ln.startswith(IND) else ln for ln in stmt_lines]
+                else:  # default-only switch: emit unguarded
+                    out += [
+                        ln[len(IND) :] if ln.startswith(IND) else ln
+                        for ln in stmt_lines
+                    ]
             else:
-                conds = " or ".join(f"{subj} == {self.e(v)}" for v in g["values"]) or "True"
+                conds = (
+                    " or ".join(f"{subj} == {self.e(v)}" for v in g["values"]) or "True"
+                )
                 out.append(f"{p}{'if' if not emitted_if else 'elif'} {conds}:")
                 out += stmt_lines
                 emitted_if = True
@@ -726,7 +880,7 @@ class _Lifter:
             elif s[i] == "(":
                 depth -= 1
                 if depth == 0:
-                    inner = s[i + 1:-1]
+                    inner = s[i + 1 : -1]
                     return s[:i] + "[" + inner + "]" if inner else s
         return s
 
@@ -764,11 +918,16 @@ class _Lifter:
             if len(kids) == 2:
                 op = self._assign_op(c)
                 if op:
-                    rhs = self.e(kids[1])           # eval RHS before target
+                    rhs = self.e(kids[1])  # eval RHS before target
                     lhs = self._resolve_target(kids[0])
-                    return f"{lhs} {op} {rhs}" if lhs else self._todo_stmt(c, "assign target")
+                    return (
+                        f"{lhs} {op} {rhs}"
+                        if lhs
+                        else self._todo_stmt(c, "assign target")
+                    )
         if c.kind == K.UNARY_OPERATOR:
-            t = toks(c); kids = list(c.get_children())
+            t = toks(c)
+            kids = list(c.get_children())
             if "++" in t or "--" in t:
                 lhs = self._resolve_target(kids[0])
                 aug = "+=" if "++" in t else "-="
@@ -792,11 +951,16 @@ class _Lifter:
         if not fields:
             out.append(f"{IND}{IND}pass")
         for f in fields:
-            init = [x for x in f.get_children()
-                    if x.kind not in (K.TYPE_REF, K.TEMPLATE_REF, K.NAMESPACE_REF)]
+            init = [
+                x
+                for x in f.get_children()
+                if x.kind not in (K.TYPE_REF, K.TEMPLATE_REF, K.NAMESPACE_REF)
+            ]
             default = self.e(init[-1]) if init else _default_for(f.type)
             out.append(f"{IND}{IND}self.{snake(f.spelling)} = {default}")
-        for m in (x for x in c.get_children() if x.kind == K.CXX_METHOD and x.is_definition()):
+        for m in (
+            x for x in c.get_children() if x.kind == K.CXX_METHOD and x.is_definition()
+        ):
             out.append("")
             out += [IND + ln for ln in self.function(m, ind=0, cls=True)]
         return out
@@ -804,12 +968,21 @@ class _Lifter:
 
 def _default_for(t) -> str:
     s = t.spelling
-    if "bool" in s: return "False"
-    if any(x in s for x in ("double", "float", "Real64")): return "0.0"
-    if any(x in s for x in ("string", "char")) and "*" not in s: return '""'
-    if any(x in s for x in ("vector", "Array1D", "Array2D", "[")): return "[]"
-    if "map" in s: return "{}"
-    if any(x in s for x in ("int", "long", "short", "size_t", "Int")) and "*" not in s and "<" not in s:
+    if "bool" in s:
+        return "False"
+    if any(x in s for x in ("double", "float", "Real64")):
+        return "0.0"
+    if any(x in s for x in ("string", "char")) and "*" not in s:
+        return '""'
+    if any(x in s for x in ("vector", "Array1D", "Array2D", "[")):
+        return "[]"
+    if "map" in s:
+        return "{}"
+    if (
+        any(x in s for x in ("int", "long", "short", "size_t", "Int"))
+        and "*" not in s
+        and "<" not in s
+    ):
         return "0"
     return "None"
 
@@ -821,7 +994,7 @@ def _emit(tu, path) -> tuple[str, dict]:
         f'"""Lifted 1:1 from {os.path.basename(path)} (Phase-1 C++->Python lift)."""',
         "",
         "def __todo__(_snippet):  # placeholder for not-yet-lifted constructs",
-        '    raise NotImplementedError(_snippet)',
+        "    raise NotImplementedError(_snippet)",
         "",
     ]
 
@@ -831,19 +1004,22 @@ def _emit(tu, path) -> tuple[str, dict]:
             return False
         try:
             return os.path.samefile(f.name, path)
-        except OSError:        # in-memory unsaved file (lift_source) — name compare
+        except OSError:  # in-memory unsaved file (lift_source) — name compare
             return f.name == path or os.path.basename(f.name) == os.path.basename(path)
 
     def walk(node):
         for c in node.get_children():
             if c.kind == K.NAMESPACE:
-                walk(c); continue
+                walk(c)
+                continue
             if not from_file(c):
                 continue
             if c.kind in (K.STRUCT_DECL, K.CLASS_DECL) and c.is_definition():
-                lines.extend(lf.record(c)); lines.append("")
+                lines.extend(lf.record(c))
+                lines.append("")
             elif c.kind in (K.FUNCTION_DECL, K.CXX_METHOD) and c.is_definition():
-                lines.extend(lf.function(c)); lines.append("")
+                lines.extend(lf.function(c))
+                lines.append("")
 
     walk(tu.cursor)
     return "\n".join(lines) + "\n", {"nodes": lf.nodes, "todo": lf.todo}
@@ -863,12 +1039,18 @@ def lift_file(path: str, inc=None) -> str:
 
 def main() -> None:
     import sys
+
     args = sys.argv[1:]
-    out_path = None; incs = []
+    out_path = None
+    incs = []
     if "--out" in args:
-        i = args.index("--out"); out_path = args[i + 1]; del args[i:i + 2]
+        i = args.index("--out")
+        out_path = args[i + 1]
+        del args[i : i + 2]
     while "--inc" in args:
-        i = args.index("--inc"); incs.append(args[i + 1]); del args[i:i + 2]
+        i = args.index("--inc")
+        incs.append(args[i + 1])
+        del args[i : i + 2]
     path = args[0]
     args2 = ["-std=c++17", "-x", "c++"] + [f"-I{d}" for d in incs]
     tu = ci.Index.create().parse(path, args=args2)
@@ -877,7 +1059,10 @@ def main() -> None:
         open(out_path, "w").write(text)
     print(text)
     cov = 100 * (1 - st["todo"] / max(st["nodes"], 1))
-    print(f"# lift: {st['nodes']} nodes, {st['todo']} TODO  (~{cov:.0f}% mechanical)", file=sys.stderr)
+    print(
+        f"# lift: {st['nodes']} nodes, {st['todo']} TODO  (~{cov:.0f}% mechanical)",
+        file=sys.stderr,
+    )
 
 
 if __name__ == "__main__":

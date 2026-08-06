@@ -29,17 +29,29 @@ def _write(tmp_path, name, content):
 
 
 def test_resolve_local_includes_inlines_transitively(tmp_path):
-    _write(tmp_path, "base.h", """
+    _write(
+        tmp_path,
+        "base.h",
+        """
         class Base { public: int tag() { return 1; } };
-    """)
-    _write(tmp_path, "derived.h", """
+    """,
+    )
+    _write(
+        tmp_path,
+        "derived.h",
+        """
         #include "base.h"
         class Derived : public Base {};
-    """)
-    entry = _write(tmp_path, "derived.cpp", """
+    """,
+    )
+    entry = _write(
+        tmp_path,
+        "derived.cpp",
+        """
         #include "derived.h"
         int use() { return 0; }
-    """)
+    """,
+    )
 
     out = resolve_local_includes(entry)
     # base.h's declaration comes before derived.h's, which comes before the
@@ -53,23 +65,35 @@ def test_resolve_local_includes_matches_angle_bracket_form(tmp_path):
     # headers when their build system puts the project's own include dir on
     # the search path -- angle vs quote is a search-order hint, not a
     # local/system classification.
-    _write(tmp_path, "widget.h", """
+    _write(
+        tmp_path,
+        "widget.h",
+        """
         class Widget { public: int id() { return 7; } };
-    """)
-    entry = _write(tmp_path, "widget.cpp", """
+    """,
+    )
+    entry = _write(
+        tmp_path,
+        "widget.cpp",
+        """
         #include <widget.h>
         int use() { return 0; }
-    """)
+    """,
+    )
 
     out = resolve_local_includes(entry, include_dirs=[tmp_path])
     assert "class Widget" in out
 
 
 def test_resolve_local_includes_leaves_unresolvable_include_alone(tmp_path):
-    entry = _write(tmp_path, "uses_vendor.cpp", """
+    entry = _write(
+        tmp_path,
+        "uses_vendor.cpp",
+        """
         #include <SomeVendorLib.hxx>
         int f() { return 1; }
-    """)
+    """,
+    )
     out = resolve_local_includes(entry)
     # Nothing to inline -- the file is returned effectively unchanged
     # (still containing the now-unresolvable directive, which the existing
@@ -89,7 +113,10 @@ def test_resolve_local_includes_handles_circular_forward_declare_pair(tmp_path):
     # implementation couldn't represent this (it would need to hoist BOTH
     # before each other) and left one of them looking incomplete to a real
     # C++ parser (matches OCCT's gp_Dir.hxx <-> gp_Ax2d.hxx relationship).
-    _write(tmp_path, "a.h", """
+    _write(
+        tmp_path,
+        "a.h",
+        """
         #ifndef A_H
         #define A_H
         class B;
@@ -100,8 +127,12 @@ def test_resolve_local_includes_handles_circular_forward_declare_pair(tmp_path):
         #include "b.h"
         inline int use_b(const B& b) { return 0; }
         #endif
-    """)
-    _write(tmp_path, "b.h", """
+    """,
+    )
+    _write(
+        tmp_path,
+        "b.h",
+        """
         #ifndef B_H
         #define B_H
         #include "a.h"
@@ -110,11 +141,16 @@ def test_resolve_local_includes_handles_circular_forward_declare_pair(tmp_path):
             A field;
         };
         #endif
-    """)
-    entry = _write(tmp_path, "main.cpp", """
+    """,
+    )
+    entry = _write(
+        tmp_path,
+        "main.cpp",
+        """
         #include "a.h"
         int main() { return 0; }
-    """)
+    """,
+    )
 
     out = resolve_local_includes(entry)
     # Both real bodies must appear exactly once (no re-inclusion, no
@@ -126,19 +162,36 @@ def test_resolve_local_includes_handles_circular_forward_declare_pair(tmp_path):
 
 
 def test_cli_transpiles_multi_file_class_with_include_dir(tmp_path, capsys):
-    _write(tmp_path, "mathutil.h", """
+    _write(
+        tmp_path,
+        "mathutil.h",
+        """
         class MathUtil {
         public:
             static int square(int x);
         };
-    """)
-    entry = _write(tmp_path, "mathutil.cpp", """
+    """,
+    )
+    entry = _write(
+        tmp_path,
+        "mathutil.cpp",
+        """
         #include <mathutil.h>
         int MathUtil::square(int x) { return x * x; }
-    """)
+    """,
+    )
 
-    ret = main([str(entry), "--source", "cpp", "--target", "mojo",
-                "--include-dir", str(tmp_path)])
+    ret = main(
+        [
+            str(entry),
+            "--source",
+            "cpp",
+            "--target",
+            "mojo",
+            "--include-dir",
+            str(tmp_path),
+        ]
+    )
     assert ret is None or ret == 0
     out = capsys.readouterr().out
     assert "struct MathUtil" in out
@@ -150,23 +203,33 @@ def test_cli_transpiles_multi_file_class_with_include_dir(tmp_path, capsys):
 def test_cli_without_include_dir_still_fails_the_old_way(tmp_path):
     """No -I given -> behavior is unchanged from before this feature:
     the out-of-line method's enclosing class is never declared."""
-    _write(tmp_path, "mathutil.h", """
+    _write(
+        tmp_path,
+        "mathutil.h",
+        """
         class MathUtil {
         public:
             static int square(int x);
         };
-    """)
-    entry = _write(tmp_path, "mathutil.cpp", """
+    """,
+    )
+    entry = _write(
+        tmp_path,
+        "mathutil.cpp",
+        """
         #include <mathutil.h>
         int MathUtil::square(int x) { return x * x; }
-    """)
+    """,
+    )
 
     from transpilers.frontends.errors import UnsupportedConstruct
+
     with pytest.raises(UnsupportedConstruct, match="undeclared identifier"):
         main([str(entry), "--source", "cpp", "--target", "mojo"])
 
 
 # ---------- --include-impls: pulling in a header's sibling .cxx/.cpp ----------
+
 
 def test_resolve_local_includes_pulls_in_sibling_impl_when_opted_in(tmp_path):
     # A method declared in a header but defined out-of-line in that
@@ -174,7 +237,10 @@ def test_resolve_local_includes_pulls_in_sibling_impl_when_opted_in(tmp_path):
     # translation unit this engine builds -- fine for a real build (the
     # body resolves at link time), but calling into it from another
     # inlined method has no body to find without pulling the impl in too.
-    _write(tmp_path, "dir.h", """
+    _write(
+        tmp_path,
+        "dir.h",
+        """
         class Dir {
         public:
             Dir(double x);
@@ -182,13 +248,21 @@ def test_resolve_local_includes_pulls_in_sibling_impl_when_opted_in(tmp_path):
         private:
             double myX;
         };
-    """)
-    _write(tmp_path, "dir.cxx", """
+    """,
+    )
+    _write(
+        tmp_path,
+        "dir.cxx",
+        """
         #include "dir.h"
         Dir::Dir(double x) : myX(x) {}
         double Dir::Angle(const Dir& other) const { return myX - other.myX; }
-    """)
-    entry = _write(tmp_path, "ax.cpp", """
+    """,
+    )
+    entry = _write(
+        tmp_path,
+        "ax.cpp",
+        """
         #include "dir.h"
         class Ax {
         public:
@@ -197,12 +271,15 @@ def test_resolve_local_includes_pulls_in_sibling_impl_when_opted_in(tmp_path):
         private:
             Dir d;
         };
-    """)
+    """,
+    )
 
     without_impls = resolve_local_includes(entry, include_dirs=[tmp_path])
     assert "Dir::Angle" not in without_impls
 
-    with_impls = resolve_local_includes(entry, include_dirs=[tmp_path], include_impls=True)
+    with_impls = resolve_local_includes(
+        entry, include_dirs=[tmp_path], include_impls=True
+    )
     assert "double Dir::Angle" in with_impls
     # The header's own class body must still precede the impl's out-of-line
     # definitions (declare-before-use).
@@ -213,13 +290,21 @@ def test_resolve_local_includes_impls_do_not_reintroduce_entry_point(tmp_path):
     # The entry .cpp's own header shouldn't pull the entry .cpp itself back
     # in as "the header's impl" -- it's already in `seen` from the very
     # first expand() call.
-    _write(tmp_path, "dir.h", """
+    _write(
+        tmp_path,
+        "dir.h",
+        """
         class Dir { public: Dir(double x); private: double myX; };
-    """)
-    entry = _write(tmp_path, "dir.cpp", """
+    """,
+    )
+    entry = _write(
+        tmp_path,
+        "dir.cpp",
+        """
         #include "dir.h"
         Dir::Dir(double x) : myX(x) {}
-    """)
+    """,
+    )
 
     out = resolve_local_includes(entry, include_dirs=[tmp_path], include_impls=True)
     assert out.count("Dir::Dir(double x) : myX(x)") == 1
@@ -232,7 +317,10 @@ def test_cli_include_impls_resolves_cross_file_method_call(tmp_path, capsys):
     # dir.cxx) -- the engine transpiles the call anyway (methods aren't
     # existence-checked at conversion time, only the target compiler
     # checks that), so the difference only shows up at real compilation.
-    _write(tmp_path, "dir.h", """
+    _write(
+        tmp_path,
+        "dir.h",
+        """
         class Dir {
         public:
             Dir(double x);
@@ -240,13 +328,21 @@ def test_cli_include_impls_resolves_cross_file_method_call(tmp_path, capsys):
         private:
             double myX;
         };
-    """)
-    _write(tmp_path, "dir.cxx", """
+    """,
+    )
+    _write(
+        tmp_path,
+        "dir.cxx",
+        """
         #include "dir.h"
         Dir::Dir(double x) : myX(x) {}
         double Dir::Value() const { return myX; }
-    """)
-    entry = _write(tmp_path, "ax.cpp", """
+    """,
+    )
+    entry = _write(
+        tmp_path,
+        "ax.cpp",
+        """
         #include "dir.h"
         class Ax {
         public:
@@ -255,16 +351,36 @@ def test_cli_include_impls_resolves_cross_file_method_call(tmp_path, capsys):
         private:
             Dir d;
         };
-    """)
+    """,
+    )
 
-    ret = main([str(entry), "--source", "cpp", "--target", "mojo",
-                "--include-dir", str(tmp_path)])
+    ret = main(
+        [
+            str(entry),
+            "--source",
+            "cpp",
+            "--target",
+            "mojo",
+            "--include-dir",
+            str(tmp_path),
+        ]
+    )
     assert ret is None or ret == 0
     without_impls = capsys.readouterr().out
     assert not mojo_compiles(without_impls).ok
 
-    ret = main([str(entry), "--source", "cpp", "--target", "mojo",
-                "--include-dir", str(tmp_path), "--include-impls"])
+    ret = main(
+        [
+            str(entry),
+            "--source",
+            "cpp",
+            "--target",
+            "mojo",
+            "--include-dir",
+            str(tmp_path),
+            "--include-impls",
+        ]
+    )
     assert ret is None or ret == 0
     with_impls = capsys.readouterr().out
     result = mojo_compiles(with_impls)

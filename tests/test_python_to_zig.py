@@ -23,6 +23,7 @@ def _zig() -> bool:
 
 # ---------- emission shape ----------
 
+
 def test_zig_add():
     out = _t("def add(a: int, b: int) -> int:\n    return a + b\n")
     assert "fn add(a: i64, b: i64) i64" in out
@@ -92,6 +93,7 @@ def test_zig_list_type_and_indexing():
 
 # ---------- end-to-end compile ----------
 
+
 @pytest.mark.skipif(not _zig(), reason="zig not installed")
 @pytest.mark.parametrize(
     "src",
@@ -133,6 +135,7 @@ def test_zig_compiles(src: str):
 
 
 # ---------- inference shared across targets ----------
+
 
 @pytest.mark.skipif(not _zig(), reason="zig not installed")
 def test_inference_works_with_zig_target():

@@ -79,7 +79,9 @@ class TaxonomyRecord:
 # --------------------------------------------------------------------------- #
 
 _HOLE_RE = re.compile(r"unresolved type hole(?::\s*(?P<hint>.*))?", re.DOTALL)
-_SYMBOL_MSG_RE = re.compile(r"unknown function|undefined symbol|unresolved symbol|unknown call")
+_SYMBOL_MSG_RE = re.compile(
+    r"unknown function|undefined symbol|unresolved symbol|unknown call"
+)
 
 
 def _first_line(text: str) -> str:
@@ -105,7 +107,9 @@ def classify_exception(stage: str, exc: BaseException) -> tuple[str, str]:
     # frontend's parse failure lands in `parse`.
     if "SyntaxError" in type(exc).__name__ or "ParseError" in type(exc).__name__:
         return "parse", _first_line(msg)
-    if isinstance(exc, (UnsupportedConstruct, SyntaxError, NotImplementedError, ValueError)):
+    if isinstance(
+        exc, (UnsupportedConstruct, SyntaxError, NotImplementedError, ValueError)
+    ):
         # Deliberate refusals: the pipeline won't model this construct. The
         # `stage` field distinguishes frontend parse from lowering/emit gaps.
         return "parse", _first_line(msg)
@@ -117,22 +121,28 @@ def classify_exception(stage: str, exc: BaseException) -> tuple[str, str]:
 # --------------------------------------------------------------------------- #
 
 _SYMBOL_PATTERNS = [
-    r"\bE0425\b", r"\bE0433\b", r"\bE0412\b",            # rustc: name/path/type not found
+    r"\bE0425\b",
+    r"\bE0433\b",
+    r"\bE0412\b",  # rustc: name/path/type not found
     r"cannot find (?:function|value|type|macro|struct)",  # rustc prose
-    r"undeclared identifier", r"undeclared \(first use",  # zig / gcc
-    r"implicit declaration of function",                  # gcc
-    r"undefined reference",                               # ld
-    r"undefined:",                                        # go
-    r"use of unknown declaration",                        # mojo
-    r"has no IMPLICIT type",                              # gfortran
+    r"undeclared identifier",
+    r"undeclared \(first use",  # zig / gcc
+    r"implicit declaration of function",  # gcc
+    r"undefined reference",  # ld
+    r"undefined:",  # go
+    r"use of unknown declaration",  # mojo
+    r"has no IMPLICIT type",  # gfortran
 ]
 _TYPE_PATTERNS = [
-    r"\bE0308\b", r"mismatched types",                    # rustc
-    r"incompatible type", r"but argument is of type",     # gcc
-    r"cannot use .+ as .+ value",                         # go
-    r"expected type",                                     # zig
-    r"cannot be converted", r"invalid conversion",        # mojo
-    r"Type mismatch",                                     # gfortran
+    r"\bE0308\b",
+    r"mismatched types",  # rustc
+    r"incompatible type",
+    r"but argument is of type",  # gcc
+    r"cannot use .+ as .+ value",  # go
+    r"expected type",  # zig
+    r"cannot be converted",
+    r"invalid conversion",  # mojo
+    r"Type mismatch",  # gfortran
 ]
 _SYMBOL_RE = re.compile("|".join(_SYMBOL_PATTERNS))
 _TYPE_RE = re.compile("|".join(_TYPE_PATTERNS))
@@ -160,7 +170,9 @@ def classify_compile_stderr(stderr: str) -> tuple[str, str]:
 # --------------------------------------------------------------------------- #
 
 
-def classify_run(expected: str, actual: str, *, exit_ok: bool = True) -> tuple[str, str]:
+def classify_run(
+    expected: str, actual: str, *, exit_ok: bool = True
+) -> tuple[str, str]:
     """Compare a target run against the source-language reference run."""
     if not exit_ok:
         return "output-mismatch", f"runtime failure: {_first_line(actual)}"
@@ -213,11 +225,18 @@ def classify_unit(
     from transpilers.passes import hir_to_mir, infer_types
     from transpilers.pipeline.stages import FRONTENDS, TARGETS
 
-    def fail(stage: str, exc: BaseException, output: str | None = None) -> TaxonomyRecord:
+    def fail(
+        stage: str, exc: BaseException, output: str | None = None
+    ) -> TaxonomyRecord:
         bucket, construct = classify_exception(stage, exc)
         return TaxonomyRecord(
-            source_lang, target, bucket, stage,
-            construct=construct, detail=_first_line(str(exc)), output=output,
+            source_lang,
+            target,
+            bucket,
+            stage,
+            construct=construct,
+            detail=_first_line(str(exc)),
+            output=output,
         )
 
     lower, emit, verify_fn = TARGETS[target]
@@ -240,6 +259,7 @@ def classify_unit(
     # frontends.
     if cpp_truth is not None:
         from transpilers.passes.cpp_ground_truth import apply_ground_truth
+
         try:
             apply_ground_truth(mir_mod, cpp_truth, hir_mod)
         except Exception as exc:
@@ -260,8 +280,10 @@ def classify_unit(
     if compile and compiler_available(target):
         try:
             result = verify_fn(output)
-        except (subprocess.TimeoutExpired, TimeoutError):
-            return TaxonomyRecord(source_lang, target, "timeout", "compile", output=output)
+        except subprocess.TimeoutExpired, TimeoutError:
+            return TaxonomyRecord(
+                source_lang, target, "timeout", "compile", output=output
+            )
         if not result.ok:
             bucket, detail = classify_compile_stderr(result.stderr)
             return TaxonomyRecord(
@@ -275,7 +297,10 @@ def classify_unit(
         if not report.ok:
             first = report.divergences[0]
             return TaxonomyRecord(
-                source_lang, target, "structural-divergence", "structural",
+                source_lang,
+                target,
+                "structural-divergence",
+                "structural",
                 construct=first.where,
                 detail="; ".join(str(d) for d in report.divergences[:5]),
                 output=output,

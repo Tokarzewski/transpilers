@@ -38,10 +38,18 @@ from transpilers.frontends.cpp.parser.core import parse_cpp  # noqa: E402
 _OVERLOAD_PAYLOAD = {
     "classes": [{"name": "Bitwise", "base_classes": []}],
     "methods": [
-        {"name": "NOT", "parent_class": "Bitwise",
-         "param_types": ["int"], "return_type": "int"},
-        {"name": "NOT", "parent_class": "Bitwise",
-         "param_types": ["unsigned int"], "return_type": "unsigned int"},
+        {
+            "name": "NOT",
+            "parent_class": "Bitwise",
+            "param_types": ["int"],
+            "return_type": "int",
+        },
+        {
+            "name": "NOT",
+            "parent_class": "Bitwise",
+            "param_types": ["unsigned int"],
+            "return_type": "unsigned int",
+        },
     ],
     "macros": [{"name": "TOPOLOGIC_API"}],
     "namespaces": ["X"],
@@ -51,6 +59,7 @@ _OVERLOAD_PAYLOAD = {
 # --------------------------------------------------------------------------
 # Pure mapping -- no binary required
 # --------------------------------------------------------------------------
+
 
 def test_overload_payload_emits_two_distinct_decls():
     """#80 regression: signed/unsigned overloads must not collapse."""
@@ -79,8 +88,12 @@ def test_referenced_only_class_gets_bare_forward_decl():
             {"name": "Other", "base_classes": []},
         ],
         "methods": [
-            {"name": "AND", "parent_class": "Bitwise",
-             "param_types": ["bool", "bool"], "return_type": "bool"},
+            {
+                "name": "AND",
+                "parent_class": "Bitwise",
+                "param_types": ["bool", "bool"],
+                "return_type": "bool",
+            },
         ],
         "macros": [],
         "namespaces": [],
@@ -110,9 +123,12 @@ def test_free_function_declared_at_tu_scope():
 
 
 def test_empty_payload_emits_nothing():
-    assert cp.payload_to_cpp(
-        {"classes": [], "methods": [], "macros": [], "namespaces": []}
-    ) == ""
+    assert (
+        cp.payload_to_cpp(
+            {"classes": [], "methods": [], "macros": [], "namespaces": []}
+        )
+        == ""
+    )
 
 
 def test_macro_suffix_neutralization_is_safe():
@@ -138,8 +154,12 @@ def test_param_types_preserved_verbatim():
     payload = {
         "classes": [{"name": "G", "base_classes": []}],
         "methods": [
-            {"name": "f", "parent_class": "G",
-             "param_types": ["std::string", "const T&"], "return_type": "std::string"},
+            {
+                "name": "f",
+                "parent_class": "G",
+                "param_types": ["std::string", "const T&"],
+                "return_type": "std::string",
+            },
         ],
         "macros": [],
         "namespaces": [],
@@ -153,9 +173,7 @@ def test_param_types_preserved_verbatim():
 # --------------------------------------------------------------------------
 
 _CBM_BIN = cp.CBM_BIN
-_HAS_CBM = bool(
-    _CBM_BIN and (shutil.which(_CBM_BIN) or os.path.isfile(_CBM_BIN))
-)
+_HAS_CBM = bool(_CBM_BIN and (shutil.which(_CBM_BIN) or os.path.isfile(_CBM_BIN)))
 
 
 @pytest.mark.skipif(not _HAS_CBM, reason="codebase-memory-mcp binary not found")
@@ -198,6 +216,7 @@ def test_live_write_preamble_for_real_repo_file(tmp_path):
 # #1 CLI wiring -- deterministic (no live index required)
 # --------------------------------------------------------------------------
 
+
 @pytest.mark.skipif(not _HAS_CBM, reason="codebase-memory-mcp binary not found")
 def test_parse_cpp_consumes_cbmpreamble(tmp_path, monkeypatch):
     """``$TRANSPILERS_CPP_PREAMBLE_FILE`` written by the cbm helper
@@ -209,8 +228,12 @@ def test_parse_cpp_consumes_cbmpreamble(tmp_path, monkeypatch):
     payload = {
         "classes": [{"name": "Bitwise", "base_classes": []}],
         "methods": [
-            {"name": "NOT", "parent_class": "Bitwise",
-             "param_types": ["int"], "return_type": "int"},
+            {
+                "name": "NOT",
+                "parent_class": "Bitwise",
+                "param_types": ["int"],
+                "return_type": "int",
+            },
         ],
         "macros": [],
         "namespaces": [],
@@ -237,9 +260,7 @@ def test_parse_cpp_consumes_cbmpreamble(tmp_path, monkeypatch):
     module, _truth = parse_cpp("int Bitwise::NOT(int x) { return ~x; }")
     assert module is not None
     # The recovered class preamble must surface as a class/struct decl.
-    body_names = [
-        getattr(n, "name", "") for n in getattr(module, "body", [])
-    ]
+    body_names = [getattr(n, "name", "") for n in getattr(module, "body", [])]
     assert any("Bitwise" in str(n) for n in body_names) or len(module.body) >= 1
 
 
@@ -252,8 +273,12 @@ def test_occt_shim_appended_when_occt_type_detected():
     payload = {
         "classes": [{"name": "Cell", "base_classes": []}],
         "methods": [
-            {"name": "Shape", "parent_class": "Cell",
-             "param_types": [], "return_type": "TopoDS_Shape"},
+            {
+                "name": "Shape",
+                "parent_class": "Cell",
+                "param_types": [],
+                "return_type": "TopoDS_Shape",
+            },
         ],
         "macros": [],
         "namespaces": [],
@@ -272,8 +297,12 @@ def test_occt_shim_not_appended_without_occt_type():
     payload = {
         "classes": [{"name": "Bitwise", "base_classes": []}],
         "methods": [
-            {"name": "NOT", "parent_class": "Bitwise",
-             "param_types": ["int"], "return_type": "int"},
+            {
+                "name": "NOT",
+                "parent_class": "Bitwise",
+                "param_types": ["int"],
+                "return_type": "int",
+            },
         ],
         "macros": [],
         "namespaces": [],
@@ -287,7 +316,10 @@ def test_occt_shim_from_type_refs_key():
     """OCCT detection also fires from the explicit `type_refs` list (the
     graph's TypeRef/USAGE channel)."""
     payload = {
-        "classes": [], "methods": [], "macros": [], "namespaces": [],
+        "classes": [],
+        "methods": [],
+        "macros": [],
+        "namespaces": [],
         "type_refs": ["gp_Pnt", "BRepBuilderAPI_MakeEdge"],
     }
     cpp = cp.payload_to_cpp(payload)

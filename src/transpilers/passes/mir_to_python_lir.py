@@ -15,7 +15,17 @@ assigns) and the local marker nodes the Python emitter consumes.
 from __future__ import annotations
 
 from transpilers.ir import lir, mir
-from transpilers.ir.types import BoolT, FloatT, IntT, ListT, NoneT, StrT, StructT, Type, UnknownT
+from transpilers.ir.types import (
+    BoolT,
+    FloatT,
+    IntT,
+    ListT,
+    NoneT,
+    StrT,
+    StructT,
+    Type,
+    UnknownT,
+)
 
 from ._mir_lower_base import MirLoweringBase
 
@@ -54,16 +64,28 @@ class _PyLowering(MirLoweringBase):
             return lir.PyAssign(name=node.target, ty=None, value=rhs)
         is_first = node.target not in declared
         declared.add(node.target)
-        ty = _py_type(node.ty) if is_first and not isinstance(node.ty, UnknownT) else None
+        ty = (
+            _py_type(node.ty)
+            if is_first and not isinstance(node.ty, UnknownT)
+            else None
+        )
         return lir.PyAssign(name=node.target, ty=ty, value=self.lower_expr(node.value))
 
     # -- expressions: identity operator maps ------------------------------- #
 
     def lower_binop(self, node: mir.MirBinOp):
-        return lir.PyBinOp(op=node.op, left=self.lower_expr(node.left), right=self.lower_expr(node.right))
+        return lir.PyBinOp(
+            op=node.op,
+            left=self.lower_expr(node.left),
+            right=self.lower_expr(node.right),
+        )
 
     def lower_boolop(self, node: mir.MirBoolOp):
-        return lir.PyBoolOp(op=node.op, left=self.lower_expr(node.left), right=self.lower_expr(node.right))
+        return lir.PyBoolOp(
+            op=node.op,
+            left=self.lower_expr(node.left),
+            right=self.lower_expr(node.right),
+        )
 
     def lower_unary(self, node: mir.MirUnaryOp):
         return lir.PyUnary(op=node.op, operand=self.lower_expr(node.operand))
@@ -76,7 +98,9 @@ class _PyLowering(MirLoweringBase):
         )
 
     def lower_subscript(self, node: mir.MirSubscript):
-        return _PyIndex(value=self.lower_expr(node.value), index=self.lower_expr(node.index))
+        return _PyIndex(
+            value=self.lower_expr(node.value), index=self.lower_expr(node.index)
+        )
 
     def lower_list(self, node: mir.MirList):
         return _PyList(elements=[self.lower_expr(e) for e in node.elements])
@@ -99,7 +123,9 @@ def mir_to_python_lir(module: mir.MirModule) -> lir.PyModule:
 
 
 class _PyMethodCall(lir.LirNode):
-    def __init__(self, receiver: lir.LirNode, method: str, args: list[lir.LirNode]) -> None:
+    def __init__(
+        self, receiver: lir.LirNode, method: str, args: list[lir.LirNode]
+    ) -> None:
         self.receiver = receiver
         self.method = method
         self.args = args
@@ -114,7 +140,9 @@ class _PyIndex(lir.LirNode):
 class _PyIfExpr(lir.LirNode):
     """`<then> if <test> else <else>` — Python ternary."""
 
-    def __init__(self, test: lir.LirNode, then_: lir.LirNode, else_: lir.LirNode) -> None:
+    def __init__(
+        self, test: lir.LirNode, then_: lir.LirNode, else_: lir.LirNode
+    ) -> None:
         self.test = test
         self.then_ = then_
         self.else_ = else_

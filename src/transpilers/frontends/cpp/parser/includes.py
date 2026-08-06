@@ -53,6 +53,7 @@ just disappears, exactly as ``#pragma once`` would make it, and whichever
 of A/B's own class body was already mid-expansion simply continues right
 where its ``#include`` was, now with the other one fully defined above it.
 """
+
 from __future__ import annotations
 
 import re
@@ -64,7 +65,9 @@ _HEADER_SUFFIXES = (".hxx", ".hpp", ".h", ".hh")
 _IMPL_SUFFIXES = (".cxx", ".cpp", ".cc", ".c")
 
 
-def _find_header(name: str, requesting_dir: Path, include_dirs: list[Path]) -> Path | None:
+def _find_header(
+    name: str, requesting_dir: Path, include_dirs: list[Path]
+) -> Path | None:
     """Search alongside the including file first (the standard's own rule
     for ``"..."`` includes -- harmless to apply to ``<...>`` too here, since
     we only fall back to it after nothing already resolved), then each

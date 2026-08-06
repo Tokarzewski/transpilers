@@ -26,6 +26,7 @@ def _compile(src: str) -> None:
 
 # ---------- baseline ----------
 
+
 def test_add_emits_expected_rust():
     out = _t("def add(a: int, b: int) -> int:\n    return a + b\n")
     assert "fn add(a: i64, b: i64) -> i64" in out
@@ -48,6 +49,7 @@ def test_missing_annotation_surfaces_a_hole():
 
 
 # ---------- control flow ----------
+
 
 def test_if_else():
     src = """
@@ -122,6 +124,7 @@ def test_for_range_two_args():
 
 # ---------- expressions ----------
 
+
 def test_bool_literals_and_comparison():
     src = """
     def is_positive(x: int) -> bool:
@@ -151,6 +154,7 @@ def test_unary_not_and_neg():
 
 
 # ---------- lists ----------
+
 
 def test_list_literal_and_index_and_len():
     src = """
@@ -187,6 +191,7 @@ def test_iterate_list_by_index():
 
 # ---------- builtins ----------
 
+
 def test_sum_lowers_to_iter_sum():
     src = """
     def total(xs: list[int]) -> int:
@@ -212,6 +217,7 @@ def test_sum_preserves_float_element_type():
 
 
 # ---------- compile checks: every construct produces real Rust ----------
+
 
 @pytest.mark.parametrize(
     "src",

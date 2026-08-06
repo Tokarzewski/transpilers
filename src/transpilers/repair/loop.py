@@ -35,10 +35,7 @@ from transpilers.repair.signal import (
 # block. Rendered with ``string.Template`` after a tiny pre-processor
 # strips the irrelevant ``{% if %}`` blocks.
 _PROMPT_PATH = (
-    Path(__file__).resolve().parent.parent
-    / "llm"
-    / "prompts"
-    / "repair_with_signal.md"
+    Path(__file__).resolve().parent.parent / "llm" / "prompts" / "repair_with_signal.md"
 )
 
 
@@ -80,8 +77,7 @@ class EscalatingRepairResult:
         tier = self.fixing_tier.value if self.fixing_tier else "none"
         if self.passed:
             return (
-                f"[escalating-repair] passed on attempt {self.attempts} "
-                f"at tier {tier}"
+                f"[escalating-repair] passed on attempt {self.attempts} at tier {tier}"
             )
         if self.refused:
             return (
@@ -208,7 +204,7 @@ def _render_prompt(
     t_template = _to_dollar_placeholders(template)
     try:
         return Template(t_template).safe_substitute(ctx)
-    except (KeyError, ValueError):
+    except KeyError, ValueError:
         return _legacy_prompt(
             source_lang=source_lang,
             target=target,
@@ -310,7 +306,11 @@ def _to_dollar_placeholders(template: str) -> str:
             i += 2
             continue
         # ``{name}`` — single-brace placeholder
-        if c == "{" and i + 1 < n and (template[i + 1].isalpha() or template[i + 1] == "_"):
+        if (
+            c == "{"
+            and i + 1 < n
+            and (template[i + 1].isalpha() or template[i + 1] == "_")
+        ):
             j = template.find("}", i + 1)
             if j == -1:
                 out.append(c)

@@ -20,7 +20,17 @@ from __future__ import annotations
 
 from transpilers.ir import lir, mir
 from transpilers.ir.contracts import OverflowBehavior, SemanticContract
-from transpilers.ir.types import BoolT, FloatT, IntT, ListT, NoneT, StrT, StructT, Type, UnknownT
+from transpilers.ir.types import (
+    BoolT,
+    FloatT,
+    IntT,
+    ListT,
+    NoneT,
+    StrT,
+    StructT,
+    Type,
+    UnknownT,
+)
 
 from ._mir_lower_base import (
     MirLoweringBase,
@@ -44,8 +54,12 @@ class _RustLowering(MirLoweringBase):
 
     def lower_struct_items(self, s: mir.MirStruct) -> list[lir.LirNode]:
         return [
-            lir.RustStruct(name=s.name, fields=[(f.name, _rust_type(f.ty)) for f in s.fields]),
-            lir.RustImpl(struct_name=s.name, methods=[self.lower_function(m) for m in s.methods]),
+            lir.RustStruct(
+                name=s.name, fields=[(f.name, _rust_type(f.ty)) for f in s.fields]
+            ),
+            lir.RustImpl(
+                struct_name=s.name, methods=[self.lower_function(m) for m in s.methods]
+            ),
         ]
 
     # -- function signature: mut params + &mut for subscript-assigned ------ #
@@ -57,7 +71,9 @@ class _RustLowering(MirLoweringBase):
         subscript_assigned = scan_subscript_assigned_params(fn.body, param_names)
         return [
             (
-                f"mut {p.name}" if (p.name in mut_names or p.name in reassigned) else p.name,
+                f"mut {p.name}"
+                if (p.name in mut_names or p.name in reassigned)
+                else p.name,
                 _rust_param_type(p.ty, mutable=p.name in subscript_assigned),
             )
             for p in fn.params
@@ -72,11 +88,14 @@ class _RustLowering(MirLoweringBase):
         if node.augmented_op is not None:
             # x += value  →  x = x + value  (explicit form composes more
             # cleanly with type promotion later).
-            rhs = copy_provenance(lir.RustBinOp(
-                op=node.augmented_op,
-                left=lir.RustName(name=node.target),
-                right=self.lower_expr(node.value),
-            ), node)
+            rhs = copy_provenance(
+                lir.RustBinOp(
+                    op=node.augmented_op,
+                    left=lir.RustName(name=node.target),
+                    right=self.lower_expr(node.value),
+                ),
+                node,
+            )
             return copy_provenance(lir.RustReassign(name=node.target, value=rhs), node)
         if node.target in declared:
             return copy_provenance(
@@ -107,7 +126,9 @@ class _RustLowering(MirLoweringBase):
         if is_string_concat(node):
             return lir.RustFormat(args=_flatten_concat(self, node))
         if is_list_concat(node):
-            return _RustListConcat(left=self.lower_expr(node.left), right=self.lower_expr(node.right))
+            return _RustListConcat(
+                left=self.lower_expr(node.left), right=self.lower_expr(node.right)
+            )
         # Python `//` (FloorDivide) → Rust `/` on integer types.
         op = "/" if node.op == "//" else node.op
         # ── Overflow-safe emission ──────────────────────────────────────────
@@ -117,10 +138,7 @@ class _RustLowering(MirLoweringBase):
         # tells us what the source expects; we emit the Rust equivalent or
         # annotate the binop so the emitter can decide.
         contract: SemanticContract = getattr(node, "contract", SemanticContract())
-        if (
-            contract.overflow is OverflowBehavior.ARBITRARY
-            and op in ("+", "-", "*")
-        ):
+        if contract.overflow is OverflowBehavior.ARBITRARY and op in ("+", "-", "*"):
             # Arbitrary-precision source ints flowing into a fixed-width
             # target need explicit overflow handling.  Emit a wrapping
             # operation as the safe default (matches Rust's `wrapping_add`,
@@ -136,14 +154,22 @@ class _RustLowering(MirLoweringBase):
                 node,
             )
         return copy_provenance(
-            lir.RustBinOp(op=op, left=self.lower_expr(node.left), right=self.lower_expr(node.right)),
+            lir.RustBinOp(
+                op=op,
+                left=self.lower_expr(node.left),
+                right=self.lower_expr(node.right),
+            ),
             node,
         )
 
     def lower_boolop(self, node: mir.MirBoolOp):
         op = "&&" if node.op == "and" else "||"
         return copy_provenance(
-            lir.RustBoolOp(op=op, left=self.lower_expr(node.left), right=self.lower_expr(node.right)),
+            lir.RustBoolOp(
+                op=op,
+                left=self.lower_expr(node.left),
+                right=self.lower_expr(node.right),
+            ),
             node,
         )
 
@@ -160,7 +186,9 @@ class _RustLowering(MirLoweringBase):
 
     def lower_subscript(self, node: mir.MirSubscript):
         return copy_provenance(
-            lir.RustIndex(value=self.lower_expr(node.value), index=self.lower_expr(node.index)),
+            lir.RustIndex(
+                value=self.lower_expr(node.value), index=self.lower_expr(node.index)
+            ),
             node,
         )
 
@@ -174,7 +202,9 @@ class _RustLowering(MirLoweringBase):
             if len(args) != 1:
                 raise ValueError("len() takes exactly one argument")
             return copy_provenance(
-                lir.RustMethodCall(receiver=args[0], method="len", args=[], cast_to="i64"),
+                lir.RustMethodCall(
+                    receiver=args[0], method="len", args=[], cast_to="i64"
+                ),
                 node,
             )
         if node.func in ("print", "println"):
@@ -228,7 +258,9 @@ class _RustLowering(MirLoweringBase):
             )
         if node.func == "bool" and len(args) == 1:
             return copy_provenance(
-                lir.RustCompare(op="!=", left=args[0], right=lir.RustIntLiteral(value=0)),
+                lir.RustCompare(
+                    op="!=", left=args[0], right=lir.RustIntLiteral(value=0)
+                ),
                 node,
             )
         if node.func == "str" and len(args) == 1:
@@ -289,7 +321,9 @@ class _RustIfExpr(lir.LirNode):
     """`if <test> { <then> } else { <else> }` — Rust if-as-expression.
     Used by `_pyprint_arg` for bool→Python-cap rendering."""
 
-    def __init__(self, test: lir.LirNode, then_: lir.LirNode, else_: lir.LirNode) -> None:
+    def __init__(
+        self, test: lir.LirNode, then_: lir.LirNode, else_: lir.LirNode
+    ) -> None:
         self.test = test
         self.then_ = then_
         self.else_ = else_
@@ -356,24 +390,34 @@ def _rust_type(ty: Type) -> str:
     if isinstance(ty, UnknownT):
         raise ValueError(f"unresolved type hole: {ty.hint}")
     raise NotImplementedError(f"type {type(ty).__name__}")
+
+
 def _overflow_style(contract: SemanticContract) -> str:
     """Map a source-language overflow contract to a Rust overflow-method prefix.
 
     Returns ``"wrapping"``, ``"checked"``, or ``"saturating"``.
     """
-    if contract.overflow in (OverflowBehavior.ARBITRARY, OverflowBehavior.UNSPECIFIED, OverflowBehavior.WRAP):
+    if contract.overflow in (
+        OverflowBehavior.ARBITRARY,
+        OverflowBehavior.UNSPECIFIED,
+        OverflowBehavior.WRAP,
+    ):
         return "wrapping"
     if contract.overflow is OverflowBehavior.CHECKED:
         return "checked"
     if contract.overflow is OverflowBehavior.SATURATE:
         return "saturating"
     return "wrapping"
+
+
 class _RustOverflowGuard(lir.LirNode):
     """Overflow-aware arithmetic. Emits `(a).wrapping_<op>(b)` when the source
     (Python arbitrary-precision int) could overflow in the target (i64).
     Also supports `checked_*` and `saturating_*` forms based on contract."""
 
-    def __init__(self, op: str, left: lir.LirNode, right: lir.LirNode, style: str = "wrapping") -> None:
+    def __init__(
+        self, op: str, left: lir.LirNode, right: lir.LirNode, style: str = "wrapping"
+    ) -> None:
         self.op = op
         self.left = left
         self.right = right

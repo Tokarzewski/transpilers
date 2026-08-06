@@ -31,65 +31,84 @@ from transpilers.passes.trace_types import (
 def _t(src: str) -> str:
     return textwrap.dedent(src).lstrip()
 
+
 # ---- type mapping ----
 def test_int_maps_to_intt():
     assert isinstance(_python_type_to_mir_type(42), IntT)
+
 
 def test_float_maps_to_floatt():
     t = _python_type_to_mir_type(3.14)
     assert isinstance(t, FloatT)
 
+
 def test_bool_maps_to_boolt():
     for v in (True, False):
         assert isinstance(_python_type_to_mir_type(v), BoolT)
 
+
 def test_str_maps_to_strt():
     assert isinstance(_python_type_to_mir_type("hello"), StrT)
 
+
 def test_none_maps_to_nonett():
     assert isinstance(_python_type_to_mir_type(None), NoneT)
+
 
 def test_list_of_ints_maps_to_listt_int():
     t = _python_type_to_mir_type([1, 2, 3])
     assert isinstance(t, ListT) and isinstance(t.elem, IntT)
 
+
 def test_list_of_floats_maps_to_listt_float():
     t = _python_type_to_mir_type([1.5, 2.5])
     assert isinstance(t, ListT) and isinstance(t.elem, FloatT)
+
 
 def test_empty_list_maps_to_listt_unknown():
     t = _python_type_to_mir_type([])
     assert isinstance(t, ListT) and isinstance(t.elem, UnknownT)
 
+
 def test_tuple_maps_to_listt():
     t = _python_type_to_mir_type((1, 2, 3))
     assert isinstance(t, ListT) and isinstance(t.elem, IntT)
 
+
 def test_unknown_type_maps_to_unknown():
     class Custom:
         pass
+
     assert isinstance(_python_type_to_mir_type(Custom()), UnknownT)
+
 
 def test_merge_all_int():
     assert isinstance(_merge_types([IntT(), IntT(), IntT()]), IntT)
 
+
 def test_merge_int_float_becomes_float():
     assert isinstance(_merge_types([IntT(), FloatT()]), FloatT)
 
+
 def test_merge_float_int_becomes_float():
     assert isinstance(_merge_types([FloatT(), IntT()]), FloatT)
+
 
 def test_merge_list_int():
     t = _merge_types([ListT(IntT()), ListT(IntT())])
     assert isinstance(t, ListT) and isinstance(t.elem, IntT)
 
+
 def test_merge_empty_list_fallback_unknown():
     assert isinstance(_merge_types([]), UnknownT)
+
 
 def test_merge_incompatible_mix_fallback_unknown():
     assert isinstance(_merge_types([IntT(), StrT()]), UnknownT)
 
+
 # ---- trace-driven type inference ----
+
 
 def test_trace_simple_binop_infers_int():
     src = _t("""
@@ -201,8 +220,10 @@ def test_trace_bool_return():
 
 # ---- Integration with pipeline ----
 
+
 def test_trace_hints_flow_into_pipeline_int():
     from transpilers.cli.main import transpile_python_to_rust
+
     src = _t("""
         def add_one(x):
             return x + 1
@@ -216,6 +237,7 @@ def test_trace_hints_flow_into_pipeline_int():
 
 def test_trace_hints_flow_into_pipeline_list():
     from transpilers.cli.main import transpile_python_to_rust
+
     src = _t("""
         def first_elem(xs):
             return xs[0]
@@ -263,6 +285,7 @@ def test_trace_hints_resolve_standalone_function():
 
 def test_trace_hints_work_with_mojo_target():
     from transpilers.cli.main import transpile_python_to_mojo
+
     src = _t("""
         def scale(x, factor):
             return x * factor
@@ -272,4 +295,3 @@ def test_trace_hints_work_with_mojo_target():
     hints = trace_types(src)
     out = transpile_python_to_mojo(src, trace_types_hints=hints)
     assert "def scale(x: Float64, factor: Float64) -> Float64:" in out
-

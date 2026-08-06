@@ -123,7 +123,9 @@ def _emit_stmt(node: lir.LirNode, depth: int) -> str:
     if isinstance(node, lir.ZigContinue):
         return f"{pad}continue;"
     if isinstance(node, lir.ZigReturn):
-        return f"{pad}return {_emit_expr(node.value)};" if node.value else f"{pad}return;"
+        return (
+            f"{pad}return {_emit_expr(node.value)};" if node.value else f"{pad}return;"
+        )
     if isinstance(node, lir.ZigVar):
         keyword = "var" if node.mutable else "const"
         ann = f": {node.ty}" if node.ty else ""
@@ -178,7 +180,9 @@ def _emit_mutable_array_decl(node: _ZigMutableArrayDecl, depth: int) -> list[str
     pad = INDENT * depth
     items = ", ".join(_emit_expr(e) for e in node.array_lit.elements)
     arr_line = f"{pad}var {node.arr_name} = [_]{node.array_lit.elem_ty}{{{items}}};"
-    slice_line = f"{pad}const {node.name}: []{node.array_lit.elem_ty} = {node.arr_name}[0..];"
+    slice_line = (
+        f"{pad}const {node.name}: []{node.array_lit.elem_ty} = {node.arr_name}[0..];"
+    )
     return [arr_line, slice_line]
 
 
@@ -190,7 +194,10 @@ def _op_of(node: lir.LirNode) -> str | None:
 
 def _paren(child: lir.LirNode, parent_op: str, *, on_right: bool) -> str:
     from transpilers.backends._precedence import paren_emit
-    return paren_emit(child, parent_op, on_right=on_right, emit_expr=_emit_expr, op_of=_op_of)
+
+    return paren_emit(
+        child, parent_op, on_right=on_right, emit_expr=_emit_expr, op_of=_op_of
+    )
 
 
 def _emit_expr(node: lir.LirNode | None) -> str:
@@ -232,6 +239,7 @@ def _emit_expr(node: lir.LirNode | None) -> str:
         return f"{node.name}{{ {body} }}"
     # _ZigMethodCall lives in the lowering pass — emit receiver.method(args).
     from transpilers.passes.mir_to_zig_lir import _ZigMethodCall as _MC
+
     if isinstance(node, _MC):
         args = ", ".join(_emit_expr(a) for a in node.args)
         return f"{_emit_expr(node.receiver)}.{node.method}({args})"
@@ -249,6 +257,7 @@ def _emit_expr(node: lir.LirNode | None) -> str:
         # Special-case the (string, tuple) shape for std.debug.print so we
         # emit `.{a, b, c}` for the tuple arg instead of a normal call.
         from transpilers.passes.mir_to_zig_lir import _ZigTuple
+
         rendered_args: list[str] = []
         for a in node.args:
             if isinstance(a, _ZigTuple):
@@ -258,6 +267,7 @@ def _emit_expr(node: lir.LirNode | None) -> str:
                 rendered_args.append(_emit_expr(a))
         return f"{node.func}({', '.join(rendered_args)})"
     from transpilers.passes.mir_to_zig_lir import _ZigIfExpr as _IE, _ZigPyFloat as _PF
+
     if isinstance(node, _IE):
         return f"if ({_emit_expr(node.test)}) {_emit_expr(node.then_)} else {_emit_expr(node.else_)}"
     if isinstance(node, _PF):

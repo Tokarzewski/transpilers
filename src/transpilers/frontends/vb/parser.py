@@ -42,15 +42,37 @@ VB_TYPE_ALIASES: dict[str, str] = {
 
 
 KEYWORDS = {
-    "function", "end", "dim", "as", "if", "then", "else", "elseif", "endif",
-    "while", "wend", "for", "to", "step", "next", "return", "and", "or", "not",
-    "true", "false", "mod", "do", "loop", "until",
+    "function",
+    "end",
+    "dim",
+    "as",
+    "if",
+    "then",
+    "else",
+    "elseif",
+    "endif",
+    "while",
+    "wend",
+    "for",
+    "to",
+    "step",
+    "next",
+    "return",
+    "and",
+    "or",
+    "not",
+    "true",
+    "false",
+    "mod",
+    "do",
+    "loop",
+    "until",
 }
 
 
 @dataclass
 class Token:
-    kind: str        # "kw" | "id" | "num" | "str" | "op" | "newline" | "eof"
+    kind: str  # "kw" | "id" | "num" | "str" | "op" | "newline" | "eof"
     value: str
     line: int
 
@@ -83,7 +105,12 @@ def _tokenize(source: str) -> list[Token]:
                 j += 1
             kind = "num"
             # Float: `1.5` (decimal point followed by more digits).
-            if j < len(source) and source[j] == "." and j + 1 < len(source) and source[j + 1].isdigit():
+            if (
+                j < len(source)
+                and source[j] == "."
+                and j + 1 < len(source)
+                and source[j + 1].isdigit()
+            ):
                 j += 1
                 while j < len(source) and source[j].isdigit():
                     j += 1
@@ -108,13 +135,34 @@ def _tokenize(source: str) -> list[Token]:
             i = j
             continue
         # Operators (longest-match-first).
-        for op in ("<=", ">=", "<>", "+=", "-=", "*=", "/=", "<", ">", "=", "+", "-", "*", "/", "(", ")", ",", ":"):
+        for op in (
+            "<=",
+            ">=",
+            "<>",
+            "+=",
+            "-=",
+            "*=",
+            "/=",
+            "<",
+            ">",
+            "=",
+            "+",
+            "-",
+            "*",
+            "/",
+            "(",
+            ")",
+            ",",
+            ":",
+        ):
             if source.startswith(op, i):
                 tokens.append(Token("op", op, line))
                 i += len(op)
                 break
         else:
-            raise UnsupportedConstruct(f"vb tokenizer: unexpected {ch!r} at line {line}")
+            raise UnsupportedConstruct(
+                f"vb tokenizer: unexpected {ch!r} at line {line}"
+            )
     tokens.append(Token("eof", "", line))
     return tokens
 
@@ -139,13 +187,17 @@ class _Parser:
     def expect_kw(self, name: str) -> Token:
         tok = self.eat()
         if tok.kind != "kw" or tok.value.lower() != name:
-            raise UnsupportedConstruct(f"vb: expected {name!r} at line {tok.line}, got {tok.value!r}")
+            raise UnsupportedConstruct(
+                f"vb: expected {name!r} at line {tok.line}, got {tok.value!r}"
+            )
         return tok
 
     def expect_op(self, op: str) -> Token:
         tok = self.eat()
         if tok.kind != "op" or tok.value != op:
-            raise UnsupportedConstruct(f"vb: expected {op!r} at line {tok.line}, got {tok.value!r}")
+            raise UnsupportedConstruct(
+                f"vb: expected {op!r} at line {tok.line}, got {tok.value!r}"
+            )
         return tok
 
     # ---------- module ----------
@@ -165,7 +217,9 @@ class _Parser:
         self.expect_kw("function")
         name = self.eat()
         if name.kind != "id":
-            raise UnsupportedConstruct(f"vb: expected function name, got {name.value!r}")
+            raise UnsupportedConstruct(
+                f"vb: expected function name, got {name.value!r}"
+            )
         self.expect_op("(")
         params: list[hir.HirParam] = []
         if not (self.peek().kind == "op" and self.peek().value == ")"):
@@ -184,7 +238,10 @@ class _Parser:
         self.expect_kw("end")
         self.expect_kw("function")
         return hir.HirFunction(
-            name=name.value, params=params, return_annotation=return_annotation, body=body
+            name=name.value,
+            params=params,
+            return_annotation=return_annotation,
+            body=body,
         )
 
     def parse_param(self) -> hir.HirParam:
@@ -233,10 +290,14 @@ class _Parser:
                 return [self.parse_while()]
             if kw == "for":
                 return [self.parse_for()]
-            raise UnsupportedConstruct(f"vb: unexpected keyword {tok.value!r} at line {tok.line}")
+            raise UnsupportedConstruct(
+                f"vb: unexpected keyword {tok.value!r} at line {tok.line}"
+            )
         if tok.kind == "id":
             return [self.parse_assignment_or_call()]
-        raise UnsupportedConstruct(f"vb: unexpected token {tok.value!r} at line {tok.line}")
+        raise UnsupportedConstruct(
+            f"vb: unexpected token {tok.value!r} at line {tok.line}"
+        )
 
     def parse_dim(self) -> hir.HirNode:
         self.expect_kw("dim")
@@ -261,7 +322,9 @@ class _Parser:
             self.eat()
             value = self.parse_expr()
             aug = None if op.value == "=" else op.value[:-1]
-            return hir.HirAssign(target=target.value, value=value, annotation=None, augmented_op=aug)
+            return hir.HirAssign(
+                target=target.value, value=value, annotation=None, augmented_op=aug
+            )
         raise UnsupportedConstruct(f"vb: expected assignment after {target.value!r}")
 
     def parse_if(self) -> hir.HirNode:
@@ -313,7 +376,9 @@ class _Parser:
         self.expect_kw("for")
         target_tok = self.eat()
         if target_tok.kind != "id":
-            raise UnsupportedConstruct(f"vb: expected for target, got {target_tok.value!r}")
+            raise UnsupportedConstruct(
+                f"vb: expected for target, got {target_tok.value!r}"
+            )
         self.expect_op("=")
         start = self.parse_expr()
         self.expect_kw("to")
@@ -329,8 +394,12 @@ class _Parser:
         if self.peek().kind == "id":
             self.eat()
         # Inclusive endpoint → exclusive by +1.
-        exclusive_stop = hir.HirBinOp(op="+", left=stop, right=hir.HirIntLiteral(value=1))
-        args = [start, exclusive_stop] if step is None else [start, exclusive_stop, step]
+        exclusive_stop = hir.HirBinOp(
+            op="+", left=stop, right=hir.HirIntLiteral(value=1)
+        )
+        args = (
+            [start, exclusive_stop] if step is None else [start, exclusive_stop, step]
+        )
         return hir.HirFor(
             target=target_tok.value,
             iter=hir.HirCall(func="range", args=args),
@@ -375,7 +444,7 @@ class _Parser:
 
     def parse_add(self) -> hir.HirNode:
         left = self.parse_mul()
-        while (self.peek().kind == "op" and self.peek().value in ("+", "-")):
+        while self.peek().kind == "op" and self.peek().value in ("+", "-"):
             op = self.eat().value
             right = self.parse_mul()
             left = hir.HirBinOp(op=op, left=left, right=right)
@@ -383,9 +452,8 @@ class _Parser:
 
     def parse_mul(self) -> hir.HirNode:
         left = self.parse_unary()
-        while (
-            (self.peek().kind == "op" and self.peek().value in ("*", "/"))
-            or (self.peek().kind == "kw" and self.peek().value.lower() == "mod")
+        while (self.peek().kind == "op" and self.peek().value in ("*", "/")) or (
+            self.peek().kind == "kw" and self.peek().value.lower() == "mod"
         ):
             tok = self.eat()
             op = "%" if tok.kind == "kw" else tok.value
@@ -435,7 +503,9 @@ class _Parser:
                 self.expect_op(")")
                 return hir.HirCall(func=tok.value, args=args)
             return hir.HirName(name=tok.value)
-        raise UnsupportedConstruct(f"vb: unexpected token {tok.value!r} at line {tok.line}")
+        raise UnsupportedConstruct(
+            f"vb: unexpected token {tok.value!r} at line {tok.line}"
+        )
 
 
 COMPARE_OPS = {"<", "<=", ">", ">=", "=", "<>"}

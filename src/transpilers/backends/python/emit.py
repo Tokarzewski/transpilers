@@ -133,7 +133,10 @@ def _op_of(node: lir.LirNode) -> str | None:
 
 def _paren(child: lir.LirNode, parent_op: str, *, on_right: bool) -> str:
     from transpilers.backends._precedence import paren_emit
-    return paren_emit(child, parent_op, on_right=on_right, emit_expr=_emit_expr, op_of=_op_of)
+
+    return paren_emit(
+        child, parent_op, on_right=on_right, emit_expr=_emit_expr, op_of=_op_of
+    )
 
 
 def _emit_expr(node: lir.LirNode | None) -> str:
@@ -173,7 +176,13 @@ def _emit_expr(node: lir.LirNode | None) -> str:
     if isinstance(node, lir.PyStructInit):
         args = ", ".join(_emit_expr(v) for _, v in node.field_values)
         return f"{node.name}({args})"
-    from transpilers.passes.mir_to_python_lir import _PyMethodCall as _MC, _PyIndex, _PyList, _PyIfExpr
+    from transpilers.passes.mir_to_python_lir import (
+        _PyMethodCall as _MC,
+        _PyIndex,
+        _PyList,
+        _PyIfExpr,
+    )
+
     if isinstance(node, _MC):
         args = ", ".join(_emit_expr(a) for a in node.args)
         return f"{_emit_expr(node.receiver)}.{node.method}({args})"

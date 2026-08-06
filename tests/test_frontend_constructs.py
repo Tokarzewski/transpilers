@@ -84,6 +84,7 @@ def test_py_is_none_uses_null_literal_not_zero():
 
 def test_c_block_comment_stripped():
     from transpilers.cli.main import transpile_c_to_rust
+
     src = textwrap.dedent(
         """
         /* preamble block comment
@@ -100,6 +101,7 @@ def test_c_block_comment_stripped():
 
 def test_c_ternary_lowers_to_if_expr():
     from transpilers.cli.main import transpile_c_to_rust
+
     src = textwrap.dedent(
         """
         int max2(int a, int b) {
@@ -115,6 +117,7 @@ def test_c_ternary_lowers_to_if_expr():
 
 def test_c_array_ref():
     from transpilers.cli.main import transpile_c_to_rust
+
     src = textwrap.dedent(
         """
         int first(int *xs) {
@@ -131,7 +134,10 @@ def test_c_array_ref():
 
 def test_java_ternary():
     from transpilers.cli.main import transpile_java as _java
-    transpile_java_to_rust = lambda src: _java(src, target="rust")
+
+    def transpile_java_to_rust(src):
+        return _java(src, target="rust")
+
     src = textwrap.dedent(
         """
         class C {
@@ -150,7 +156,10 @@ def test_java_null_literal_is_not_zero():
     """Java `null` used to lower to integer 0; now lowers via
     HirNullLiteral so reference comparisons stay semantically distinct."""
     from transpilers.cli.main import transpile_java as _java
-    transpile_java_to_rust = lambda src: _java(src, target="rust")
+
+    def transpile_java_to_rust(src):
+        return _java(src, target="rust")
+
     src = textwrap.dedent(
         """
         class C {
@@ -167,7 +176,10 @@ def test_java_null_literal_is_not_zero():
 
 def test_java_array_initializer():
     from transpilers.cli.main import transpile_java as _java
-    transpile_java_to_rust = lambda src: _java(src, target="rust")
+
+    def transpile_java_to_rust(src):
+        return _java(src, target="rust")
+
     src = textwrap.dedent(
         """
         class C {
@@ -184,7 +196,10 @@ def test_java_array_initializer():
 
 def test_java_subscript_lhs():
     from transpilers.cli.main import transpile_java as _java
-    transpile_java_to_rust = lambda src: _java(src, target="rust")
+
+    def transpile_java_to_rust(src):
+        return _java(src, target="rust")
+
     src = textwrap.dedent(
         """
         class C {
@@ -207,6 +222,7 @@ def test_cpp_postfix_in_expr_defers_effect():
     increment to a statement after the expression so the pre-increment value
     is used at the use site (correct post-increment semantics)."""
     from transpilers.cli.main import transpile
+
     src = textwrap.dedent(
         """
         int postfix_add(int i) {

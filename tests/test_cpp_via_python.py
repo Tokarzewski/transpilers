@@ -34,6 +34,7 @@ def _has(name: str) -> bool:
 
 # ---------- shape: the Python pivot is a readable, explicit intermediate ----------
 
+
 def test_pivot_produces_python_intermediate():
     python_ir, _ = _pivot(_ADD, "rust")
     assert "def add(a: int, b: int) -> int:" in python_ir
@@ -41,6 +42,7 @@ def test_pivot_produces_python_intermediate():
 
 
 # ---------- shape: pivot reaches multiple targets ----------
+
 
 def test_cpp_via_python_to_rust():
     python_ir, out = _pivot(_ADD, "rust")
@@ -74,6 +76,7 @@ def test_cpp_via_python_to_other_targets(target: str, needle: str):
 
 # ---------- backward-compat wrapper ----------
 
+
 def test_legacy_wrapper_matches_general_pivot():
     py_a, mojo_a = transpile_cpp_to_python_to_mojo(_ADD)
     py_b, mojo_b = _pivot(_ADD, "mojo")
@@ -82,6 +85,7 @@ def test_legacy_wrapper_matches_general_pivot():
 
 
 # ---------- CLI flag drives the pivot for any target ----------
+
 
 def test_cli_python_pivot_rust(tmp_path, capsys):
     src = tmp_path / "add.cpp"
@@ -110,6 +114,7 @@ def test_cli_python_pivot_requires_cpp(tmp_path, capsys):
 
 
 # ---------- compile checks (gated on toolchain availability) ----------
+
 
 @pytest.mark.skipif(not _has("rustc"), reason="rustc not installed")
 def test_cpp_via_python_to_rust_compiles():

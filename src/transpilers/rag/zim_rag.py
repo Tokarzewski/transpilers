@@ -37,68 +37,69 @@ ZIM_DIR_DEFAULT = Path(os.environ.get("ZIM_DIR", r"D:\zim"))
 
 # Map source API patterns → search terms in the target language doc
 CPP_TO_PYTHON_HINTS: dict[str, list[str]] = {
-    "std::sort":            ["sorted", "list.sort"],
-    "std::vector":          ["list", "array"],
-    "std::unordered_map":   ["dict", "defaultdict"],
-    "std::map":             ["dict", "SortedDict"],
-    "std::string":          ["str", "string"],
-    "std::cout":            ["print"],
-    "std::cin":             ["input"],
-    "std::max":             ["max"],
-    "std::min":             ["min"],
-    "std::abs":             ["abs", "math.fabs"],
-    "std::sqrt":            ["math.sqrt"],
-    "std::pow":             ["pow", "math.pow"],
-    "std::floor":           ["math.floor"],
-    "std::ceil":            ["math.ceil"],
-    "std::round":           ["round", "math.round"],
-    "std::find":            ["str.find", "list.index"],
-    "std::transform":       ["map", "list comprehension"],
-    "std::accumulate":      ["sum", "functools.reduce"],
-    "std::fill":            ["list comprehension", "itertools.repeat"],
-    "std::copy":            ["list.copy", "copy.copy"],
-    "std::set":             ["set"],
-    "std::deque":           ["collections.deque"],
-    "std::queue":           ["queue.Queue"],
-    "std::stack":           ["list"],
-    "std::pair":            ["tuple"],
-    "std::tuple":           ["tuple"],
-    "std::optional":        ["None", "Optional"],
-    "std::shared_ptr":      ["object reference"],
-    "std::unique_ptr":      ["object reference", "contextlib"],
-    "std::move":            ["(no equivalent — Python uses references)"],
-    "printf":               ["print", "f-string"],
-    "sprintf":              ["f-string", "str.format"],
-    "malloc":               ["list", "bytearray"],
-    "free":                 ["(automatic — Python GC)"],
-    "memcpy":               ["copy", "slice assignment"],
-    "strlen":               ["len"],
-    "strcmp":               ["== operator"],
-    "strcpy":               ["= assignment"],
+    "std::sort": ["sorted", "list.sort"],
+    "std::vector": ["list", "array"],
+    "std::unordered_map": ["dict", "defaultdict"],
+    "std::map": ["dict", "SortedDict"],
+    "std::string": ["str", "string"],
+    "std::cout": ["print"],
+    "std::cin": ["input"],
+    "std::max": ["max"],
+    "std::min": ["min"],
+    "std::abs": ["abs", "math.fabs"],
+    "std::sqrt": ["math.sqrt"],
+    "std::pow": ["pow", "math.pow"],
+    "std::floor": ["math.floor"],
+    "std::ceil": ["math.ceil"],
+    "std::round": ["round", "math.round"],
+    "std::find": ["str.find", "list.index"],
+    "std::transform": ["map", "list comprehension"],
+    "std::accumulate": ["sum", "functools.reduce"],
+    "std::fill": ["list comprehension", "itertools.repeat"],
+    "std::copy": ["list.copy", "copy.copy"],
+    "std::set": ["set"],
+    "std::deque": ["collections.deque"],
+    "std::queue": ["queue.Queue"],
+    "std::stack": ["list"],
+    "std::pair": ["tuple"],
+    "std::tuple": ["tuple"],
+    "std::optional": ["None", "Optional"],
+    "std::shared_ptr": ["object reference"],
+    "std::unique_ptr": ["object reference", "contextlib"],
+    "std::move": ["(no equivalent — Python uses references)"],
+    "printf": ["print", "f-string"],
+    "sprintf": ["f-string", "str.format"],
+    "malloc": ["list", "bytearray"],
+    "free": ["(automatic — Python GC)"],
+    "memcpy": ["copy", "slice assignment"],
+    "strlen": ["len"],
+    "strcmp": ["== operator"],
+    "strcpy": ["= assignment"],
 }
 
 CPP_TO_MOJO_HINTS: dict[str, list[str]] = {
-    "std::vector":          ["List[T]"],
-    "std::unordered_map":   ["Dict[K, V]"],
-    "std::map":             ["Dict[K, V]"],
-    "std::string":          ["String"],
-    "std::sort":            ["sort()"],
-    "std::max":             ["max()"],
-    "std::min":             ["min()"],
-    "std::abs":             ["abs()"],
-    "std::sqrt":            ["math.sqrt()"],
-    "std::optional":        ["Optional[T]"],
-    "std::pair":            ["Tuple[A, B]"],
-    "std::tuple":           ["Tuple[...]"],
-    "std::shared_ptr":      ["Reference types in Mojo use ownership"],
-    "std::unique_ptr":      ["Owned[T]"],
-    "printf":               ["print()"],
+    "std::vector": ["List[T]"],
+    "std::unordered_map": ["Dict[K, V]"],
+    "std::map": ["Dict[K, V]"],
+    "std::string": ["String"],
+    "std::sort": ["sort()"],
+    "std::max": ["max()"],
+    "std::min": ["min()"],
+    "std::abs": ["abs()"],
+    "std::sqrt": ["math.sqrt()"],
+    "std::optional": ["Optional[T]"],
+    "std::pair": ["Tuple[A, B]"],
+    "std::tuple": ["Tuple[...]"],
+    "std::shared_ptr": ["Reference types in Mojo use ownership"],
+    "std::unique_ptr": ["Owned[T]"],
+    "printf": ["print()"],
 }
 
 
 @dataclass
 class DocResult:
     """Result of a documentation lookup."""
+
     query: str
     found: bool
     snippet: str = ""
@@ -118,11 +119,11 @@ def find_zim_files(zim_dir: Path | str = ZIM_DIR_DEFAULT) -> list[Path]:
 def _lang_zim_pattern(lang: str) -> str:
     """Return glob pattern for zim files relevant to a target language."""
     patterns = {
-        "python":  "docs.python.org",
-        "mojo":    "mojolang.org",
-        "cpp":     "devdocs_en_cpp",
-        "rust":    "doc.rust-lang.org",
-        "go":      "pkg.go.dev",
+        "python": "docs.python.org",
+        "mojo": "mojolang.org",
+        "cpp": "devdocs_en_cpp",
+        "rust": "doc.rust-lang.org",
+        "go": "pkg.go.dev",
     }
     return patterns.get(lang, lang)
 
@@ -152,6 +153,7 @@ class ZimRag:
             return self._zim_cache[key]
         try:
             import libzim  # type: ignore
+
             archive = libzim.Archive(str(path))
             self._zim_cache[key] = archive
             return archive
@@ -160,10 +162,13 @@ class ZimRag:
         except Exception:
             return None
 
-    def _search_zim(self, archive: object, query: str, max_results: int = 3) -> list[str]:
+    def _search_zim(
+        self, archive: object, query: str, max_results: int = 3
+    ) -> list[str]:
         """Search a zim archive, return list of article snippets."""
         try:
             import libzim  # type: ignore
+
             searcher = libzim.Searcher(archive)
             results = searcher.search(libzim.Query().set_query(query))
             snippets = []
@@ -195,7 +200,9 @@ class ZimRag:
         First tries the hint table (fast, no I/O), then searches .zim files.
         """
         # 1. Check hint table
-        hints_map = CPP_TO_PYTHON_HINTS if target_lang == "python" else CPP_TO_MOJO_HINTS
+        hints_map = (
+            CPP_TO_PYTHON_HINTS if target_lang == "python" else CPP_TO_MOJO_HINTS
+        )
         normalized = api_name.strip()
         for pattern, targets in hints_map.items():
             if pattern in normalized or normalized in pattern:
@@ -267,7 +274,9 @@ def lookup_api(
     global _default_rag
     if _default_rag is None or str(_default_rag.zim_dir) != str(zim_dir):
         _default_rag = ZimRag(zim_dir=zim_dir)
-    return _default_rag.lookup(api_name, source_lang=source_lang, target_lang=target_lang)
+    return _default_rag.lookup(
+        api_name, source_lang=source_lang, target_lang=target_lang
+    )
 
 
 if __name__ == "__main__":

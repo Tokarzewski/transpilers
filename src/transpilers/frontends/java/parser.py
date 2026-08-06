@@ -16,7 +16,12 @@ from tree_sitter import Language, Node
 import tree_sitter_java
 
 from transpilers.ir import hir
-from transpilers.frontends._treesitter import make_parser, named_children, required_field, text
+from transpilers.frontends._treesitter import (
+    make_parser,
+    named_children,
+    required_field,
+    text,
+)
 
 
 from transpilers.frontends.errors import UnsupportedConstruct
@@ -47,8 +52,10 @@ def parse_java(source: str) -> hir.HirModule:
             body.extend(_extract_methods(c))
             continue
         if c.type in (
-            "import_declaration", "package_declaration",
-            "line_comment", "block_comment",
+            "import_declaration",
+            "package_declaration",
+            "line_comment",
+            "block_comment",
         ):
             continue
         raise UnsupportedConstruct(f"top-level {c.type}")
@@ -73,7 +80,11 @@ def _convert_method(node: Node) -> hir.HirFunction:
     type_node = required_field(node, "type")
     params_node = required_field(node, "parameters")
     body_node = required_field(node, "body")
-    params = [_convert_param(p) for p in named_children(params_node) if p.type == "formal_parameter"]
+    params = [
+        _convert_param(p)
+        for p in named_children(params_node)
+        if p.type == "formal_parameter"
+    ]
     return hir.HirFunction(
         name=text(name_node),
         params=params,
@@ -156,7 +167,11 @@ def _convert_for(node: Node) -> list[hir.HirNode]:
     body_node = required_field(node, "body")
     if init_node is not None:
         out.extend(_convert_stmt(init_node))
-    cond = _convert_expr(cond_node) if cond_node is not None else hir.HirBoolLiteral(value=True)
+    cond = (
+        _convert_expr(cond_node)
+        if cond_node is not None
+        else hir.HirBoolLiteral(value=True)
+    )
     inner = _convert_stmt(body_node)
     if update_node is not None:
         inner.append(_convert_expression_stmt(update_node))
@@ -173,9 +188,15 @@ def _convert_local_var_decl(node: Node) -> list[hir.HirNode]:
             name_node = required_field(c, "name")
             value_node = c.child_by_field_name("value")
             value = (
-                _convert_expr(value_node) if value_node is not None else hir.HirIntLiteral(value=0)
+                _convert_expr(value_node)
+                if value_node is not None
+                else hir.HirIntLiteral(value=0)
             )
-            out.append(hir.HirAssign(target=text(name_node), value=value, annotation=annotation))
+            out.append(
+                hir.HirAssign(
+                    target=text(name_node), value=value, annotation=annotation
+                )
+            )
     return out
 
 
@@ -199,7 +220,9 @@ def _convert_assignment(node: Node) -> hir.HirNode:
     aug = None if op == "=" else op[:-1]
     rhs = _convert_expr(right)
     if left.type == "identifier":
-        return hir.HirAssign(target=text(left), value=rhs, annotation=None, augmented_op=aug)
+        return hir.HirAssign(
+            target=text(left), value=rhs, annotation=None, augmented_op=aug
+        )
     if left.type == "array_access" and aug is None:
         return hir.HirSubscriptAssign(
             obj=_convert_expr(required_field(left, "array")),
@@ -228,18 +251,28 @@ def _convert_update(node: Node) -> hir.HirNode:
         raise UnsupportedConstruct(f"java update {op!r}")
     sign = "+" if op == "++" else "-"
     return hir.HirAssign(
-        target=text(operand), value=hir.HirIntLiteral(value=1), annotation=None, augmented_op=sign
+        target=text(operand),
+        value=hir.HirIntLiteral(value=1),
+        annotation=None,
+        augmented_op=sign,
     )
 
 
 # ---------- expressions ----------
 
+
 def _convert_expr(node: Node) -> hir.HirNode:
     kind = node.type
-    if kind == "decimal_integer_literal" or kind == "hex_integer_literal" or kind == "binary_integer_literal":
+    if (
+        kind == "decimal_integer_literal"
+        or kind == "hex_integer_literal"
+        or kind == "binary_integer_literal"
+    ):
         return hir.HirIntLiteral(value=int(text(node).rstrip("lL").replace("_", ""), 0))
     if kind == "decimal_floating_point_literal" or kind == "hex_floating_point_literal":
-        return hir.HirFloatLiteral(value=float(text(node).rstrip("fFdD").replace("_", "")))
+        return hir.HirFloatLiteral(
+            value=float(text(node).rstrip("fFdD").replace("_", ""))
+        )
     if kind == "true":
         return hir.HirBoolLiteral(value=True)
     if kind == "false":
@@ -278,8 +311,9 @@ def _convert_expr(node: Node) -> hir.HirNode:
         # Dimension expressions or initializer literals both pass through;
         # zero-init `new T[size]` produces an empty list (lossy — sizing is
         # dropped).
-        dim_kids = [c for c in named_children(node) if c.type == "dimensions_expr"]
-        init_kid = next((c for c in named_children(node) if c.type == "array_initializer"), None)
+        init_kid = next(
+            (c for c in named_children(node) if c.type == "array_initializer"), None
+        )
         if init_kid is not None:
             elements = [_convert_expr(c) for c in named_children(init_kid)]
             return hir.HirList(elements=elements)
@@ -290,7 +324,15 @@ def _convert_expr(node: Node) -> hir.HirNode:
         kids = named_children(node)
         # Children: type-node first (sometimes), value last.
         for c in kids[::-1]:
-            if c.type not in ("type_identifier", "integral_type", "floating_point_type", "boolean_type", "array_type", "generic_type", "void_type"):
+            if c.type not in (
+                "type_identifier",
+                "integral_type",
+                "floating_point_type",
+                "boolean_type",
+                "array_type",
+                "generic_type",
+                "void_type",
+            ):
                 return _convert_expr(c)
         if kids:
             return _convert_expr(kids[-1])
@@ -370,6 +412,7 @@ LOGICAL_OPS = {"&&", "||"}
 
 
 # ---------- type text ----------
+
 
 def _type_text(node: Node) -> str:
     if node.type == "void_type":

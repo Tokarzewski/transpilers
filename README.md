@@ -90,7 +90,7 @@ src/transpilers/   frontends · ir (hir/mir/lir) · passes · backends · llm ·
 scripts/           dataset builders · sft/ (fine-tune + eval) · rag/
 data/              datasets · the shipped Mojo LoRA adapter · codebase RAG index
 examples/          verified corpus (algorithms/ + per-language samples)
-tests/             engine test suite (537 tests; ML/torch cases auto-skip without GPU deps)
+tests/             engine test suite (684 tests; 45 Mojo-gated skips auto-skip, ML/torch cases auto-skip without GPU deps)
 benchmarks/        transpilation-bench (40-task C++/Python→Mojo)
 tools/             migraph (migration dashboard) · cloud (RunPod training bundle)
 ```

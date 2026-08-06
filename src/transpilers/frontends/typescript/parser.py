@@ -21,14 +21,19 @@ from tree_sitter import Language, Node
 import tree_sitter_typescript
 
 from transpilers.ir import hir
-from transpilers.frontends._treesitter import make_parser, named_children, required_field, text
+from transpilers.frontends._treesitter import (
+    make_parser,
+    named_children,
+    required_field,
+    text,
+)
 
 
 from transpilers.frontends.errors import UnsupportedConstruct
 
 
 TS_TYPE_ALIASES: dict[str, str] = {
-    "number": "int",     # see module docstring
+    "number": "int",  # see module docstring
     "bigint": "int",
     "boolean": "bool",
     "string": "str",
@@ -49,7 +54,12 @@ def parse_typescript(source: str) -> hir.HirModule:
         if c.type == "function_declaration":
             body.append(_convert_function(c))
             continue
-        if c.type in ("comment", "import_statement", "export_statement", "hash_bang_line"):
+        if c.type in (
+            "comment",
+            "import_statement",
+            "export_statement",
+            "hash_bang_line",
+        ):
             if c.type == "export_statement":
                 for inner in named_children(c):
                     if inner.type == "function_declaration":
@@ -57,9 +67,15 @@ def parse_typescript(source: str) -> hir.HirModule:
             continue
         # Top-level non-function statements — script style. Skip.
         if c.type in (
-            "expression_statement", "lexical_declaration", "variable_declaration",
-            "for_statement", "if_statement", "while_statement", "block_statement",
-            "type_alias_declaration", "interface_declaration",
+            "expression_statement",
+            "lexical_declaration",
+            "variable_declaration",
+            "for_statement",
+            "if_statement",
+            "while_statement",
+            "block_statement",
+            "type_alias_declaration",
+            "interface_declaration",
         ):
             continue
         raise UnsupportedConstruct(f"top-level {c.type}")
@@ -71,7 +87,11 @@ def _convert_function(node: Node) -> hir.HirFunction:
     params_node = required_field(node, "parameters")
     body_node = required_field(node, "body")
     return_type_node = node.child_by_field_name("return_type")
-    params = [_convert_param(p) for p in named_children(params_node) if p.type in ("required_parameter", "optional_parameter")]
+    params = [
+        _convert_param(p)
+        for p in named_children(params_node)
+        if p.type in ("required_parameter", "optional_parameter")
+    ]
     return hir.HirFunction(
         name=text(name_node),
         params=params,
@@ -152,9 +172,15 @@ def _convert_for(node: Node) -> list[hir.HirNode]:
     # The condition in JS/TS for-statement is wrapped in expression_statement.
     if cond_node is not None and cond_node.type == "expression_statement":
         cond_kids = named_children(cond_node)
-        cond_expr = _convert_expr(cond_kids[0]) if cond_kids else hir.HirBoolLiteral(value=True)
+        cond_expr = (
+            _convert_expr(cond_kids[0]) if cond_kids else hir.HirBoolLiteral(value=True)
+        )
     else:
-        cond_expr = _convert_expr(cond_node) if cond_node is not None else hir.HirBoolLiteral(value=True)
+        cond_expr = (
+            _convert_expr(cond_node)
+            if cond_node is not None
+            else hir.HirBoolLiteral(value=True)
+        )
     inner = _convert_stmt(body_node)
     if update_node is not None:
         inner.append(_convert_expression_stmt(update_node))
@@ -177,7 +203,11 @@ def _convert_variable_declarator(node: Node) -> hir.HirNode:
     type_node = node.child_by_field_name("type")
     annotation = _type_annotation_text(type_node) if type_node is not None else None
     value_node = node.child_by_field_name("value")
-    value = _convert_expr(value_node) if value_node is not None else hir.HirIntLiteral(value=0)
+    value = (
+        _convert_expr(value_node)
+        if value_node is not None
+        else hir.HirIntLiteral(value=0)
+    )
     return hir.HirAssign(target=text(name_node), value=value, annotation=annotation)
 
 
@@ -209,7 +239,10 @@ def _convert_aug_assignment(node: Node) -> hir.HirNode:
     if left.type != "identifier" or not op.endswith("="):
         raise UnsupportedConstruct(f"ts aug-assign {op!r}")
     return hir.HirAssign(
-        target=text(left), value=_convert_expr(right), annotation=None, augmented_op=op[:-1]
+        target=text(left),
+        value=_convert_expr(right),
+        annotation=None,
+        augmented_op=op[:-1],
     )
 
 
@@ -221,11 +254,15 @@ def _convert_update(node: Node) -> hir.HirNode:
         raise UnsupportedConstruct(f"ts update {op!r}")
     sign = "+" if op == "++" else "-"
     return hir.HirAssign(
-        target=text(argument), value=hir.HirIntLiteral(value=1), annotation=None, augmented_op=sign
+        target=text(argument),
+        value=hir.HirIntLiteral(value=1),
+        annotation=None,
+        augmented_op=sign,
     )
 
 
 # ---------- expressions ----------
+
 
 def _convert_expr(node: Node) -> hir.HirNode:
     kind = node.type
@@ -301,6 +338,7 @@ LOGICAL_OPS = {"&&", "||"}
 
 
 # ---------- types ----------
+
 
 def _return_type_text(node: Node | None) -> str | None:
     if node is None:

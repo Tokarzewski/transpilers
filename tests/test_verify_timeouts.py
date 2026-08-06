@@ -21,10 +21,17 @@ import pytest
         ("transpilers.verify.go", "go_compiles", "package main\nfunc f() {}\n", True),
         ("transpilers.verify.mojo", "mojo_compiles", "def f():\n    pass\n", True),
         ("transpilers.verify.zig", "zig_compiles", "fn f() void {}", False),
-        ("transpilers.verify.fortran", "fortran_compiles", "subroutine f()\nend subroutine f\n", True),
+        (
+            "transpilers.verify.fortran",
+            "fortran_compiles",
+            "subroutine f()\nend subroutine f\n",
+            True,
+        ),
     ],
 )
-def test_verifier_subprocess_call_has_timeout(module_name, func_name, source, needs_which):
+def test_verifier_subprocess_call_has_timeout(
+    module_name, func_name, source, needs_which
+):
     mod = importlib.import_module(module_name)
     fn = getattr(mod, func_name)
 
@@ -41,5 +48,7 @@ def test_verifier_subprocess_call_has_timeout(module_name, func_name, source, ne
 
     assert mock_run.called, f"{func_name} never invoked subprocess.run"
     _, kwargs = mock_run.call_args
-    assert "timeout" in kwargs, f"{func_name}'s subprocess.run call has no timeout= bound"
+    assert "timeout" in kwargs, (
+        f"{func_name}'s subprocess.run call has no timeout= bound"
+    )
     assert isinstance(kwargs["timeout"], (int, float)) and kwargs["timeout"] > 0

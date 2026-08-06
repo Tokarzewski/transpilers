@@ -37,6 +37,7 @@ def _imports_for(source: str) -> str:
 
 def _is_go_method_call(node: lir.LirNode) -> bool:
     from transpilers.passes.mir_to_go_lir import _GoMethodCall as _MC
+
     return isinstance(node, _MC)
 
 
@@ -150,7 +151,10 @@ def _op_of(node: lir.LirNode) -> str | None:
 
 def _paren(child: lir.LirNode, parent_op: str, *, on_right: bool) -> str:
     from transpilers.backends._precedence import paren_emit
-    return paren_emit(child, parent_op, on_right=on_right, emit_expr=_emit_expr, op_of=_op_of)
+
+    return paren_emit(
+        child, parent_op, on_right=on_right, emit_expr=_emit_expr, op_of=_op_of
+    )
 
 
 def _emit_expr(node: lir.LirNode | None) -> str:
@@ -195,6 +199,7 @@ def _emit_expr(node: lir.LirNode | None) -> str:
         _GoBoolStr,
         _GoFloatStr,
     )
+
     if isinstance(node, _MC):
         args = ", ".join(_emit_expr(a) for a in node.args)
         return f"{_emit_expr(node.receiver)}.{node.method}({args})"
@@ -211,15 +216,17 @@ def _emit_expr(node: lir.LirNode | None) -> str:
     if isinstance(node, _GoSliceAppend):
         return f"append({_emit_expr(node.left)}, {_emit_expr(node.right)}...)"
     if isinstance(node, _GoBoolStr):
-        return f'map[bool]string{{true: "True", false: "False"}}[{_emit_expr(node.value)}]'
+        return (
+            f'map[bool]string{{true: "True", false: "False"}}[{_emit_expr(node.value)}]'
+        )
     if isinstance(node, _GoFloatStr):
         v = _emit_expr(node.value)
         # Match Python's float str(): always show a decimal point.
         # strconv.FormatFloat 'g' removes trailing zeros, so "12" not "12.0".
         # The IIFE appends ".0" when neither "." nor "e" is present.
         return (
-            f'func() string {{ s := strconv.FormatFloat({v}, \'g\', -1, 64); '
-            f'if strings.IndexByte(s, \'.\') < 0 && strings.IndexByte(s, \'e\') < 0 '
+            f"func() string {{ s := strconv.FormatFloat({v}, 'g', -1, 64); "
+            f"if strings.IndexByte(s, '.') < 0 && strings.IndexByte(s, 'e') < 0 "
             f'{{ return s + ".0" }}; return s }}()'
         )
     raise NotImplementedError(f"LIR node {type(node).__name__}")

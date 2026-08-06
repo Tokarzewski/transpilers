@@ -23,7 +23,12 @@ from tree_sitter import Language, Node
 import tree_sitter_fortran
 
 from transpilers.ir import hir
-from transpilers.frontends._treesitter import make_parser, named_children, required_field, text
+from transpilers.frontends._treesitter import (
+    make_parser,
+    named_children,
+    required_field,
+    text,
+)
 
 
 from transpilers.frontends.errors import UnsupportedConstruct
@@ -91,7 +96,9 @@ def _convert_function(node: Node) -> hir.HirFunction:
         raise UnsupportedConstruct("fortran function missing function_statement")
     name = text(required_field(header, "name"))
     params_node = required_field(header, "parameters")
-    param_names = [text(p) for p in named_children(params_node) if p.type == "identifier"]
+    param_names = [
+        text(p) for p in named_children(params_node) if p.type == "identifier"
+    ]
 
     # Result variable: either explicit via `result(r)` or implicit (same as fn).
     if result_name is None:
@@ -114,25 +121,36 @@ def _convert_function(node: Node) -> hir.HirFunction:
         first_user_stmt is not None
         and first_user_stmt.type == "assignment_statement"
         and first_user_stmt.child_by_field_name("left") is not None
-        and first_user_stmt.child_by_field_name("left").text.decode("utf-8") == result_name
+        and first_user_stmt.child_by_field_name("left").text.decode("utf-8")
+        == result_name
     )
 
     body: list[hir.HirNode]
     if first_assigns_result:
         body = []
-        locals_seen = set(param_names)  # result_name picks up annotation on first user assign
+        locals_seen = set(
+            param_names
+        )  # result_name picks up annotation on first user assign
     else:
         result_init = _default_value_for(return_annotation)
-        body = [hir.HirAssign(target=result_name, value=result_init, annotation=return_annotation)]
+        body = [
+            hir.HirAssign(
+                target=result_name, value=result_init, annotation=return_annotation
+            )
+        ]
         locals_seen = set(param_names) | {result_name}
 
     # Stash return annotation in var_types so the first user assign carries it.
     if first_assigns_result and return_annotation is not None:
         var_types.setdefault(result_name, return_annotation)
-    body.extend(_convert_block(body_statements, locals_seen=locals_seen, var_types=var_types))
+    body.extend(
+        _convert_block(body_statements, locals_seen=locals_seen, var_types=var_types)
+    )
     # Implicit return of the result variable.
     body.append(hir.HirReturn(value=hir.HirName(name=result_name)))
-    return hir.HirFunction(name=name, params=params, return_annotation=return_annotation, body=body)
+    return hir.HirFunction(
+        name=name, params=params, return_annotation=return_annotation, body=body
+    )
 
 
 def _default_value_for(annotation: str | None) -> hir.HirNode:
@@ -194,9 +212,7 @@ def _convert_assignment(
     if name not in locals_seen:
         annotation = var_types.get(name)
         locals_seen.add(name)
-    return hir.HirAssign(
-        target=name, value=_convert_expr(right), annotation=annotation
-    )
+    return hir.HirAssign(target=name, value=_convert_expr(right), annotation=annotation)
 
 
 def _convert_if(
@@ -226,9 +242,9 @@ def _convert_do_loop(
     node: Node, locals_seen: set[str], var_types: dict[str, str]
 ) -> hir.HirNode:
     """Two forms:
-       do while (cond) ... end do   -> HirWhile
-       do i = a, b [, step] ... end do  -> HirFor (range; inclusive endpoint
-            adjusted to exclusive by +1)
+    do while (cond) ... end do   -> HirWhile
+    do i = a, b [, step] ... end do  -> HirFor (range; inclusive endpoint
+         adjusted to exclusive by +1)
     """
     header: Node | None = None
     body_stmts: list[Node] = []
@@ -276,6 +292,7 @@ def _convert_do_loop(
 
 # ---------- expressions ----------
 
+
 def _convert_expr(node: Node) -> hir.HirNode:
     kind = node.type
     if kind == "number_literal":
@@ -306,7 +323,9 @@ def _convert_expr(node: Node) -> hir.HirNode:
     raise UnsupportedConstruct(f"fortran expr {kind}")
 
 
-def _convert_binary(node: Node, is_relational: bool, *, logical: bool = False) -> hir.HirNode:
+def _convert_binary(
+    node: Node, is_relational: bool, *, logical: bool = False
+) -> hir.HirNode:
     left = _convert_expr(required_field(node, "left"))
     right = _convert_expr(required_field(node, "right"))
     op_raw = text(required_field(node, "operator"))
@@ -339,14 +358,24 @@ def _convert_unary(node: Node) -> hir.HirNode:
 
 
 _FORTRAN_OPS = {
-    ".eq.": "==", ".ne.": "!=",
-    ".lt.": "<", ".le.": "<=",
-    ".gt.": ">", ".ge.": ">=",
-    ".and.": "and", ".or.": "or",
-    "==": "==", "/=": "!=",
-    "<": "<", "<=": "<=",
-    ">": ">", ">=": ">=",
-    "+": "+", "-": "-", "*": "*", "/": "/",
+    ".eq.": "==",
+    ".ne.": "!=",
+    ".lt.": "<",
+    ".le.": "<=",
+    ".gt.": ">",
+    ".ge.": ">=",
+    ".and.": "and",
+    ".or.": "or",
+    "==": "==",
+    "/=": "!=",
+    "<": "<",
+    "<=": "<=",
+    ">": ">",
+    ">=": ">=",
+    "+": "+",
+    "-": "-",
+    "*": "*",
+    "/": "/",
     "**": "**",
 }
 

@@ -91,7 +91,11 @@ def _apply_ir_hints(module: mir.MirModule, hints: IrHints) -> None:
             continue
         ptypes, rtype = hit
         for i, p in enumerate(fn.params):
-            if i < len(ptypes) and isinstance(p.ty, UnknownT) and not isinstance(ptypes[i], UnknownT):
+            if (
+                i < len(ptypes)
+                and isinstance(p.ty, UnknownT)
+                and not isinstance(ptypes[i], UnknownT)
+            ):
                 fn.params[i] = replace(p, ty=ptypes[i])
         if isinstance(fn.return_type, UnknownT) and not isinstance(rtype, UnknownT):
             fn.return_type = rtype
@@ -110,8 +114,11 @@ def _module_snapshot(module: mir.MirModule) -> tuple:
 
 # ---------- per-function inference ----------
 
+
 def _infer_function(fn: mir.MirFunction, *, fn_map: FnMap | None = None) -> None:
-    env: dict[str, Type] = {p.name: p.ty for p in fn.params if not isinstance(p.ty, UnknownT)}
+    env: dict[str, Type] = {
+        p.name: p.ty for p in fn.params if not isinstance(p.ty, UnknownT)
+    }
     last = None
     for _ in range(MAX_ITER):
         return_tys: list[Type] = []
@@ -125,6 +132,7 @@ def _infer_function(fn: mir.MirFunction, *, fn_map: FnMap | None = None) -> None
 
 
 # ---------- interprocedural backward pass ----------
+
 
 def _backward_propagate(nodes: list[mir.MirNode], fn_map: FnMap) -> None:
     """Walk every MirCall in `nodes` (recursively) and push concrete arg types
@@ -141,7 +149,9 @@ def _backward_in(node: mir.MirNode, fn_map: FnMap) -> None:
                 if i >= len(callee.params):
                     break
                 arg_ty = getattr(arg, "ty", UnknownT())
-                if isinstance(callee.params[i].ty, UnknownT) and not isinstance(arg_ty, UnknownT):
+                if isinstance(callee.params[i].ty, UnknownT) and not isinstance(
+                    arg_ty, UnknownT
+                ):
                     callee.params[i] = replace(callee.params[i], ty=arg_ty)
         for a in node.args:
             _backward_in(a, fn_map)
@@ -199,23 +209,34 @@ def _llm_fallback(fn: mir.MirFunction, llm_fill: LlmFill) -> None:
     dump = _mir_dump(fn)
     for i, p in enumerate(fn.params):
         if isinstance(p.ty, UnknownT):
-            ty = llm_fill(p.name, {"role": "param", "function_mir": dump, "name": p.name})
+            ty = llm_fill(
+                p.name, {"role": "param", "function_mir": dump, "name": p.name}
+            )
             fn.params[i] = replace(p, ty=ty)
     if isinstance(fn.return_type, UnknownT):
-        fn.return_type = llm_fill("__return__", {"role": "return", "function_mir": dump})
+        fn.return_type = llm_fill(
+            "__return__", {"role": "return", "function_mir": dump}
+        )
 
 
 # ---------- propagation ----------
 
+
 def _visit_block(
-    nodes: list[mir.MirNode], env: dict[str, Type], return_tys: list[Type], fn_map: FnMap | None
+    nodes: list[mir.MirNode],
+    env: dict[str, Type],
+    return_tys: list[Type],
+    fn_map: FnMap | None,
 ) -> None:
     for n in nodes:
         _visit_stmt(n, env, return_tys, fn_map)
 
 
 def _visit_stmt(
-    node: mir.MirNode, env: dict[str, Type], return_tys: list[Type], fn_map: FnMap | None
+    node: mir.MirNode,
+    env: dict[str, Type],
+    return_tys: list[Type],
+    fn_map: FnMap | None,
 ) -> None:
     if isinstance(node, mir.MirReturn):
         ty = _visit_expr(node.value, env, fn_map) if node.value is not None else NoneT()
@@ -256,7 +277,9 @@ def _visit_stmt(
     _visit_expr(node, env, fn_map)
 
 
-def _visit_expr(node: mir.MirNode | None, env: dict[str, Type], fn_map: FnMap | None = None) -> Type:
+def _visit_expr(
+    node: mir.MirNode | None, env: dict[str, Type], fn_map: FnMap | None = None
+) -> Type:
     if node is None:
         return NoneT()
     if isinstance(node, mir.MirIntLiteral):
@@ -325,7 +348,9 @@ def _visit_expr(node: mir.MirNode | None, env: dict[str, Type], fn_map: FnMap | 
     return UnknownT()
 
 
-def _propagate_from_callee(node: mir.MirCall, env: dict[str, Type], fn_map: FnMap | None) -> None:
+def _propagate_from_callee(
+    node: mir.MirCall, env: dict[str, Type], fn_map: FnMap | None
+) -> None:
     """Forward direction of interprocedural propagation: pull the callee's
     known signature into the call site. Anchors unknown Name args to the
     callee's param types and types the call expression by the callee's return
@@ -350,6 +375,7 @@ def _propagate_from_callee(node: mir.MirCall, env: dict[str, Type], fn_map: FnMa
 
 # ---------- bidirectional unification on arith / compare ----------
 
+
 def _arith_unify(
     node: mir.MirBinOp, lt: Type, rt: Type, env: dict[str, Type]
 ) -> tuple[Type, Type]:
@@ -369,11 +395,19 @@ def _arith_unify(
             lt = rt
     # If either side is float and the other is int (Name or otherwise), the
     # result must be float — promote the int-typed Name too.
-    if isinstance(lt, FloatT) and isinstance(rt, IntT) and isinstance(node.right, mir.MirName):
+    if (
+        isinstance(lt, FloatT)
+        and isinstance(rt, IntT)
+        and isinstance(node.right, mir.MirName)
+    ):
         env[node.right.name] = FloatT()
         node.right.ty = FloatT()
         rt = FloatT()
-    if isinstance(rt, FloatT) and isinstance(lt, IntT) and isinstance(node.left, mir.MirName):
+    if (
+        isinstance(rt, FloatT)
+        and isinstance(lt, IntT)
+        and isinstance(node.left, mir.MirName)
+    ):
         env[node.left.name] = FloatT()
         node.left.ty = FloatT()
         lt = FloatT()
@@ -384,10 +418,18 @@ def _compare_unify(
     node: mir.MirCompare, lt: Type, rt: Type, env: dict[str, Type]
 ) -> None:
     """Comparisons constrain operands to the same type."""
-    if isinstance(lt, UnknownT) and not isinstance(rt, UnknownT) and isinstance(node.left, mir.MirName):
+    if (
+        isinstance(lt, UnknownT)
+        and not isinstance(rt, UnknownT)
+        and isinstance(node.left, mir.MirName)
+    ):
         env[node.left.name] = rt
         node.left.ty = rt
-    if isinstance(rt, UnknownT) and not isinstance(lt, UnknownT) and isinstance(node.right, mir.MirName):
+    if (
+        isinstance(rt, UnknownT)
+        and not isinstance(lt, UnknownT)
+        and isinstance(node.right, mir.MirName)
+    ):
         env[node.right.name] = lt
         node.right.ty = lt
 
@@ -415,6 +457,7 @@ def _binop_result(op: str, lt: Type, rt: Type) -> Type:
 
 
 # ---------- function-level helpers ----------
+
 
 def _pull_params_from_env(fn: mir.MirFunction, env: dict[str, Type]) -> None:
     for i, p in enumerate(fn.params):

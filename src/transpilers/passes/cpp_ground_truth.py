@@ -43,6 +43,7 @@ Usage
     apply_ground_truth(mir_mod, truth, hir_mod)
     infer_types(mir_mod)
 """
+
 from __future__ import annotations
 
 from dataclasses import replace
@@ -190,7 +191,11 @@ def _fill_function_signature(
         candidates.append(qn)
     for cname in candidates:
         ret = truth.func_returns.get(cname)
-        if ret is not None and not isinstance(ret, UnknownT) and isinstance(fn.return_type, UnknownT):
+        if (
+            ret is not None
+            and not isinstance(ret, UnknownT)
+            and isinstance(fn.return_type, UnknownT)
+        ):
             fn.return_type = ret
         params = truth.func_params.get(cname)
         if params is None:
@@ -249,7 +254,9 @@ def apply_ground_truth(
         _fill_function_signature(fn, truth)
     # Phase 2: walk every body and fill per-node UnknownT.
     for fn in mir_mod.functions:
-        env: dict[str, Type] = {p.name: p.ty for p in fn.params if not isinstance(p.ty, UnknownT)}
+        env: dict[str, Type] = {
+            p.name: p.ty for p in fn.params if not isinstance(p.ty, UnknownT)
+        }
         _walk_mir(fn.body, truth, env)
     return mir_mod
 

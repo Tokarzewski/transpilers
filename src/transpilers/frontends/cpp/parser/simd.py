@@ -1,11 +1,17 @@
 """Lift Intel SIMD intrinsics (`_mm256_*`, ...) to semantic HIR operations."""
+
 from __future__ import annotations
 
 from transpilers.ir import hir
 
 _SIMD_BINOP = {
-    "add": "+", "sub": "-", "mul": "*", "div": "/",
-    "and": "&", "or": "|", "xor": "^",
+    "add": "+",
+    "sub": "-",
+    "mul": "*",
+    "div": "/",
+    "and": "&",
+    "or": "|",
+    "xor": "^",
 }
 
 

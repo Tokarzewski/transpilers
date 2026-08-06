@@ -31,6 +31,7 @@ def _has(name: str) -> bool:
 
 # ---------- Java ----------
 
+
 def test_java_add_to_rust():
     out = _t(
         transpile_java,
@@ -101,6 +102,7 @@ def test_java_to_rust_compiles():
 
 # ---------- C# ----------
 
+
 def test_csharp_add_to_rust():
     out = _t(
         transpile_csharp,
@@ -150,6 +152,7 @@ def test_csharp_to_rust_compiles():
 
 
 # ---------- TypeScript ----------
+
 
 def test_typescript_basic():
     out = _t(
@@ -213,6 +216,7 @@ def test_typescript_to_rust_compiles():
 
 
 # ---------- JavaScript ----------
+
 
 def test_javascript_inference_drives_everything():
     """JS has no annotations — `addOne(x)` becomes `x: i64 -> i64` purely via
@@ -278,6 +282,7 @@ def test_javascript_to_rust_compiles():
 
 
 # ---------- cross-target: each new frontend reaches every backend ----------
+
 
 @pytest.mark.skipif(not _has("mojo"), reason="mojo not installed")
 @pytest.mark.parametrize(

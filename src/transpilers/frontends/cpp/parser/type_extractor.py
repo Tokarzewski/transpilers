@@ -28,6 +28,7 @@ type is keyed by both the function's location *and* its fully-qualified
 name (mangled or simple), so call sites can resolve ``f()`` -> ``int``
 without needing per-call-site locations.
 """
+
 from __future__ import annotations
 
 import logging
@@ -62,7 +63,8 @@ _log = logging.getLogger(__name__)
 # declaration and its body. When we walk the AST we use these as the
 # points at which to record "this name has this type".
 _DECL_KINDS: frozenset[ci.CursorKind] = frozenset(
-    k for k in (
+    k
+    for k in (
         ci.CursorKind.VAR_DECL,
         ci.CursorKind.PARM_DECL,
         ci.CursorKind.FIELD_DECL,
@@ -79,7 +81,8 @@ _DECL_KINDS: frozenset[ci.CursorKind] = frozenset(
         # decides what to record, but adding it to _DECL_KINDS keeps
         # the dispatch logic uniform.
         ci.CursorKind.FUNCTION_TEMPLATE,
-    ) if k is not None
+    )
+    if k is not None
 )
 
 
@@ -133,10 +136,17 @@ def _to_type(t: "ci.Type | None") -> Type:
     # caller (the AST walker) handles that for free by giving us
     # the canonical / pointee type when the user wrote
     # ``std::vector<int>&``.
-    cleaned = spelling.replace("const ", "").replace("volatile ", "").strip().rstrip("&").strip()
+    cleaned = (
+        spelling.replace("const ", "")
+        .replace("volatile ", "")
+        .strip()
+        .rstrip("&")
+        .strip()
+    )
     if cleaned in CPP_TYPE_ALIASES:
         # Map the C++ type-text string back to a Type instance.
         from ._to_mir_type import text_to_type
+
         return text_to_type(CPP_TYPE_ALIASES[cleaned])
     # Templates: spelled ``std::vector<int>`` -- collapse to ListT.
     # We recurse through the libclang type to get the *actual*
@@ -183,12 +193,20 @@ def _to_type(t: "ci.Type | None") -> Type:
             pass
         return ListT(elem=UnknownT(hint="vector element"))
     # String shapes: ``std::string``, ``std::string_view``.
-    if cleaned in ("string", "std::string", "string_view", "std::string_view",
-                  "basic_string", "basic_string_view",
-                  "std::basic_string", "std::basic_string_view"):
+    if cleaned in (
+        "string",
+        "std::string",
+        "string_view",
+        "std::string_view",
+        "basic_string",
+        "basic_string_view",
+        "std::basic_string",
+        "std::basic_string_view",
+    ):
         return StrT()
     if cleaned in SIMD_TYPE_ALIASES:
         from ._to_mir_type import text_to_type
+
         return text_to_type(SIMD_TYPE_ALIASES[cleaned])
     # Fallback: try the libclang kind, with a canonical-type recursion
     # for AUTO / ELABORATED / TYPEDEF that hides the underlying type.
@@ -199,10 +217,18 @@ def _to_type(t: "ci.Type | None") -> Type:
         if kind in (ci.TypeKind.BOOL,):
             return BoolT()
         INTEGER_KINDS = (
-            ci.TypeKind.INT, ci.TypeKind.LONG, ci.TypeKind.LONGLONG,
-            ci.TypeKind.SHORT, ci.TypeKind.SCHAR, ci.TypeKind.UCHAR,
-            ci.TypeKind.CHAR_S, ci.TypeKind.CHAR_U,
-            ci.TypeKind.UINT, ci.TypeKind.ULONG, ci.TypeKind.ULONGLONG, ci.TypeKind.USHORT,
+            ci.TypeKind.INT,
+            ci.TypeKind.LONG,
+            ci.TypeKind.LONGLONG,
+            ci.TypeKind.SHORT,
+            ci.TypeKind.SCHAR,
+            ci.TypeKind.UCHAR,
+            ci.TypeKind.CHAR_S,
+            ci.TypeKind.CHAR_U,
+            ci.TypeKind.UINT,
+            ci.TypeKind.ULONG,
+            ci.TypeKind.ULONGLONG,
+            ci.TypeKind.USHORT,
         )
         if kind in INTEGER_KINDS:
             return IntT()
@@ -264,6 +290,7 @@ class TypeGroundTruth:
 
     def _walk(self, cursor, *, only_input: bool) -> None:
         """Recursive AST walk that records decls and calls."""
+
         def is_input(c) -> bool:
             if not only_input:
                 return True
@@ -278,6 +305,7 @@ class TypeGroundTruth:
                 first = self._user_first_line
             except AttributeError:
                 from .core import _compute_user_first_line
+
                 first = _compute_user_first_line()
                 self._user_first_line = first
             return c.location.line > first
@@ -285,9 +313,7 @@ class TypeGroundTruth:
         kind = cursor.kind
         if kind in _DECL_KINDS and is_input(cursor):
             self._record_decl(cursor)
-        if kind in (
-            ci.CursorKind.CALL_EXPR,
-        ) and is_input(cursor):
+        if kind in (ci.CursorKind.CALL_EXPR,) and is_input(cursor):
             self._record_call(cursor)
         for child in cursor.get_children():
             self._walk(child, only_input=only_input)
@@ -325,7 +351,8 @@ class TypeGroundTruth:
             qname = _qualified_name(cursor) or name
             self.func_returns[qname] = _to_type(cursor.result_type)
             self.func_params[qname] = [
-                _to_type(c.type) for c in cursor.get_children()
+                _to_type(c.type)
+                for c in cursor.get_children()
                 if c.kind == ci.CursorKind.PARM_DECL
             ]
             self.decl_locs[qname] = loc
@@ -363,5 +390,3 @@ class TypeGroundTruth:
 
 
 __all__ = ["TypeGroundTruth"]
-
-

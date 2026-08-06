@@ -31,7 +31,16 @@ def c_compiles(source: str) -> CompileResult:
         src = Path(td) / "lib.c"
         src.write_text(source)
         out = subprocess.run(
-            [cc, "-c", "-std=c11", "-Wall", "-Werror=implicit-function-declaration", str(src), "-o", str(Path(td) / "out.o")],
+            [
+                cc,
+                "-c",
+                "-std=c11",
+                "-Wall",
+                "-Werror=implicit-function-declaration",
+                str(src),
+                "-o",
+                str(Path(td) / "out.o"),
+            ],
             capture_output=True,
             text=True,
             timeout=30,

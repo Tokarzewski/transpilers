@@ -58,7 +58,7 @@ def _lir_kind(node: object) -> str:
     name = type(node).__name__
     for prefix in _DIALECT_PREFIXES:
         if name.startswith(prefix):
-            return name[len(prefix):]
+            return name[len(prefix) :]
     return ""
 
 

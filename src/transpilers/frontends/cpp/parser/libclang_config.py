@@ -1,10 +1,12 @@
 """libclang discovery + toolchain include-path configuration (leaf utility)."""
+
 from __future__ import annotations
 
 import glob as _glob
 import os as _os
 
 import clang.cindex as ci
+
 
 def _configure_libclang() -> None:
     """Point the clang bindings at an available libclang shared library.
@@ -26,10 +28,20 @@ def _configure_libclang() -> None:
     if _os.name == "nt":
         local_app = _os.environ.get("LOCALAPPDATA", "")
         if local_app:
-            candidates.extend(_glob.glob(_os.path.join(
-                local_app, "Microsoft", "WinGet", "Packages",
-                "MartinStorsjo.LLVM-MinGW.*", "llvm-mingw-*", "bin", "libclang.dll",
-            )))
+            candidates.extend(
+                _glob.glob(
+                    _os.path.join(
+                        local_app,
+                        "Microsoft",
+                        "WinGet",
+                        "Packages",
+                        "MartinStorsjo.LLVM-MinGW.*",
+                        "llvm-mingw-*",
+                        "bin",
+                        "libclang.dll",
+                    )
+                )
+            )
         candidates.append(r"C:\Program Files\LLVM\bin\libclang.dll")
     else:
         # System locations first: like the PyPI `libclang` wheel capping at
@@ -40,13 +52,22 @@ def _configure_libclang() -> None:
         candidates.extend(sorted(_glob.glob("/usr/lib/llvm-*/lib/libclang.so*")))
         candidates.extend(sorted(_glob.glob("/usr/lib/llvm-*/lib/libclang-*.so*")))
         candidates.extend(sorted(_glob.glob("/usr/lib/x86_64-linux-gnu/libclang*.so*")))
-        candidates.extend(["/opt/homebrew/opt/llvm/lib/libclang.dylib",
-                           "/usr/local/opt/llvm/lib/libclang.dylib"])
-        try:                                   # bundled PyPI libclang wheel (last resort)
+        candidates.extend(
+            [
+                "/opt/homebrew/opt/llvm/lib/libclang.dylib",
+                "/usr/local/opt/llvm/lib/libclang.dylib",
+            ]
+        )
+        try:  # bundled PyPI libclang wheel (last resort)
             import clang as _clang
+
             _native = _os.path.join(_os.path.dirname(_clang.__file__), "native")
-            candidates.extend(sorted(_glob.glob(_os.path.join(_native, "libclang*.so*"))))
-            candidates.extend(sorted(_glob.glob(_os.path.join(_native, "libclang*.dylib"))))
+            candidates.extend(
+                sorted(_glob.glob(_os.path.join(_native, "libclang*.so*")))
+            )
+            candidates.extend(
+                sorted(_glob.glob(_os.path.join(_native, "libclang*.dylib")))
+            )
         except Exception:
             pass
     for p in candidates:
@@ -57,9 +78,11 @@ def _configure_libclang() -> None:
                 pass
             return
 
+
 _SYSTEM_INCLUDE_CACHE: list[str] | None = None
 
 _HOST_TRIPLE_CACHE: str | None = None
+
 
 def _host_triple() -> str | None:
     """Default target triple of the located clang. We pass this to libclang
@@ -70,6 +93,7 @@ def _host_triple() -> str | None:
     if _HOST_TRIPLE_CACHE is not None:
         return _HOST_TRIPLE_CACHE or None
     import subprocess
+
     clang = _find_clang()
     if not clang:
         _HOST_TRIPLE_CACHE = ""
@@ -77,13 +101,16 @@ def _host_triple() -> str | None:
     try:
         out = subprocess.run(
             [clang, "-print-target-triple"],
-            capture_output=True, text=True, timeout=5,
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         triple = out.stdout.strip()
     except Exception:
         triple = ""
     _HOST_TRIPLE_CACHE = triple
     return triple or None
+
 
 def _looks_like_path(s: str) -> bool:
     """Match an absolute path on either POSIX (`/...`) or Windows (`C:/`,
@@ -95,6 +122,7 @@ def _looks_like_path(s: str) -> bool:
         return True
     # Windows drive letter, e.g. "C:\foo" or "C:/foo"
     return len(s) >= 3 and s[1] == ":" and s[2] in ("/", "\\")
+
 
 def _find_clang() -> str | None:
     """Locate a clang/clang++ binary. Prefers PATH, then well-known Windows
@@ -117,10 +145,20 @@ def _find_clang() -> str | None:
         local_app = os.environ.get("LOCALAPPDATA", "")
         if local_app:
             # LLVM-MinGW (winget MartinStorsjo.LLVM-MinGW.{UCRT,MSVCRT})
-            candidates.extend(glob.glob(os.path.join(
-                local_app, "Microsoft", "WinGet", "Packages",
-                "MartinStorsjo.LLVM-MinGW.*", "llvm-mingw-*", "bin", "clang++.exe",
-            )))
+            candidates.extend(
+                glob.glob(
+                    os.path.join(
+                        local_app,
+                        "Microsoft",
+                        "WinGet",
+                        "Packages",
+                        "MartinStorsjo.LLVM-MinGW.*",
+                        "llvm-mingw-*",
+                        "bin",
+                        "clang++.exe",
+                    )
+                )
+            )
         # Official LLVM (winget LLVM.LLVM)
         candidates.append(r"C:\Program Files\LLVM\bin\clang++.exe")
 
@@ -128,6 +166,7 @@ def _find_clang() -> str | None:
         if p and os.path.isfile(p):
             return p
     return None
+
 
 def _system_include_args() -> list[str]:
     """Ask the host `clang` for its system header search paths and return
@@ -181,4 +220,12 @@ def _system_include_args() -> list[str]:
 # Configure libclang at import time.
 _configure_libclang()
 
-__all__ = ['_configure_libclang', '_SYSTEM_INCLUDE_CACHE', '_HOST_TRIPLE_CACHE', '_host_triple', '_looks_like_path', '_find_clang', '_system_include_args']
+__all__ = [
+    "_configure_libclang",
+    "_SYSTEM_INCLUDE_CACHE",
+    "_HOST_TRIPLE_CACHE",
+    "_host_triple",
+    "_looks_like_path",
+    "_find_clang",
+    "_system_include_args",
+]

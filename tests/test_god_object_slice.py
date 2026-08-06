@@ -64,8 +64,12 @@ def test_touched_fields_records_modes():
     g = _graph()
     reach = gos.reachable_callables(g, {"p.entry"})
     fields = gos.touched_fields(g, reach)
-    assert set(fields) == {"p.StateA.f1", "p.StateA.f2", "p.StateB.f3"}  # f4 not touched
-    assert fields["p.StateA.f1"]["modes"] == {"write", "read"}           # written + read
+    assert set(fields) == {
+        "p.StateA.f1",
+        "p.StateA.f2",
+        "p.StateB.f3",
+    }  # f4 not touched
+    assert fields["p.StateA.f1"]["modes"] == {"write", "read"}  # written + read
     assert fields["p.StateB.f3"]["modes"] == {"write"}
 
 
@@ -89,10 +93,10 @@ def test_field_centric_slice_is_call_graph_independent():
     m = gos.field_centric_slice(g)
     assert m["owners_matched"] == 2
     a = m["owners"]["StateA"]
-    assert a["fields"] == 2                      # f1, f2
-    assert "entry" in a["writer_fns"]            # entry writes f1
+    assert a["fields"] == 2  # f1, f2
+    assert "entry" in a["writer_fns"]  # entry writes f1
     b = m["owners"]["StateB"]
-    assert "orphan" in b["writer_fns"]           # orphan writes f4 (unreached, still listed)
+    assert "orphan" in b["writer_fns"]  # orphan writes f4 (unreached, still listed)
 
 
 def test_field_centric_owner_filter():

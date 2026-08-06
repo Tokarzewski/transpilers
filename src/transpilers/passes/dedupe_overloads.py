@@ -16,6 +16,7 @@ distinguish which overload it meant -- so renaming the losing duplicate
 turns a guaranteed compile failure into working code without making any
 call site less correct than it implicitly already was.
 """
+
 from __future__ import annotations
 
 from transpilers.ir import mir

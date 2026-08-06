@@ -55,12 +55,17 @@ app = FastAPI(
 _bearer = HTTPBearer(auto_error=False)
 
 
-def _check_auth(credentials: HTTPAuthorizationCredentials | None = Security(_bearer)) -> None:
+def _check_auth(
+    credentials: HTTPAuthorizationCredentials | None = Security(_bearer),
+) -> None:
     api_key = os.getenv("TRANSPILER_API_KEY")
     if not api_key:
         return
     if credentials is None or not hmac.compare_digest(credentials.credentials, api_key):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or missing API key")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing API key",
+        )
 
 
 @lru_cache(maxsize=1)
@@ -71,6 +76,7 @@ def _llm_client():
     if not (has_anthropic or has_openai):
         return None
     from transpilers.llm import LlmClient
+
     return LlmClient()
 
 
@@ -78,6 +84,7 @@ def _make_inferencer(client):
     if client is None:
         return None
     from transpilers.llm import make_llm_inferencer
+
     return make_llm_inferencer(client)
 
 
@@ -85,6 +92,7 @@ def _make_renamer(client):
     if client is None:
         return None
     from transpilers.llm import make_llm_renamer
+
     return make_llm_renamer(client)
 
 
@@ -117,7 +125,9 @@ def transpile_basic(req: TranspileRequest, _auth=Depends(_check_auth)):
 
     client = _llm_client() if (req.use_llm or req.llm_rename) else None
     if (req.use_llm or req.llm_rename) and client is None:
-        raise HTTPException(501, "LLM features require ANTHROPIC_API_KEY or OPENAI_API_KEY")
+        raise HTTPException(
+            501, "LLM features require ANTHROPIC_API_KEY or OPENAI_API_KEY"
+        )
 
     llm_fill = _make_inferencer(client) if req.use_llm else None
     llm_rename = _make_renamer(client) if req.llm_rename else None
@@ -127,7 +137,10 @@ def transpile_basic(req: TranspileRequest, _auth=Depends(_check_auth)):
         if req.source_lang != "cpp":
             raise HTTPException(400, "python_pivot path requires source_lang=cpp")
         from transpilers.cli.main import transpile_cpp_via_python
-        _, output = transpile_cpp_via_python(req.source, req.target, llm_fill=llm_fill, ir_hints=ir_hints)
+
+        _, output = transpile_cpp_via_python(
+            req.source, req.target, llm_fill=llm_fill, ir_hints=ir_hints
+        )
     else:
         try:
             output = run_stages(
@@ -141,14 +154,18 @@ def transpile_basic(req: TranspileRequest, _auth=Depends(_check_auth)):
         except Exception as exc:
             raise HTTPException(422, str(exc)) from exc
 
-    return TranspileResponse(output=output, source_lang=req.source_lang, target=req.target)
+    return TranspileResponse(
+        output=output, source_lang=req.source_lang, target=req.target
+    )
 
 
 @app.post("/transpile/verify", response_model=VerifyResponse, tags=["transpile"])
 def transpile_verify(req: VerifyRequest, _auth=Depends(_check_auth)):
     client = _llm_client() if (req.use_llm or req.llm_rename) else None
     if (req.use_llm or req.llm_rename) and client is None:
-        raise HTTPException(501, "LLM features require ANTHROPIC_API_KEY or OPENAI_API_KEY")
+        raise HTTPException(
+            501, "LLM features require ANTHROPIC_API_KEY or OPENAI_API_KEY"
+        )
 
     llm_fill = _make_inferencer(client) if req.use_llm else None
     llm_rename = _make_renamer(client) if req.llm_rename else None
@@ -176,11 +193,16 @@ def transpile_verify(req: VerifyRequest, _auth=Depends(_check_auth)):
     structural = None
     if compile_result.ok and req.fidelity == "structural":
         from transpilers.verify.structural import check_structural_fidelity
+
         report = check_structural_fidelity(trace.hir, trace.lir)
         from transpilers.api.models import StructuralResult
-        structural = StructuralResult(ok=report.ok, summary=report.summary() if not report.ok else "")
+
+        structural = StructuralResult(
+            ok=report.ok, summary=report.summary() if not report.ok else ""
+        )
 
     from transpilers.api.models import CompileGateResult
+
     return VerifyResponse(
         output=output,
         source_lang=req.source_lang,
@@ -231,6 +253,7 @@ def _extract_ir_hints(req: TranspileRequest):
         import tempfile
         from pathlib import Path
         from transpilers.passes.ir_preload import extract_ir_types
+
         with tempfile.NamedTemporaryFile(
             suffix=".cpp" if req.source_lang == "cpp" else ".c",
             delete=False,
@@ -245,6 +268,7 @@ def _extract_ir_hints(req: TranspileRequest):
 
 def main():
     import uvicorn
+
     uvicorn.run(
         "transpilers.api.server:app",
         host=os.getenv("HOST", "0.0.0.0"),

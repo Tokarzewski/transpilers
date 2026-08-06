@@ -41,19 +41,46 @@ from ._mir_lower_base import MirLoweringBase
 # NOTE: `fmod` is intentionally NOT here — Mojo's `math` module has no `fmod`,
 # and Mojo's `%` operator follows Python sign-of-divisor semantics, not C
 # `fmod`'s sign-of-dividend. It is lowered to `a - b*trunc(a/b)` below.
-_MATH_FNS = frozenset({
-    "exp", "log", "log2", "log10", "sqrt", "cbrt", "pow", "hypot",
-    "sin", "cos", "tan", "asin", "acos", "atan", "atan2",
-    "sinh", "cosh", "tanh", "ceil", "floor", "trunc",
-    "expm1", "log1p", "erf", "copysign",  # used in EnergyPlus; present in Mojo std.math
-})
+_MATH_FNS = frozenset(
+    {
+        "exp",
+        "log",
+        "log2",
+        "log10",
+        "sqrt",
+        "cbrt",
+        "pow",
+        "hypot",
+        "sin",
+        "cos",
+        "tan",
+        "asin",
+        "acos",
+        "atan",
+        "atan2",
+        "sinh",
+        "cosh",
+        "tanh",
+        "ceil",
+        "floor",
+        "trunc",
+        "expm1",
+        "log1p",
+        "erf",
+        "copysign",  # used in EnergyPlus; present in Mojo std.math
+    }
+)
 # Python numeric constructors map to Mojo's scalar types. `float`/`int`/`bool`
 # are not Mojo builtins (`use of unknown declaration 'float'`); `Float64(x)` /
 # `Int(x)` / `Bool(x)` are. `int(float)` truncates toward zero in both Python
 # and Mojo, so the cast semantics match.
 _BUILTIN_MAP = {
-    "fabs": "abs", "fmin": "min", "fmax": "max",
-    "float": "Float64", "int": "Int", "bool": "Bool",
+    "fabs": "abs",
+    "fmin": "min",
+    "fmax": "max",
+    "float": "Float64",
+    "int": "Int",
+    "bool": "Bool",
 }
 
 
@@ -147,11 +174,15 @@ class _MojoLowering(MirLoweringBase):
         if isinstance(node, mir.MirFieldAccess):
             recv_ty = self._resolved_ty(node.value)
             if isinstance(recv_ty, StructT):
-                return self._field_types.get(recv_ty.name, {}).get(node.field, UnknownT())
+                return self._field_types.get(recv_ty.name, {}).get(
+                    node.field, UnknownT()
+                )
         if isinstance(node, mir.MirMethodCall):
             recv_ty = self._resolved_ty(node.receiver)
             if isinstance(recv_ty, StructT):
-                return self._method_return_types.get(recv_ty.name, {}).get(node.method, UnknownT())
+                return self._method_return_types.get(recv_ty.name, {}).get(
+                    node.method, UnknownT()
+                )
         return ty if ty is not None else UnknownT()
 
     def lower_arg(self, node: mir.MirNode):
@@ -164,13 +195,17 @@ class _MojoLowering(MirLoweringBase):
         # bare reference to an existing struct value reaching a call
         # boundary needs the copy, full stop.
         val = self.lower_expr(node)
-        if isinstance(val, (lir.MojoName, lir.MojoFieldAccess)) and isinstance(self._resolved_ty(node), StructT):
+        if isinstance(val, (lir.MojoName, lir.MojoFieldAccess)) and isinstance(
+            self._resolved_ty(node), StructT
+        ):
             return lir.MojoMethodCall(receiver=val, method="copy", args=[])
         return val
 
     def lower_module(self, module: mir.MirModule) -> lir.MojoModule:
         self._used_math.clear()
-        self._field_types = {s.name: {f.name: f.ty for f in s.fields} for s in module.structs}
+        self._field_types = {
+            s.name: {f.name: f.ty for f in s.fields} for s in module.structs
+        }
         self._method_return_types = {
             s.name: {m.name: m.return_type for m in s.methods} for s in module.structs
         }
@@ -186,7 +221,9 @@ class _MojoLowering(MirLoweringBase):
         # `ImplicitlyCopyable` the same way in this Mojo version.
         declared = {s.name for s in module.structs}
         for name in sorted(_foreign_struct_names(module) - declared):
-            items.append(lir.MojoStruct(name=name, fields=[("_opaque", "Int")], methods=[]))
+            items.append(
+                lir.MojoStruct(name=name, fields=[("_opaque", "Int")], methods=[])
+            )
         for struct in module.structs:
             items.extend(self.lower_struct_items(struct))
         for fn in module.functions:
@@ -194,8 +231,11 @@ class _MojoLowering(MirLoweringBase):
         # Mojo 1.0 requires the `std.` prefix: `from std.math import sqrt, exp`
         # (bare `from math import` is deprecated and warns). Explicit names, not
         # `import std.math` + qualified access. Only actually-used names imported.
-        imports = ([f"from std.math import {', '.join(sorted(self._used_math))}"]
-                   if self._used_math else [])
+        imports = (
+            [f"from std.math import {', '.join(sorted(self._used_math))}"]
+            if self._used_math
+            else []
+        )
         return lir.MojoModule(items=items, imports=imports)
 
     # -- function signature: var/mut param decoration --------------------- #
@@ -205,7 +245,9 @@ class _MojoLowering(MirLoweringBase):
         # the param is declared `var n: …`. Subscript-assigning to `xs` (e.g.
         # `xs[i] = v`) requires `mut xs: …` instead. Scan the body for both.
         param_names = {p.name for p in fn.params}
-        var_params, mut_params = _params_reassigned(fn.body, param_names, self._mutating_names)
+        var_params, mut_params = _params_reassigned(
+            fn.body, param_names, self._mutating_names
+        )
         params = []
         for p in fn.params:
             if p.name in mut_params:
@@ -268,7 +310,9 @@ class _MojoLowering(MirLoweringBase):
         # copy-insertion at all (correct for Rust/Zig, which don't need
         # it), so Mojo needs its own override.
         value = self.lower_arg(node.value)
-        return lir.MojoFieldAssign(obj=self.lower_expr(node.obj), field=node.field, value=value)
+        return lir.MojoFieldAssign(
+            obj=self.lower_expr(node.obj), field=node.field, value=value
+        )
 
     def _lower_container_ctor(self, node, ty):
         """C++ container construction -> Mojo, using the declared var type.
@@ -278,11 +322,13 @@ class _MojoLowering(MirLoweringBase):
         if not (ty and isinstance(v, mir.MirCall)):
             return None
         if v.func == "__cpp_overloaded_op__" and not v.args:
-            return lir.MojoCall(func=ty, args=[])          # empty default-construct
+            return lir.MojoCall(func=ty, args=[])  # empty default-construct
         if v.func == "__vector_fill__" and v.args:
             elem = ty[5:-1] if ty.startswith("List[") else ""
             size = self.lower_expr(v.args[0])
-            fill = self.lower_expr(v.args[1]) if len(v.args) >= 2 else _zero_literal(elem)
+            fill = (
+                self.lower_expr(v.args[1]) if len(v.args) >= 2 else _zero_literal(elem)
+            )
             return lir.MojoBinOp(op="*", left=lir.MojoList(elements=[fill]), right=size)
         return None
 
@@ -290,14 +336,26 @@ class _MojoLowering(MirLoweringBase):
 
     def lower_expr_special(self, node: mir.MirNode):
         if isinstance(node, mir.MirBinOp) and node.op == "//":
-            return lir.MojoBinOp(op="//", left=self.lower_expr(node.left), right=self.lower_expr(node.right))
+            return lir.MojoBinOp(
+                op="//",
+                left=self.lower_expr(node.left),
+                right=self.lower_expr(node.right),
+            )
         return None
 
     def lower_binop(self, node: mir.MirBinOp):
-        return lir.MojoBinOp(op=node.op, left=self.lower_expr(node.left), right=self.lower_expr(node.right))
+        return lir.MojoBinOp(
+            op=node.op,
+            left=self.lower_expr(node.left),
+            right=self.lower_expr(node.right),
+        )
 
     def lower_boolop(self, node: mir.MirBoolOp):
-        return lir.MojoBoolOp(op=node.op, left=self.lower_expr(node.left), right=self.lower_expr(node.right))
+        return lir.MojoBoolOp(
+            op=node.op,
+            left=self.lower_expr(node.left),
+            right=self.lower_expr(node.right),
+        )
 
     def lower_unary(self, node: mir.MirUnaryOp):
         op = "not" if node.op == "not" else "-"
@@ -312,8 +370,11 @@ class _MojoLowering(MirLoweringBase):
     def lower_subscript(self, node: mir.MirSubscript):
         # Mojo String indexing is `s[byte=i]` (returns a StringSlice), not `s[i]`.
         byte = isinstance(getattr(node.value, "ty", None), StrT)
-        return lir.MojoIndex(value=self.lower_expr(node.value),
-                             index=self.lower_expr(node.index), byte=byte)
+        return lir.MojoIndex(
+            value=self.lower_expr(node.value),
+            index=self.lower_expr(node.index),
+            byte=byte,
+        )
 
     def lower_function(self, fn: mir.MirFunction):
         self._cur_ret = self.return_type(fn)
@@ -330,9 +391,12 @@ class _MojoLowering(MirLoweringBase):
     def lower_return(self, node: mir.MirReturn):
         ret = getattr(self, "_cur_ret", None) or ""
         # `return {};` -> typed empty container constructor (List[T]()/Dict[K,V]()).
-        if (isinstance(node.value, mir.MirCall) and node.value.func == "__cpp_overloaded_op__"
-                and not node.value.args
-                and (ret.startswith("List[") or ret.startswith("Dict[") or ret == "String")):
+        if (
+            isinstance(node.value, mir.MirCall)
+            and node.value.func == "__cpp_overloaded_op__"
+            and not node.value.args
+            and (ret.startswith("List[") or ret.startswith("Dict[") or ret == "String")
+        ):
             return lir.MojoReturn(value=lir.MojoCall(func=ret, args=[]))
         val = self.lower_expr(node.value) if node.value else None
         # `return {a, b};` for a tuple/pair return -> (a, b).
@@ -341,11 +405,17 @@ class _MojoLowering(MirLoweringBase):
         # `return {a, b};` where the function returns a struct -> Type(a, b). The
         # init-list lowers to a MojoList; a struct return type (not a container /
         # primitive) means it's really a fieldwise constructor.
-        if (isinstance(val, lir.MojoList) and ret
-                and not ret.startswith(("List[", "Dict[", "Tuple[", "SIMD["))
-                and ret not in ("Int", "Float64", "Bool", "String", "None")):
-            return lir.MojoReturn(value=lir.MojoStructInit(
-                name=ret, field_values=[("", e) for e in val.elements]))
+        if (
+            isinstance(val, lir.MojoList)
+            and ret
+            and not ret.startswith(("List[", "Dict[", "Tuple[", "SIMD["))
+            and ret not in ("Int", "Float64", "Bool", "String", "None")
+        ):
+            return lir.MojoReturn(
+                value=lir.MojoStructInit(
+                    name=ret, field_values=[("", e) for e in val.elements]
+                )
+            )
         # List/Dict/String/struct values aren't ImplicitlyCopyable in this Mojo
         # version: `return localVar` needs an explicit copy (or `^`). Only a
         # bare name needs it — rvalues (`[0]*n`, calls, struct-init) are
@@ -358,7 +428,9 @@ class _MojoLowering(MirLoweringBase):
         # "cannot be implicitly copied, does not conform to
         # 'ImplicitlyCopyable'" error).
         needs_copy = (
-            ret.startswith("List[") or ret.startswith("Dict[") or ret == "String"
+            ret.startswith("List[")
+            or ret.startswith("Dict[")
+            or ret == "String"
             or isinstance(self._resolved_ty(node.value), StructT)
         )
         # A bare field access (`return self.vdir`) is exactly as much a
@@ -381,25 +453,47 @@ class _MojoLowering(MirLoweringBase):
                 return lir.MojoCall(func="len", args=[self.lower_expr(node.receiver)])
             # map/set membership: m.count(k) -> `k in m`.
             if node.method == "count" and len(node.args) == 1:
-                return lir.MojoCompare(op="in", left=self.lower_expr(node.args[0]),
-                                       right=self.lower_expr(node.receiver))
+                return lir.MojoCompare(
+                    op="in",
+                    left=self.lower_expr(node.args[0]),
+                    right=self.lower_expr(node.receiver),
+                )
             # vector::push_back / emplace_back / stack::push -> List.append
-            if node.method in ("push_back", "emplace_back", "push") and len(node.args) == 1:
+            if (
+                node.method in ("push_back", "emplace_back", "push")
+                and len(node.args) == 1
+            ):
                 return lir.MojoMethodCall(
-                    receiver=self.lower_expr(node.receiver), method="append",
-                    args=[self.lower_arg(node.args[0])])
+                    receiver=self.lower_expr(node.receiver),
+                    method="append",
+                    args=[self.lower_arg(node.args[0])],
+                )
             # stack/queue: top()/back() -> v[len(v)-1]; front() -> v[0]
             # (Mojo has no negative indexing on List).
             if node.method in ("top", "back") and not node.args:
                 recv = self.lower_expr(node.receiver)
-                return lir.MojoIndex(value=recv, index=lir.MojoBinOp(
-                    op="-", left=lir.MojoCall(func="len", args=[recv]), right=lir.MojoIntLiteral(value=1)))
+                return lir.MojoIndex(
+                    value=recv,
+                    index=lir.MojoBinOp(
+                        op="-",
+                        left=lir.MojoCall(func="len", args=[recv]),
+                        right=lir.MojoIntLiteral(value=1),
+                    ),
+                )
             if node.method == "front" and not node.args:
-                return lir.MojoIndex(value=self.lower_expr(node.receiver), index=lir.MojoIntLiteral(value=0))
+                return lir.MojoIndex(
+                    value=self.lower_expr(node.receiver),
+                    index=lir.MojoIntLiteral(value=0),
+                )
             # empty() -> len(v) == 0
             if node.method == "empty" and not node.args:
-                return lir.MojoCompare(op="==", left=lir.MojoCall(
-                    func="len", args=[self.lower_expr(node.receiver)]), right=lir.MojoIntLiteral(value=0))
+                return lir.MojoCompare(
+                    op="==",
+                    left=lir.MojoCall(
+                        func="len", args=[self.lower_expr(node.receiver)]
+                    ),
+                    right=lir.MojoIntLiteral(value=0),
+                )
         return super().lower_method_call(node)
 
     def lower_call(self, node: mir.MirCall):
@@ -413,7 +507,11 @@ class _MojoLowering(MirLoweringBase):
         if node.func == "__vector_slice__" and len(args) == 3:
             return lir.MojoSlice(value=args[0], lo=args[1], hi=args[2])
         # std::min({a,b,c}) / max -> fold to nested min(a, min(b, c)) (Mojo is 2-arg)
-        if node.func in ("min", "max") and len(node.args) == 1 and isinstance(node.args[0], mir.MirList):
+        if (
+            node.func in ("min", "max")
+            and len(node.args) == 1
+            and isinstance(node.args[0], mir.MirList)
+        ):
             elems = [self.lower_expr(e) for e in node.args[0].elements]
             if elems:
                 acc = elems[-1]
@@ -421,14 +519,22 @@ class _MojoLowering(MirLoweringBase):
                     acc = lir.MojoCall(func=node.func, args=[e, acc])
                 return acc
         # tuple/pair construction: frontend emits tuple(MirList([...])) -> (a, b)
-        if node.func == "tuple" and len(node.args) == 1 and isinstance(node.args[0], mir.MirList):
-            return lir.MojoTuple(elements=[self.lower_expr(e) for e in node.args[0].elements])
+        if (
+            node.func == "tuple"
+            and len(node.args) == 1
+            and isinstance(node.args[0], mir.MirList)
+        ):
+            return lir.MojoTuple(
+                elements=[self.lower_expr(e) for e in node.args[0].elements]
+            )
         # std::vector sized ctor as an expression (e.g. the inner fill of a 2D
         # `vector<vector<int>>(m, vector<int>(n,0))`): `[fill] * size`. The
         # type-aware assign path handles the outer one; this enables nesting.
         if node.func == "__vector_fill__" and args:
             fill = args[1] if len(args) >= 2 else lir.MojoIntLiteral(value=0)
-            return lir.MojoBinOp(op="*", left=lir.MojoList(elements=[fill]), right=args[0])
+            return lir.MojoBinOp(
+                op="*", left=lir.MojoList(elements=[fill]), right=args[0]
+            )
         # std::sort(v.begin(), v.end()) -> Mojo `sort(v)` (in-place, prelude builtin)
         if node.func == "sort" and len(node.args) == 2:
             a0 = node.args[0]
@@ -437,8 +543,9 @@ class _MojoLowering(MirLoweringBase):
         # ObjexxFCL integer-power helpers (pervasive in EnergyPlus): pow_2(x) -> x**2.
         _pn = re.fullmatch(r"pow_(\d+)", node.func)
         if _pn and len(args) == 1:
-            return lir.MojoBinOp(op="**", left=args[0],
-                                 right=lir.MojoIntLiteral(value=int(_pn.group(1))))
+            return lir.MojoBinOp(
+                op="**", left=args[0], right=lir.MojoIntLiteral(value=int(_pn.group(1)))
+            )
         # ObjexxFCL integer-root helpers: root_4(x)==x^(1/4)==sqrt(sqrt(x)),
         # root_8(x)==x^(1/8)==sqrt(sqrt(sqrt(x))) (Fmath.hh). Lower to nested
         # sqrt rather than `** 0.25` to bit-match ObjexxFCL's implementation.
@@ -451,7 +558,7 @@ class _MojoLowering(MirLoweringBase):
                 expr = lir.MojoCall(func="sqrt", args=[expr])
             return expr
         # ObjexxFCL/Fortran scalar intrinsics.
-        if node.func == "mod" and len(args) == 2:          # mod(a, b) -> a % b
+        if node.func == "mod" and len(args) == 2:  # mod(a, b) -> a % b
             return lir.MojoBinOp(op="%", left=args[0], right=args[1])
         if node.func == "fmod" and len(args) == 2:
             # C fmod(a, b) = a - b*trunc(a/b) (result takes sign of a). Mojo has
@@ -461,9 +568,12 @@ class _MojoLowering(MirLoweringBase):
             self._used_math.add("trunc")
             quotient = lir.MojoBinOp(op="/", left=args[0], right=args[1])
             truncq = lir.MojoCall(func="trunc", args=[quotient])
-            return lir.MojoBinOp(op="-", left=args[0],
-                                 right=lir.MojoBinOp(op="*", left=args[1], right=truncq))
-        if node.func == "sign" and len(args) == 2:         # Fortran SIGN(a,b) == copysign
+            return lir.MojoBinOp(
+                op="-",
+                left=args[0],
+                right=lir.MojoBinOp(op="*", left=args[1], right=truncq),
+            )
+        if node.func == "sign" and len(args) == 2:  # Fortran SIGN(a,b) == copysign
             self._used_math.add("copysign")
             return lir.MojoCall(func="copysign", args=args)
         if node.func == "len":
@@ -506,9 +616,16 @@ def mir_to_mojo_lir(module: mir.MirModule) -> lir.MojoModule:
     return _LOWERING.lower_module(module)
 
 
-_BUILTIN_MUTATING_METHODS = frozenset({
-    "append", "push_back", "emplace_back", "clear", "pop_back", "resize",
-})
+_BUILTIN_MUTATING_METHODS = frozenset(
+    {
+        "append",
+        "push_back",
+        "emplace_back",
+        "clear",
+        "pop_back",
+        "resize",
+    }
+)
 
 
 def _touches_mir_self(node: mir.MirNode) -> bool:
@@ -530,6 +647,7 @@ def _mir_mutates_self(nodes, mutating_names: frozenset[str]) -> bool:
     than shared because the two IR tiers use distinct node types
     (MirFieldAssign vs. MojoFieldAssign, etc.) with no common walk."""
     import dataclasses
+
     if isinstance(nodes, list):
         return any(_mir_mutates_self(n, mutating_names) for n in nodes)
     if not dataclasses.is_dataclass(nodes):
@@ -544,11 +662,15 @@ def _mir_mutates_self(nodes, mutating_names: frozenset[str]) -> bool:
         # see `_is_this_deref` in the C++ frontend). Mirrors the same check
         # in emit.py's `_mutates_self`.
         return True
-    if (isinstance(nodes, mir.MirMethodCall) and nodes.method in mutating_names
-            and _touches_mir_self(nodes.receiver)):
+    if (
+        isinstance(nodes, mir.MirMethodCall)
+        and nodes.method in mutating_names
+        and _touches_mir_self(nodes.receiver)
+    ):
         return True
     return any(
-        _mir_mutates_self(getattr(nodes, f.name), mutating_names) for f in dataclasses.fields(nodes)
+        _mir_mutates_self(getattr(nodes, f.name), mutating_names)
+        for f in dataclasses.fields(nodes)
     )
 
 
@@ -578,7 +700,9 @@ def _compute_mir_mutating_method_names(module: mir.MirModule) -> frozenset[str]:
 
 
 def _params_reassigned(
-    body: list[mir.MirNode], param_names: set[str], mutating_names: frozenset[str] = _BUILTIN_MUTATING_METHODS
+    body: list[mir.MirNode],
+    param_names: set[str],
+    mutating_names: frozenset[str] = _BUILTIN_MUTATING_METHODS,
 ) -> tuple[set[str], set[str]]:
     """Return two sets: (var_params, mut_params).
 
@@ -603,7 +727,11 @@ def _params_reassigned(
     mut_out: set[str] = set()
 
     def _param_of(node):
-        return node.name if isinstance(node, mir.MirName) and node.name in param_names else None
+        return (
+            node.name
+            if isinstance(node, mir.MirName) and node.name in param_names
+            else None
+        )
 
     def _scan(nodes: list[mir.MirNode]) -> None:
         for n in nodes:
@@ -627,11 +755,19 @@ def _params_reassigned(
             # target -- accepted here since fully modeling C++ reference
             # parameters isn't; the alternative is refusing to compile at
             # all rather than compiling with a narrower behavioral gap.
-            elif isinstance(n, mir.MirMethodCall) and n.method in mutating_names and _param_of(n.receiver):
+            elif (
+                isinstance(n, mir.MirMethodCall)
+                and n.method in mutating_names
+                and _param_of(n.receiver)
+            ):
                 var_out.add(_param_of(n.receiver))
-            elif (isinstance(n, mir.MirCall) and n.func == "sort" and n.args
-                  and isinstance(n.args[0], mir.MirMethodCall)
-                  and _param_of(n.args[0].receiver)):
+            elif (
+                isinstance(n, mir.MirCall)
+                and n.func == "sort"
+                and n.args
+                and isinstance(n.args[0], mir.MirMethodCall)
+                and _param_of(n.args[0].receiver)
+            ):
                 var_out.add(_param_of(n.args[0].receiver))
             elif isinstance(n, mir.MirIf):
                 _scan(n.body)
@@ -648,7 +784,9 @@ def _params_reassigned(
 class _MojoIfExpr(lir.LirNode):
     """`<then> if <test> else <else>` — Python/Mojo ternary syntax."""
 
-    def __init__(self, test: lir.LirNode, then_: lir.LirNode, else_: lir.LirNode) -> None:
+    def __init__(
+        self, test: lir.LirNode, then_: lir.LirNode, else_: lir.LirNode
+    ) -> None:
         self.test = test
         self.then_ = then_
         self.else_ = else_

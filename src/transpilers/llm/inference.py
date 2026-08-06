@@ -58,7 +58,9 @@ def _parse_type(raw: str) -> Type:
     payload = json.loads(raw.strip())
     label = payload["type"].lower().strip()
     if label not in ALLOWED:
-        raise ValueError(f"LLM returned unknown type {label!r}; allowed: {sorted(ALLOWED)}")
+        raise ValueError(
+            f"LLM returned unknown type {label!r}; allowed: {sorted(ALLOWED)}"
+        )
     return ALLOWED[label]
 
 

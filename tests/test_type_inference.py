@@ -23,6 +23,7 @@ def _t(src: str, **kwargs) -> str:
 
 # ---------- algorithmic only ----------
 
+
 def test_param_inferred_from_int_literal_binop():
     """`x + 1` anchors `x: int`; return type follows."""
     out = _t(
@@ -123,6 +124,7 @@ def test_unresolvable_still_raises_without_llm():
 
 # ---------- LLM fallback (injected fake) ----------
 
+
 def test_llm_fallback_resolves_ambiguous_params():
     """Fake inferencer returns IntT for every hole. The pipeline should ride
     through to emission."""
@@ -200,6 +202,7 @@ def test_llm_response_validator_accepts_lattice():
 
 
 # ---------- interprocedural ----------
+
 
 def test_callee_signature_shapes_caller_return():
     """Forward propagation: caller's `return add_one(5)` picks up that

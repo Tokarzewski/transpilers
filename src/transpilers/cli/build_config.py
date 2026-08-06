@@ -1,4 +1,5 @@
 """Scan C++ source tree and build a JSON config for transpile-cpp."""
+
 from __future__ import annotations
 
 import argparse
@@ -20,19 +21,58 @@ def find_header(cc_path: Path) -> Path | None:
 
 def infer_tier(stem: str, path_lower: str) -> int:
     n = stem.lower()
-    if stem.startswith("Data") or n in ("constant", "datastringglobals", "configuredfunctions"):
+    if stem.startswith("Data") or n in (
+        "constant",
+        "datastringglobals",
+        "configuredfunctions",
+    ):
         return 0
-    if n in ("vectors", "surfaceoctree", "psychrometrics", "general", "curvemanager",
-             "convectioncoefficients", "windowmanager", "tarcoggasses90", "fluidproperties"):
+    if n in (
+        "vectors",
+        "surfaceoctree",
+        "psychrometrics",
+        "general",
+        "curvemanager",
+        "convectioncoefficients",
+        "windowmanager",
+        "tarcoggasses90",
+        "fluidproperties",
+    ):
         return 1
-    if any(k in n for k in (
-        "coil", "pump", "fan", "chiller", "boiler", "baseboard", "radiant", "tower",
-        "tank", "generator", "pv", "photovolt", "battery", "heatpump", "heater",
-    )):
+    if any(
+        k in n
+        for k in (
+            "coil",
+            "pump",
+            "fan",
+            "chiller",
+            "boiler",
+            "baseboard",
+            "radiant",
+            "tower",
+            "tank",
+            "generator",
+            "pv",
+            "photovolt",
+            "battery",
+            "heatpump",
+            "heater",
+        )
+    ):
         return 2
-    if any(k in n for k in (
-        "manager", "balance", "simulation", "hvac", "plant", "airloop", "zoneequip", "branch",
-    )):
+    if any(
+        k in n
+        for k in (
+            "manager",
+            "balance",
+            "simulation",
+            "hvac",
+            "plant",
+            "airloop",
+            "zoneequip",
+            "branch",
+        )
+    ):
         return 3
     return 2
 
@@ -42,22 +82,30 @@ def main() -> int:
         description="Build a JSON config of (source -> target) pairs for transpile-cpp",
     )
     ap.add_argument("source_dir", help="Root directory to scan for C++ source files")
-    ap.add_argument("--source-root", default=None,
-                    help="Source prefix to strip from paths (default: source_dir)")
-    ap.add_argument("--output", "-o", default=None,
-                    help="Write config to file instead of stdout")
-    ap.add_argument("--exclude", nargs="*", default=[],
-                    help="Subdirectory names to exclude")
-    ap.add_argument("--max-lines", type=int, default=0,
-                    help="Skip files with more than N lines")
-    ap.add_argument("--min-lines", type=int, default=0,
-                    help="Skip files with fewer than N lines")
-    ap.add_argument("--no-header", action="store_false", dest="header",
-                    help="Skip header lookup")
-    ap.add_argument("--tier", action="store_true",
-                    help="Add tier field for ordering")
-    ap.add_argument("--sort", choices=["path", "lines", "tier"], default="path",
-                    help="Sort order")
+    ap.add_argument(
+        "--source-root",
+        default=None,
+        help="Source prefix to strip from paths (default: source_dir)",
+    )
+    ap.add_argument(
+        "--output", "-o", default=None, help="Write config to file instead of stdout"
+    )
+    ap.add_argument(
+        "--exclude", nargs="*", default=[], help="Subdirectory names to exclude"
+    )
+    ap.add_argument(
+        "--max-lines", type=int, default=0, help="Skip files with more than N lines"
+    )
+    ap.add_argument(
+        "--min-lines", type=int, default=0, help="Skip files with fewer than N lines"
+    )
+    ap.add_argument(
+        "--no-header", action="store_false", dest="header", help="Skip header lookup"
+    )
+    ap.add_argument("--tier", action="store_true", help="Add tier field for ordering")
+    ap.add_argument(
+        "--sort", choices=["path", "lines", "tier"], default="path", help="Sort order"
+    )
     args = ap.parse_args()
 
     source_dir = Path(args.source_dir).resolve()

@@ -33,6 +33,7 @@ DEFAULT_CACHE_DIR = Path(__file__).parent / "cache"
 # Tier model (issue #47)
 # ---------------------------------------------------------------------------
 
+
 class ModelTier(Enum):
     """Escalation order for the verification-driven repair loop (issue #47).
 
@@ -116,7 +117,9 @@ class TypedHole(Generic[T]):
 
 
 class LlmClient:
-    def __init__(self, model: str | None = None, cache_dir: Path = DEFAULT_CACHE_DIR) -> None:
+    def __init__(
+        self, model: str | None = None, cache_dir: Path = DEFAULT_CACHE_DIR
+    ) -> None:
         # Model resolves from (explicit arg) > TRANSPILER_LLM_MODEL env > default.
         # For a self-hosted vLLM server this is the served name, e.g.
         # "Qwen2.5-Coder-3B-Instruct".
@@ -244,7 +247,9 @@ class _StubTier:
     """Test-only tier: a callable producing a raw string, with an in-memory
     cache so test harnesses can simulate cache hits/elevation patterns."""
 
-    def __init__(self, fn: Callable[[str, float], str], cached: dict[str, str] | None = None) -> None:
+    def __init__(
+        self, fn: Callable[[str, float], str], cached: dict[str, str] | None = None
+    ) -> None:
         self.fn = fn
         self.cached: dict[str, str] = cached if cached is not None else {}
 
@@ -493,5 +498,3 @@ def _materialise_tier(
     raise TypeError(
         f"tier value must be TierConfig, LlmClient, callable, or None; got {type(cfg).__name__}"
     )
-
-

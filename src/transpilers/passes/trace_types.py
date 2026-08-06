@@ -177,9 +177,9 @@ def trace_types(
         if call_main and "main" in globals_dict and callable(globals_dict["main"]):
             try:
                 globals_dict["main"]()
-            except (SystemExit, Exception):
+            except SystemExit, Exception:
                 pass
-    except (SyntaxError, Exception):
+    except SyntaxError, Exception:
         pass
     finally:
         sys.settrace(old_trace)

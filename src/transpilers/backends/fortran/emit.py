@@ -273,7 +273,9 @@ def _emit_stmt(node: lir.LirNode, depth: int) -> list[str]:
         # Fortran arrays are 1-indexed by default; +1 to bridge our 0-based
         # MIR. Real shape-aware lowering would track this in the type
         # lattice; the +1 is correct for any plain rank-1 array.
-        return [f"{pad}{_emit_expr(node.obj)}({_emit_expr(node.index)} + 1) = {_emit_expr(node.value)}"]
+        return [
+            f"{pad}{_emit_expr(node.obj)}({_emit_expr(node.index)} + 1) = {_emit_expr(node.value)}"
+        ]
     # `print(x, y, z)` lowers to a FortranCall but Fortran's print is a
     # statement form, not a function call — rewrite at emit.
     # Use explicit format '(*(g0, 1x))' so integers/floats print without
@@ -324,7 +326,11 @@ def _emit_inclusive_stop(stop: lir.LirNode) -> str:
     Constant-fold when both are literal ints to keep output readable."""
     if isinstance(stop, lir.FortranIntLiteral):
         return str(stop.value - 1)
-    if isinstance(stop, lir.FortranBinOp) and stop.op == "+" and isinstance(stop.right, lir.FortranIntLiteral):
+    if (
+        isinstance(stop, lir.FortranBinOp)
+        and stop.op == "+"
+        and isinstance(stop.right, lir.FortranIntLiteral)
+    ):
         # `n + 1` (a common pattern coming from inclusive→exclusive adjustments
         # in the frontend) → just `n`.
         new_value = stop.right.value - 1
@@ -342,7 +348,10 @@ def _op_of(node: lir.LirNode) -> str | None:
 
 def _paren(child: lir.LirNode, parent_op: str, *, on_right: bool) -> str:
     from transpilers.backends._precedence import paren_emit
-    return paren_emit(child, parent_op, on_right=on_right, emit_expr=_emit_expr, op_of=_op_of)
+
+    return paren_emit(
+        child, parent_op, on_right=on_right, emit_expr=_emit_expr, op_of=_op_of
+    )
 
 
 def _emit_expr(node: lir.LirNode | None) -> str:

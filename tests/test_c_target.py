@@ -24,7 +24,11 @@ def _c(src: str) -> str:
 
 
 def _cc_available() -> bool:
-    return shutil.which("cc") is not None or shutil.which("gcc") is not None or shutil.which("clang") is not None
+    return (
+        shutil.which("cc") is not None
+        or shutil.which("gcc") is not None
+        or shutil.which("clang") is not None
+    )
 
 
 def test_python_to_c_preamble():
@@ -118,6 +122,7 @@ def test_c_target_lists_emit_slice():
 
 
 # ---------- compile checks ----------
+
 
 def test_python_foreach_typed_binding_on_zero_inference_target():
     # The desugared `for x in xs` binding must carry the iterable's element

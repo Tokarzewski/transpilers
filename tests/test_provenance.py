@@ -55,8 +55,11 @@ class Point:
         return self.x * self.x + self.y * self.y
 """
 
+
 def _trace(src: str, target: str = "rust"):
-    return run_stages(textwrap.dedent(src).lstrip(), source_lang="python", target=target)
+    return run_stages(
+        textwrap.dedent(src).lstrip(), source_lang="python", target=target
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -74,8 +77,17 @@ class TestHirNodeIds:
             assert node._hir_node_id > 0
             assert node._hir_node_id not in ids, f"duplicate HIR id {node._hir_node_id}"
             ids.add(node._hir_node_id)
-            if isinstance(node, (hir.HirModule, hir.HirFunction, hir.HirIf,
-                                 hir.HirWhile, hir.HirFor, hir.HirForEach)):
+            if isinstance(
+                node,
+                (
+                    hir.HirModule,
+                    hir.HirFunction,
+                    hir.HirIf,
+                    hir.HirWhile,
+                    hir.HirFor,
+                    hir.HirForEach,
+                ),
+            ):
                 for child in node.body:
                     walk(child)
             if isinstance(node, hir.HirIf):
@@ -109,6 +121,8 @@ class TestHirNodeIds:
         collect_ids(mod1, ids1)
         collect_ids(mod2, ids2)
         assert len(ids1) > 0
+
+
 # ---------------------------------------------------------------------------
 # MIR provenance
 # ---------------------------------------------------------------------------
@@ -175,9 +189,7 @@ class TestLirProvenance:
         assert pm is not None
         assert len(pm) > 0
 
-        found_lir = sum(
-            1 for _, p in pm.items() if p.hir_type.startswith("Hir")
-        )
+        found_lir = sum(1 for _, p in pm.items() if p.hir_type.startswith("Hir"))
         assert found_lir > 0, "no LIR nodes found in provenance map"
 
     def test_lir_nodes_link_back_to_hir_via_provenance_map(self):
@@ -203,6 +215,8 @@ class TestLirProvenance:
                     walk(val, depth + 1)
 
         walk(trace.lir)
+
+
 # ---------------------------------------------------------------------------
 # ProvenanceMap serialization
 # ---------------------------------------------------------------------------
@@ -307,8 +321,9 @@ class TestCliProvenanceFlag:
         src.write_text(textwrap.dedent(_SIMPLE_SRC).lstrip())
 
         prov_path = tmp_path / "prog.provenance.json"
-        ret = main([str(src), "--target", "python", "--verify",
-                     "--provenance", str(prov_path)])
+        ret = main(
+            [str(src), "--target", "python", "--verify", "--provenance", str(prov_path)]
+        )
         assert ret == 0, f"CLI returned {ret}"
 
         assert prov_path.exists()
@@ -398,11 +413,12 @@ def test_provenance_map_scales_linearly_not_quadratically():
     # tens of seconds while the linear one stays well under a second --
     # generous enough to not flake on a slow CI box either way.
     src = "\n".join(
-        f"def f{i}(a: int, b: int) -> int:\n    return a + b + {i}"
-        for i in range(150)
+        f"def f{i}(a: int, b: int) -> int:\n    return a + b + {i}" for i in range(150)
     )
     start = time.time()
     trace = run_stages(src, source_lang="python", target="rust")
     elapsed = time.time() - start
     assert trace.provenance_map is not None
-    assert elapsed < 10.0, f"provenance map build took {elapsed:.1f}s -- looks quadratic again"
+    assert elapsed < 10.0, (
+        f"provenance map build took {elapsed:.1f}s -- looks quadratic again"
+    )

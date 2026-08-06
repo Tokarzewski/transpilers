@@ -12,7 +12,17 @@ drop the ``None`` results; everything else uses the shared hooks.
 from __future__ import annotations
 
 from transpilers.ir import lir, mir
-from transpilers.ir.types import BoolT, FloatT, IntT, ListT, NoneT, StrT, StructT, Type, UnknownT
+from transpilers.ir.types import (
+    BoolT,
+    FloatT,
+    IntT,
+    ListT,
+    NoneT,
+    StrT,
+    StructT,
+    Type,
+    UnknownT,
+)
 
 from ._mir_lower_base import MirLoweringBase, is_string_concat
 
@@ -46,7 +56,9 @@ class _GoLowering(MirLoweringBase):
 
     def lower_stmt(self, node: mir.MirNode, declared: set[str], mut: set[str]):
         if isinstance(node, mir.MirReturn):
-            return lir.GoReturn(value=self.lower_expr(node.value) if node.value else None)
+            return lir.GoReturn(
+                value=self.lower_expr(node.value) if node.value else None
+            )
         if isinstance(node, mir.MirFieldAssign):
             return self.lower_field_assign(node)
         if isinstance(node, mir.MirSubscriptAssign):
@@ -75,7 +87,9 @@ class _GoLowering(MirLoweringBase):
         return self.lower_expr(node)
 
     def _lower_body(self, nodes, declared, mut):
-        return [s for n in nodes if (s := self.lower_stmt(n, declared, mut)) is not None]
+        return [
+            s for n in nodes if (s := self.lower_stmt(n, declared, mut)) is not None
+        ]
 
     def lower_assign(self, node: mir.MirAssign, declared: set[str], mut: set[str]):
         if node.augmented_op is not None:
@@ -101,7 +115,11 @@ class _GoLowering(MirLoweringBase):
 
     def lower_expr_special(self, node: mir.MirNode):
         if isinstance(node, mir.MirBinOp) and node.op == "//":
-            return lir.GoBinOp(op="/", left=self.lower_expr(node.left), right=self.lower_expr(node.right))
+            return lir.GoBinOp(
+                op="/",
+                left=self.lower_expr(node.left),
+                right=self.lower_expr(node.right),
+            )
         if isinstance(node, mir.MirBinOp) and node.op == "+" and _is_list_concat(node):
             # Python `a + [x]` on lists → Go `append(a, x...)` / `append(a, elems...)`
             left = self.lower_expr(node.left)
@@ -113,7 +131,9 @@ class _GoLowering(MirLoweringBase):
         return None
 
     def lower_subscript(self, node: mir.MirSubscript):
-        return _GoIndex(value=self.lower_expr(node.value), index=self.lower_expr(node.index))
+        return _GoIndex(
+            value=self.lower_expr(node.value), index=self.lower_expr(node.index)
+        )
 
     def lower_list(self, node: mir.MirList):
         # `[]int64{1, 2, 3}` — Go slice literal. Element type assumed int64
@@ -122,7 +142,9 @@ class _GoLowering(MirLoweringBase):
         elem_ty = "int64"
         if isinstance(node.ty, ListT):
             elem_ty = _go_type(node.ty.elem)
-        return _GoSliceLit(elem_ty=elem_ty, elements=[self.lower_expr(e) for e in node.elements])
+        return _GoSliceLit(
+            elem_ty=elem_ty, elements=[self.lower_expr(e) for e in node.elements]
+        )
 
     def lower_method_call(self, node: mir.MirMethodCall):
         return _GoMethodCall(
@@ -138,11 +160,17 @@ class _GoLowering(MirLoweringBase):
                 "needs a `+` lowering that respects Go's string semantics — not "
                 "yet supported"
             )
-        return lir.GoBinOp(op=node.op, left=self.lower_expr(node.left), right=self.lower_expr(node.right))
+        return lir.GoBinOp(
+            op=node.op,
+            left=self.lower_expr(node.left),
+            right=self.lower_expr(node.right),
+        )
 
     def lower_boolop(self, node: mir.MirBoolOp):
         op = "&&" if node.op == "and" else "||"
-        return lir.GoBoolOp(op=op, left=self.lower_expr(node.left), right=self.lower_expr(node.right))
+        return lir.GoBoolOp(
+            op=op, left=self.lower_expr(node.left), right=self.lower_expr(node.right)
+        )
 
     def lower_null(self, node: mir.MirNullLiteral):
         return lir.GoName(name="nil")
@@ -260,7 +288,9 @@ def _collect_used_in(node: mir.MirNode, used: set[str]) -> None:
 
 
 class _GoMethodCall(lir.LirNode):
-    def __init__(self, receiver: lir.LirNode, method: str, args: list[lir.LirNode]) -> None:
+    def __init__(
+        self, receiver: lir.LirNode, method: str, args: list[lir.LirNode]
+    ) -> None:
         self.receiver = receiver
         self.method = method
         self.args = args
@@ -270,7 +300,9 @@ class _GoIfExpr(lir.LirNode):
     """Branchless expression form via an inline IIFE. Used for builtin
     lowering when Go has no equivalent (`abs` on int)."""
 
-    def __init__(self, test: lir.LirNode, then_: lir.LirNode, else_: lir.LirNode) -> None:
+    def __init__(
+        self, test: lir.LirNode, then_: lir.LirNode, else_: lir.LirNode
+    ) -> None:
         self.test = test
         self.then_ = then_
         self.else_ = else_

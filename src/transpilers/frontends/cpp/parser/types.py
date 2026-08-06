@@ -1,9 +1,11 @@
 """C++ type spelling -> HIR type-text mapping (leaf utility)."""
+
 from __future__ import annotations
 
 import clang.cindex as ci
 
 from .errors import UnsupportedConstruct
+
 
 # Internal shim used by the nested ``std::vector<std::vector<T>>``
 # branch in ``_type_text``: feeding the inner spelling back through
@@ -72,25 +74,37 @@ CPP_TYPE_ALIASES: dict[str, str] = {
 
 SIMD_TYPE_ALIASES: dict[str, str] = {
     "__m256d": "simd[float, 4]",
-    "__m256":  "simd[float, 8]",
+    "__m256": "simd[float, 8]",
     "__m256i": "simd[int, 8]",
     "__m128d": "simd[float, 2]",
-    "__m128":  "simd[float, 4]",
+    "__m128": "simd[float, 4]",
     "__m128i": "simd[int, 4]",
     "__m512d": "simd[float, 8]",
-    "__m512":  "simd[float, 16]",
+    "__m512": "simd[float, 16]",
     "__m512i": "simd[int, 16]",
 }
 
 _VECTOR_ELEM_ALIASES = {
-    "int": "int", "long": "int", "long long": "int", "short": "int",
-    "unsigned": "int", "unsigned int": "int", "unsigned long": "int",
-    "char": "int", "unsigned char": "int", "signed char": "int",
-    "size_t": "int", "ptrdiff_t": "int",
-    "float": "float", "double": "float", "long double": "float",
+    "int": "int",
+    "long": "int",
+    "long long": "int",
+    "short": "int",
+    "unsigned": "int",
+    "unsigned int": "int",
+    "unsigned long": "int",
+    "char": "int",
+    "unsigned char": "int",
+    "signed char": "int",
+    "size_t": "int",
+    "ptrdiff_t": "int",
+    "float": "float",
+    "double": "float",
+    "long double": "float",
     "bool": "bool",
-    "string": "str", "std::string": "str",
+    "string": "str",
+    "std::string": "str",
 }
+
 
 def _type_text(t: ci.Type) -> str:
     spelling = t.spelling
@@ -122,7 +136,14 @@ def _type_text(t: ci.Type) -> str:
             inner = _VECTOR_ELEM_ALIASES.get(inner, inner)
         return f"list[{inner}]"
     # std::list<T> / std::stack<T> / std::queue<T> -> list[T] (Mojo List)
-    for _pre in ("list<", "std::list<", "stack<", "std::stack<", "queue<", "std::queue<"):
+    for _pre in (
+        "list<",
+        "std::list<",
+        "stack<",
+        "std::stack<",
+        "queue<",
+        "std::queue<",
+    ):
         if cleaned.startswith(_pre) and cleaned.endswith(">"):
             inner = cleaned.split("<", 1)[1][:-1].strip()
             return f"list[{_VECTOR_ELEM_ALIASES.get(inner, inner)}]"
@@ -154,7 +175,9 @@ def _type_text(t: ci.Type) -> str:
                     depth -= 1
                 elif ch == "," and depth == 0:
                     k = _VECTOR_ELEM_ALIASES.get(inner[:i].strip(), inner[:i].strip())
-                    v = _VECTOR_ELEM_ALIASES.get(inner[i + 1:].strip(), inner[i + 1:].strip())
+                    v = _VECTOR_ELEM_ALIASES.get(
+                        inner[i + 1 :].strip(), inner[i + 1 :].strip()
+                    )
                     return f"dict[{k}, {v}]"
             break
     # Array types — `int[]`, `int[10]`, `int[n]`. Drop the size(s); carry
@@ -171,7 +194,11 @@ def _type_text(t: ci.Type) -> str:
                 result = f"list[{result}]"
             return result
     # Array libclang kinds.
-    if t.kind in (ci.TypeKind.CONSTANTARRAY, ci.TypeKind.INCOMPLETEARRAY, ci.TypeKind.VARIABLEARRAY):
+    if t.kind in (
+        ci.TypeKind.CONSTANTARRAY,
+        ci.TypeKind.INCOMPLETEARRAY,
+        ci.TypeKind.VARIABLEARRAY,
+    ):
         try:
             return f"list[{_type_text(t.element_type)}]"
         except UnsupportedConstruct:
@@ -179,10 +206,18 @@ def _type_text(t: ci.Type) -> str:
     # Best-effort fallback: collapse on the canonical kind.
     kind = t.kind
     INTEGER_KINDS = {
-        ci.TypeKind.INT, ci.TypeKind.LONG, ci.TypeKind.LONGLONG,
-        ci.TypeKind.SHORT, ci.TypeKind.SCHAR, ci.TypeKind.UCHAR,
-        ci.TypeKind.CHAR_S, ci.TypeKind.CHAR_U,
-        ci.TypeKind.UINT, ci.TypeKind.ULONG, ci.TypeKind.ULONGLONG, ci.TypeKind.USHORT,
+        ci.TypeKind.INT,
+        ci.TypeKind.LONG,
+        ci.TypeKind.LONGLONG,
+        ci.TypeKind.SHORT,
+        ci.TypeKind.SCHAR,
+        ci.TypeKind.UCHAR,
+        ci.TypeKind.CHAR_S,
+        ci.TypeKind.CHAR_U,
+        ci.TypeKind.UINT,
+        ci.TypeKind.ULONG,
+        ci.TypeKind.ULONGLONG,
+        ci.TypeKind.USHORT,
     }
     if kind in INTEGER_KINDS:
         return "int"
@@ -256,4 +291,9 @@ def _type_text(t: ci.Type) -> str:
     raise UnsupportedConstruct(f"C++ type {spelling!r} (kind={kind.name})")
 
 
-__all__ = ['CPP_TYPE_ALIASES', 'SIMD_TYPE_ALIASES', '_VECTOR_ELEM_ALIASES', '_type_text']
+__all__ = [
+    "CPP_TYPE_ALIASES",
+    "SIMD_TYPE_ALIASES",
+    "_VECTOR_ELEM_ALIASES",
+    "_type_text",
+]

@@ -65,6 +65,7 @@ def _muffled():
     with contextlib.redirect_stdout(sink), contextlib.redirect_stderr(sink):
         yield
 
+
 # Wall-clock cap on a single in-process exec()+call of untrusted-shaped
 # source. Without it, a pathological input (infinite loop, runaway
 # recursion) hangs the caller forever -- there is no subprocess boundary to
@@ -137,7 +138,7 @@ def classify_divergence(div: Divergence, ret_tag: str) -> str:
     if ret_tag == "int":
         try:
             exp, act = int(div.expected), int(div.actual)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return DIV_VALUE
         # Floored/truncated mod & div differ by k*divisor for some integer arg.
         delta = exp - act
@@ -372,7 +373,11 @@ class PythonRunner:
                         fn = ns.get(func_name)
                         if not callable(fn):
                             samples.append(
-                                IOSample(args=args, ok=False, error=f"no callable {func_name!r}")
+                                IOSample(
+                                    args=args,
+                                    ok=False,
+                                    error=f"no callable {func_name!r}",
+                                )
                             )
                             continue
                         value = fn(*args)
@@ -381,11 +386,17 @@ class PythonRunner:
                     )
                 except ExecTimeout:
                     samples.append(
-                        IOSample(args=args, ok=False, error=f"timeout after {_PY_EXEC_TIMEOUT_S}s")
+                        IOSample(
+                            args=args,
+                            ok=False,
+                            error=f"timeout after {_PY_EXEC_TIMEOUT_S}s",
+                        )
                     )
                 except Exception as exc:  # noqa: BLE001 — capturing source behavior
                     samples.append(
-                        IOSample(args=args, ok=False, error=f"{type(exc).__name__}: {exc}")
+                        IOSample(
+                            args=args, ok=False, error=f"{type(exc).__name__}: {exc}"
+                        )
                     )
         return samples
 
@@ -420,15 +431,26 @@ class RustRunner:
         # match the emitted signature so the harness call type-checks rather
         # than reporting a false divergence.
         byref = _detect_rust_byref(code, func_name, len(param_tags))
-        harness = code + "\n\n" + self._main(
-            func_name, inputs, param_tags, ret_tag, byref=byref
+        harness = (
+            code
+            + "\n\n"
+            + self._main(func_name, inputs, param_tags, ret_tag, byref=byref)
         )
         with tempfile.TemporaryDirectory() as td:
             src = Path(td) / "main.rs"
             src.write_text(harness, encoding="utf-8")
             exe = Path(td) / ("harness.exe")
             comp = subprocess.run(
-                ["rustc", "--edition", "2021", "-A", "warnings", str(src), "-o", str(exe)],
+                [
+                    "rustc",
+                    "--edition",
+                    "2021",
+                    "-A",
+                    "warnings",
+                    str(src),
+                    "-o",
+                    str(exe),
+                ],
                 capture_output=True,
                 text=True,
                 timeout=30,
@@ -436,18 +458,28 @@ class RustRunner:
             if comp.returncode != 0:
                 # Whole batch fails to build — every input is a divergence.
                 err = _first_line(comp.stderr)
-                return [IOSample(args=a, ok=False, error=f"compile: {err}") for a in inputs]
-            proc = subprocess.run([str(exe)], capture_output=True, text=True, timeout=30)
+                return [
+                    IOSample(args=a, ok=False, error=f"compile: {err}") for a in inputs
+                ]
+            proc = subprocess.run(
+                [str(exe)], capture_output=True, text=True, timeout=30
+            )
             if proc.returncode != 0:
                 err = _first_line(proc.stderr)
-                return [IOSample(args=a, ok=False, error=f"runtime: {err}") for a in inputs]
+                return [
+                    IOSample(args=a, ok=False, error=f"runtime: {err}") for a in inputs
+                ]
             lines = proc.stdout.splitlines()
         samples: list[IOSample] = []
         for i, args in enumerate(inputs):
             if i >= len(lines):
-                samples.append(IOSample(args=args, ok=False, error="missing output line"))
+                samples.append(
+                    IOSample(args=args, ok=False, error="missing output line")
+                )
                 continue
-            samples.append(IOSample(args=args, token=_recanonicalize(lines[i], ret_tag)))
+            samples.append(
+                IOSample(args=args, token=_recanonicalize(lines[i], ret_tag))
+            )
         return samples
 
     def _main(
@@ -543,11 +575,11 @@ def _rust_literal(value: Any, tag: str) -> str:
 def _rust_fmt_helper(ret_tag: str) -> str:
     """A monomorphic ``_fmt`` that prints the return value as a canonical token."""
     if ret_tag == "bool":
-        return "fn _fmt(x: bool) -> String { if x { \"true\".into() } else { \"false\".into() } }"
+        return 'fn _fmt(x: bool) -> String { if x { "true".into() } else { "false".into() } }'
     if ret_tag == "float":
-        return "fn _fmt(x: f64) -> String { format!(\"{:.6}\", x) }"
+        return 'fn _fmt(x: f64) -> String { format!("{:.6}", x) }'
     if ret_tag == "int":
-        return "fn _fmt(x: i64) -> String { format!(\"{}\", x) }"
+        return 'fn _fmt(x: i64) -> String { format!("{}", x) }'
     if ret_tag == "str":
         return "fn _fmt(x: String) -> String { x }"
     if ret_tag.startswith("list["):
@@ -577,7 +609,9 @@ def _recanonicalize(line: str, ret_tag: str) -> str:
         body = line.strip("[]")
         if not body:
             return "[]"
-        return "[" + ",".join(canonical_token(p, "float") for p in body.split(",")) + "]"
+        return (
+            "[" + ",".join(canonical_token(p, "float") for p in body.split(",")) + "]"
+        )
     return line
 
 
@@ -616,18 +650,27 @@ def check_behavioral_equivalence(
     """
     if source_lang != "python":
         return BehavioralReport(
-            ok=False, total=0, matched=0, supported=False,
+            ok=False,
+            total=0,
+            matched=0,
+            supported=False,
             reason=f"oracle for source_lang={source_lang!r} not implemented",
         )
     target_runner = _RUNNERS.get(target)
     if target_runner is None:
         return BehavioralReport(
-            ok=False, total=0, matched=0, supported=False,
+            ok=False,
+            total=0,
+            matched=0,
+            supported=False,
             reason=f"no behavioral runner for target {target!r}",
         )
     if target != "python" and not compiler_available(target):
         return BehavioralReport(
-            ok=False, total=0, matched=0, supported=False,
+            ok=False,
+            total=0,
+            matched=0,
+            supported=False,
             reason=f"{target} toolchain not available",
         )
 
@@ -635,7 +678,10 @@ def check_behavioral_equivalence(
         param_tags = infer_param_tags(source, func_name)
         if param_tags is None:
             return BehavioralReport(
-                ok=False, total=0, matched=0, supported=False,
+                ok=False,
+                total=0,
+                matched=0,
+                supported=False,
                 reason=f"function {func_name!r} not found in source",
             )
 
@@ -655,7 +701,9 @@ def check_behavioral_equivalence(
     runnable = [(s.args, s.token) for s in oracle if s.ok]
     if not runnable:
         return BehavioralReport(
-            ok=False, total=0, matched=0,
+            ok=False,
+            total=0,
+            matched=0,
             reason="source oracle raised on every generated input",
         )
     runnable_inputs = [args for args, _ in runnable]
@@ -663,7 +711,11 @@ def check_behavioral_equivalence(
     # 2. Target replay over the same inputs.
     try:
         actual = target_runner.run(
-            target_code, func_name, runnable_inputs, param_tags=param_tags, ret_tag=ret_tag
+            target_code,
+            func_name,
+            runnable_inputs,
+            param_tags=param_tags,
+            ret_tag=ret_tag,
         )
     except RustRunner.UnsupportedSignature as exc:
         return BehavioralReport(
@@ -678,13 +730,19 @@ def check_behavioral_equivalence(
         got = actual[i] if i < len(actual) else None
         if got is None or not got.ok:
             divergences.append(
-                Divergence(args=args, expected=expected_tok, actual=(got.error if got else "<no result>"))
+                Divergence(
+                    args=args,
+                    expected=expected_tok,
+                    actual=(got.error if got else "<no result>"),
+                )
             )
             continue
         if _tokens_match(expected_tok, got.token, ret_tag):
             matched += 1
         else:
-            divergences.append(Divergence(args=args, expected=expected_tok, actual=got.token))
+            divergences.append(
+                Divergence(args=args, expected=expected_tok, actual=got.token)
+            )
 
     total = len(runnable)
     div_class = classify_divergence(divergences[0], ret_tag) if divergences else ""
@@ -718,7 +776,7 @@ def _infer_ret_tag(source: str, func_name: str, inputs: list[tuple]) -> str:
                 except Exception:  # noqa: BLE001
                     continue
                 return _value_tag(v)
-    except (ExecTimeout, Exception):  # noqa: BLE001
+    except ExecTimeout, Exception:  # noqa: BLE001
         return "int"
     return "int"
 
@@ -792,6 +850,8 @@ def make_behavioral_verifier(
             input_text=", ".join(repr(a) for a in first.args),
             exit_ok=True,
         )
-        return VerificationOutcome(ok=False, signal=signal, expected=first.expected, actual=first.actual)
+        return VerificationOutcome(
+            ok=False, signal=signal, expected=first.expected, actual=first.actual
+        )
 
     return verify

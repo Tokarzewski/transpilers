@@ -100,9 +100,13 @@ def _flatten_snippet(snippet: str) -> str:
 def _emit_stmt(node: lir.LirNode, depth: int) -> str:
     pad = INDENT * depth
     if isinstance(node, lir.RustRaw):
-        return f"{pad}/* TODO[port]: {_flatten_snippet(node.snippet)} */ unimplemented!();"
+        return (
+            f"{pad}/* TODO[port]: {_flatten_snippet(node.snippet)} */ unimplemented!();"
+        )
     if isinstance(node, lir.RustReturn):
-        return f"{pad}return {_emit_expr(node.value)};" if node.value else f"{pad}return;"
+        return (
+            f"{pad}return {_emit_expr(node.value)};" if node.value else f"{pad}return;"
+        )
     if isinstance(node, lir.RustBreak):
         return f"{pad}break;"
     if isinstance(node, lir.RustContinue):
@@ -158,7 +162,10 @@ def _op_of(node: lir.LirNode) -> str | None:
 
 def _paren(child: lir.LirNode, parent_op: str, *, on_right: bool) -> str:
     from transpilers.backends._precedence import paren_emit
-    return paren_emit(child, parent_op, on_right=on_right, emit_expr=_emit_expr, op_of=_op_of)
+
+    return paren_emit(
+        child, parent_op, on_right=on_right, emit_expr=_emit_expr, op_of=_op_of
+    )
 
 
 def _emit_expr(node: lir.LirNode | None) -> str:
@@ -204,9 +211,20 @@ def _emit_expr(node: lir.LirNode | None) -> str:
     if isinstance(node, lir.RustMacro):
         rendered = ", ".join(_emit_expr(a) for a in node.args)
         if node.template:
-            return f'{node.name}!("{node.template}", {rendered})' if rendered else f'{node.name}!("{node.template}")'
+            return (
+                f'{node.name}!("{node.template}", {rendered})'
+                if rendered
+                else f'{node.name}!("{node.template}")'
+            )
         return f"{node.name}!({rendered})"
-    from transpilers.passes.mir_to_rust_lir import _RustIfExpr, _RustRef, _RustPyFloat, _RustListConcat, _RustOverflowGuard
+    from transpilers.passes.mir_to_rust_lir import (
+        _RustIfExpr,
+        _RustRef,
+        _RustPyFloat,
+        _RustListConcat,
+        _RustOverflowGuard,
+    )
+
     if isinstance(node, _RustIfExpr):
         return f"if {_emit_expr(node.test)} {{ {_emit_expr(node.then_)} }} else {{ {_emit_expr(node.else_)} }}"
     if isinstance(node, _RustRef):

@@ -29,10 +29,10 @@ _spec.loader.exec_module(ps)
 @pytest.mark.parametrize(
     "temp_c, expected_pa, tol",
     [
-        (0.0, 611.2, 1.0),       # triple-point-ish, textbook ~611 Pa
-        (25.0, 3169.0, 5.0),     # ASHRAE ~3.17 kPa
+        (0.0, 611.2, 1.0),  # triple-point-ish, textbook ~611 Pa
+        (25.0, 3169.0, 5.0),  # ASHRAE ~3.17 kPa
         (100.0, 101325.0, 200.0),  # boiling at 1 atm
-        (-10.0, 259.9, 1.0),     # over ice
+        (-10.0, 259.9, 1.0),  # over ice
     ],
 )
 def test_psat_matches_reference_values(temp_c, expected_pa, tol):
@@ -56,8 +56,8 @@ def test_psat_high_branch_is_clamped_constant():
 
 def test_branch_boundary_continuity_around_triple_point():
     # The two exp branches meet near the triple point; values should be close.
-    just_below = ps.psy_psat_fn_temp(0.005)   # Tkel just under 273.16
-    just_above = ps.psy_psat_fn_temp(0.02)    # Tkel just over 273.16
+    just_below = ps.psy_psat_fn_temp(0.005)  # Tkel just under 273.16
+    just_above = ps.psy_psat_fn_temp(0.02)  # Tkel just over 273.16
     assert just_above > just_below
     assert abs(just_above - just_below) < 5.0  # ~Pa, no discontinuity jump
 
@@ -69,8 +69,8 @@ def test_mojo_shim_has_signature_and_constants():
     src = ps.mojo_shim()
     assert "fn PsyPsatFnTemp(T: Float64) -> Float64:" in src
     assert "exp(" in src and "log(" in src
-    assert "0.001405102123874164" in src   # low clamp
-    assert "1555073.745636215" in src       # high clamp
+    assert "0.001405102123874164" in src  # low clamp
+    assert "1555073.745636215" in src  # high clamp
     assert str(ps.KELVIN) in src
 
 

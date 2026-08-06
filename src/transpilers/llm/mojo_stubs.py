@@ -164,41 +164,41 @@ fn raise_error(e: Error): ...
 
 # Maps C++ API names → list of stub categories to inject
 _CPP_TO_STUB_CATEGORIES: dict[str, list[str]] = {
-    "std::vector":        ["List"],
+    "std::vector": ["List"],
     "std::unordered_map": ["Dict"],
-    "std::map":           ["Dict"],
-    "std::set":           ["Set"],
-    "std::string":        ["String"],
-    "std::optional":      ["Optional"],
-    "std::unique_ptr":    ["Owned"],
-    "std::shared_ptr":    ["Owned"],
-    "std::sort":          ["sort", "List"],
-    "std::max":           ["max"],
-    "std::min":           ["min"],
-    "std::abs":           ["abs"],
-    "std::sqrt":          ["math"],
-    "std::pow":           ["math"],
-    "std::floor":         ["math"],
-    "std::ceil":          ["math"],
-    "printf":             ["print"],
-    "std::cout":          ["print"],
-    "std::cin":           ["input"],
-    "std::pair":          ["Tuple"],
-    "std::tuple":         ["Tuple"],
+    "std::map": ["Dict"],
+    "std::set": ["Set"],
+    "std::string": ["String"],
+    "std::optional": ["Optional"],
+    "std::unique_ptr": ["Owned"],
+    "std::shared_ptr": ["Owned"],
+    "std::sort": ["sort", "List"],
+    "std::max": ["max"],
+    "std::min": ["min"],
+    "std::abs": ["abs"],
+    "std::sqrt": ["math"],
+    "std::pow": ["math"],
+    "std::floor": ["math"],
+    "std::ceil": ["math"],
+    "printf": ["print"],
+    "std::cout": ["print"],
+    "std::cin": ["input"],
+    "std::pair": ["Tuple"],
+    "std::tuple": ["Tuple"],
 }
 
 # Stub fragments by category (short forms for prompt injection)
 STUB_FRAGMENTS: dict[str, str] = {
     "List": "struct List[T]: fn append(inout self, value: T): ... fn __len__(self) -> Int: ... fn __getitem__(self, idx: Int) -> T: ...",
     "Dict": "struct Dict[K, V]: fn __setitem__(inout self, key: K, val: V): ... fn __getitem__(self, key: K) -> V: ... fn __contains__(self, key: K) -> Bool: ...",
-    "Set":  "struct Set[T]: fn add(inout self, val: T): ... fn __contains__(self, val: T) -> Bool: ...",
+    "Set": "struct Set[T]: fn add(inout self, val: T): ... fn __contains__(self, val: T) -> Bool: ...",
     "String": "struct String: fn __add__(self, other: String) -> String: ... fn __len__(self) -> Int: ... fn find(self, sub: String) -> Int: ...",
     "Optional": "struct Optional[T]: fn value(self) -> T: ... fn has_value(self) -> Bool: ...",
     "Owned": "struct Owned[T]: # uniquely-owned, like std::unique_ptr; auto-freed when out of scope",
     "sort": "fn sort[T: Comparable](inout list: List[T]): ...",
-    "max":  "fn max[T: Comparable](a: T, b: T) -> T: ...",
-    "min":  "fn min[T: Comparable](a: T, b: T) -> T: ...",
-    "abs":  "fn abs[T: Numeric](x: T) -> T: ...",
+    "max": "fn max[T: Comparable](a: T, b: T) -> T: ...",
+    "min": "fn min[T: Comparable](a: T, b: T) -> T: ...",
+    "abs": "fn abs[T: Numeric](x: T) -> T: ...",
     "math": "struct math:\n    @staticmethod fn sqrt(x: Float64) -> Float64: ...\n    @staticmethod fn pow(x: Float64, y: Float64) -> Float64: ...",
     "print": "fn print(msg: String): ...\nfn print(value: Int): ...",
     "input": "fn input(prompt: String) -> String: ...",
@@ -256,5 +256,10 @@ def build_prompt_context(cpp_apis: list[str], *, full: bool = False) -> str:
 
 if __name__ == "__main__":
     import sys
-    apis = sys.argv[1:] if len(sys.argv) > 1 else ["std::vector", "std::sort", "std::string"]
+
+    apis = (
+        sys.argv[1:]
+        if len(sys.argv) > 1
+        else ["std::vector", "std::sort", "std::string"]
+    )
     print(build_prompt_context(apis))

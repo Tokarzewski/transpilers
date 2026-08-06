@@ -112,7 +112,7 @@ def _parse_yaml_fallback(text: str) -> dict[str, dict[str, list[str]]]:
     entry_re = re.compile(
         r'^\s+"([^"]+)":\s*\[([^\]]*)\]',
     )
-    section_re = re.compile(r'^([A-Za-z_][A-Za-z0-9_]*):\s*$')
+    section_re = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*):\s*$")
 
     for raw_line in text.splitlines():
         line = raw_line.rstrip()

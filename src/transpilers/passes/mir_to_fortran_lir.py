@@ -17,14 +17,31 @@ returns, statement-level `print` rewriting, exit/cycle keywords) that it owns
 from __future__ import annotations
 
 from transpilers.ir import lir, mir
-from transpilers.ir.types import BoolT, FloatT, IntT, ListT, NoneT, StrT, StructT, Type, UnknownT
+from transpilers.ir.types import (
+    BoolT,
+    FloatT,
+    IntT,
+    ListT,
+    NoneT,
+    StrT,
+    StructT,
+    Type,
+    UnknownT,
+)
 
 from ._mir_lower_base import MirLoweringBase, is_string_concat
 
 
 RESULT_VAR = "result_"  # synthesized to avoid clashing with user identifiers
 
-_CMP_OPS = {"==": ".eq.", "!=": ".ne.", "<": ".lt.", "<=": ".le.", ">": ".gt.", ">=": ".ge."}
+_CMP_OPS = {
+    "==": ".eq.",
+    "!=": ".ne.",
+    "<": ".lt.",
+    "<=": ".le.",
+    ">": ".gt.",
+    ">=": ".ge.",
+}
 
 
 class _FortranLowering(MirLoweringBase):
@@ -58,11 +75,17 @@ class _FortranLowering(MirLoweringBase):
 
     def lower_function(self, fn: mir.MirFunction) -> lir.FortranFn:
         params = [(p.name, _fortran_type(p.ty)) for p in fn.params]
-        ret = _fortran_type(fn.return_type) if not isinstance(fn.return_type, NoneT) else None
+        ret = (
+            _fortran_type(fn.return_type)
+            if not isinstance(fn.return_type, NoneT)
+            else None
+        )
 
         # Collect every local name and its type in a single MIR walk.
         locals_map: dict[str, Type] = {}
-        _collect_locals(fn.body, locals_map, exclude={p.name for p in fn.params} | {RESULT_VAR})
+        _collect_locals(
+            fn.body, locals_map, exclude={p.name for p in fn.params} | {RESULT_VAR}
+        )
 
         result_name = RESULT_VAR if ret is not None else ""
         self._result_name = result_name
@@ -97,7 +120,9 @@ class _FortranLowering(MirLoweringBase):
         if isinstance(node, mir.MirReturn):
             if node.value is None or not result_name:
                 return lir.FortranReturn()
-            return _ReturnAssign(result_name=result_name, value=self.lower_expr(node.value))
+            return _ReturnAssign(
+                result_name=result_name, value=self.lower_expr(node.value)
+            )
         if isinstance(node, mir.MirBreak):
             return lir.FortranExit()
         if isinstance(node, mir.MirContinue):
@@ -110,7 +135,9 @@ class _FortranLowering(MirLoweringBase):
                     right=self.lower_expr(node.value),
                 )
                 return lir.FortranAssign(name=node.target, value=rhs)
-            return lir.FortranAssign(name=node.target, value=self.lower_expr(node.value))
+            return lir.FortranAssign(
+                name=node.target, value=self.lower_expr(node.value)
+            )
         if isinstance(node, mir.MirIf):
             return lir.FortranIf(
                 test=self.lower_expr(node.test),
@@ -143,14 +170,16 @@ class _FortranLowering(MirLoweringBase):
             expr = self.lower_expr(node)
             return lir.FortranCall(
                 func="trim",
-                args=[lir.FortranCall(
-                    func="merge",
-                    args=[
-                        lir.FortranStringLiteral(value="True "),
-                        lir.FortranStringLiteral(value="False"),
-                        expr,
-                    ],
-                )],
+                args=[
+                    lir.FortranCall(
+                        func="merge",
+                        args=[
+                            lir.FortranStringLiteral(value="True "),
+                            lir.FortranStringLiteral(value="False"),
+                            expr,
+                        ],
+                    )
+                ],
             )
         ty = getattr(node, "ty", None)
         if isinstance(ty, FloatT):
@@ -165,7 +194,11 @@ class _FortranLowering(MirLoweringBase):
     def lower_expr_special(self, node: mir.MirNode):
         if isinstance(node, mir.MirBinOp) and node.op == "//":
             # Fortran `/` on integers is integer division.
-            return lir.FortranBinOp(op="/", left=self.lower_expr(node.left), right=self.lower_expr(node.right))
+            return lir.FortranBinOp(
+                op="/",
+                left=self.lower_expr(node.left),
+                right=self.lower_expr(node.right),
+            )
         if isinstance(node, mir.MirBinOp) and node.op == "%":
             # Fortran modulo is an intrinsic function, not an operator.
             return lir.FortranCall(
@@ -177,10 +210,13 @@ class _FortranLowering(MirLoweringBase):
     def lower_method_call(self, node: mir.MirMethodCall):
         recv_ty = getattr(node.receiver, "ty", UnknownT())
         if not isinstance(recv_ty, StructT):
-            raise NotImplementedError(f"fortran method call on receiver with type {recv_ty}")
+            raise NotImplementedError(
+                f"fortran method call on receiver with type {recv_ty}"
+            )
         return lir.FortranCall(
             func=f"{recv_ty.name}_{node.method}",
-            args=[self.lower_expr(node.receiver)] + [self.lower_expr(a) for a in node.args],
+            args=[self.lower_expr(node.receiver)]
+            + [self.lower_expr(a) for a in node.args],
         )
 
     def lower_binop(self, node: mir.MirBinOp):
@@ -199,15 +235,25 @@ class _FortranLowering(MirLoweringBase):
             return lir.FortranArrayLit(
                 elements=[*self._spread_list(node.left), *self._spread_list(node.right)]
             )
-        return lir.FortranBinOp(op=node.op, left=self.lower_expr(node.left), right=self.lower_expr(node.right))
+        return lir.FortranBinOp(
+            op=node.op,
+            left=self.lower_expr(node.left),
+            right=self.lower_expr(node.right),
+        )
 
     def lower_compare(self, node: mir.MirCompare):
         fortran_op = _CMP_OPS.get(node.op, node.op)
-        return lir.FortranCompare(op=fortran_op, left=self.lower_expr(node.left), right=self.lower_expr(node.right))
+        return lir.FortranCompare(
+            op=fortran_op,
+            left=self.lower_expr(node.left),
+            right=self.lower_expr(node.right),
+        )
 
     def lower_boolop(self, node: mir.MirBoolOp):
         op = ".and." if node.op == "and" else ".or."
-        return lir.FortranBoolOp(op=op, left=self.lower_expr(node.left), right=self.lower_expr(node.right))
+        return lir.FortranBoolOp(
+            op=op, left=self.lower_expr(node.left), right=self.lower_expr(node.right)
+        )
 
     def lower_unary(self, node: mir.MirUnaryOp):
         op = ".not." if node.op == "not" else "-"
@@ -243,9 +289,15 @@ class _FortranLowering(MirLoweringBase):
         if node.func == "__ternary__" and len(node.args) == 3:
             return lir.FortranCall(
                 func="merge",
-                args=[self.lower_expr(node.args[1]), self.lower_expr(node.args[2]), self.lower_expr(node.args[0])],
+                args=[
+                    self.lower_expr(node.args[1]),
+                    self.lower_expr(node.args[2]),
+                    self.lower_expr(node.args[0]),
+                ],
             )
-        return lir.FortranCall(func=node.func, args=[self.lower_expr(a) for a in node.args])
+        return lir.FortranCall(
+            func=node.func, args=[self.lower_expr(a) for a in node.args]
+        )
 
     def _spread_list(self, node: mir.MirNode) -> list[lir.LirNode]:
         """Flatten a literal list one level so concatenation emits a single
@@ -265,7 +317,10 @@ def mir_to_fortran_lir(module: mir.MirModule) -> lir.FortranModule:
 
 # ---------- local collection ----------
 
-def _collect_locals(nodes: list[mir.MirNode], out: dict[str, Type], exclude: set[str]) -> None:
+
+def _collect_locals(
+    nodes: list[mir.MirNode], out: dict[str, Type], exclude: set[str]
+) -> None:
     for n in nodes:
         if isinstance(n, mir.MirAssign):
             if n.target not in exclude and n.target not in out:

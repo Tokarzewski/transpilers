@@ -107,7 +107,9 @@ class Flywheel:
             source=source,
             broken_attempts=list(broken_attempts),
             fixed_code=fixed_code,
-            fixing_tier=fixing_tier.value if isinstance(fixing_tier, ModelTier) else str(fixing_tier),
+            fixing_tier=fixing_tier.value
+            if isinstance(fixing_tier, ModelTier)
+            else str(fixing_tier),
             fixing_signal_kind=fixing_signal.kind,
             fixing_signal_bucket=fixing_signal.bucket,
             fixing_signal_diagnostic=fixing_signal.diagnostic,

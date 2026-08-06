@@ -47,6 +47,7 @@ _PROMPT_TEMPLATE = (
 # Data classes
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class RepairPass:
     """Record for a single repair iteration."""
@@ -72,6 +73,7 @@ class RepairResult:
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
 
 def _load_template() -> str:
     if _PROMPT_TEMPLATE.exists():
@@ -170,13 +172,17 @@ def _run_tests(
     # If test_inputs provided but no runner available, say so honestly
     # rather than claiming a functional pass we never checked.
     if test_inputs:
-        return None, "(compilation passed; runtime I/O tests not executed -- no execution runner for this target)"
+        return (
+            None,
+            "(compilation passed; runtime I/O tests not executed -- no execution runner for this target)",
+        )
     return True, ""
 
 
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def repair(
     source: str,

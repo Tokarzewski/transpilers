@@ -50,12 +50,28 @@ def transpile(
 
 
 # Convenience wrappers — kept stable for tests and external callers.
-def transpile_python_to_rust(source: str, *, llm_fill=None, trace_types_hints=None) -> str:
-    return transpile(source, source_lang="python", target="rust", llm_fill=llm_fill, trace_types_hints=trace_types_hints)
+def transpile_python_to_rust(
+    source: str, *, llm_fill=None, trace_types_hints=None
+) -> str:
+    return transpile(
+        source,
+        source_lang="python",
+        target="rust",
+        llm_fill=llm_fill,
+        trace_types_hints=trace_types_hints,
+    )
 
 
-def transpile_python_to_zig(source: str, *, llm_fill=None, trace_types_hints=None) -> str:
-    return transpile(source, source_lang="python", target="zig", llm_fill=llm_fill, trace_types_hints=trace_types_hints)
+def transpile_python_to_zig(
+    source: str, *, llm_fill=None, trace_types_hints=None
+) -> str:
+    return transpile(
+        source,
+        source_lang="python",
+        target="zig",
+        llm_fill=llm_fill,
+        trace_types_hints=trace_types_hints,
+    )
 
 
 def transpile_c_to_rust(source: str, *, llm_fill=None) -> str:
@@ -67,15 +83,29 @@ def transpile_c_to_zig(source: str, *, llm_fill=None) -> str:
 
 
 def transpile_python_to_c(source: str, *, llm_fill=None, trace_types_hints=None) -> str:
-    return transpile(source, source_lang="python", target="c", llm_fill=llm_fill, trace_types_hints=trace_types_hints)
+    return transpile(
+        source,
+        source_lang="python",
+        target="c",
+        llm_fill=llm_fill,
+        trace_types_hints=trace_types_hints,
+    )
 
 
 def transpile_c_to_c(source: str, *, llm_fill=None) -> str:
     return transpile(source, source_lang="c", target="c", llm_fill=llm_fill)
 
 
-def transpile_python_to_mojo(source: str, *, llm_fill=None, trace_types_hints=None) -> str:
-    return transpile(source, source_lang="python", target="mojo", llm_fill=llm_fill, trace_types_hints=trace_types_hints)
+def transpile_python_to_mojo(
+    source: str, *, llm_fill=None, trace_types_hints=None
+) -> str:
+    return transpile(
+        source,
+        source_lang="python",
+        target="mojo",
+        llm_fill=llm_fill,
+        trace_types_hints=trace_types_hints,
+    )
 
 
 def transpile_c_to_mojo(source: str, *, llm_fill=None) -> str:
@@ -119,15 +149,23 @@ def transpile_cpp_via_python(
     ``ir_hints`` (LLVM-IR-derived type hints) only apply to stage 1, since they
     are extracted from the original C/C++ source.
     """
-    python_code = transpile(source, source_lang="cpp", target="python", llm_fill=llm_fill, ir_hints=ir_hints)
-    final_code = transpile(python_code, source_lang="python", target=target, llm_fill=llm_fill)
+    python_code = transpile(
+        source, source_lang="cpp", target="python", llm_fill=llm_fill, ir_hints=ir_hints
+    )
+    final_code = transpile(
+        python_code, source_lang="python", target=target, llm_fill=llm_fill
+    )
     return python_code, final_code
 
 
-def transpile_cpp_to_python_to_mojo(source: str, *, llm_fill=None, ir_hints=None) -> tuple[str, str]:
+def transpile_cpp_to_python_to_mojo(
+    source: str, *, llm_fill=None, ir_hints=None
+) -> tuple[str, str]:
     """Two-stage C++ → Python → Mojo. Thin wrapper over the general pivot,
     kept for backward compatibility. Returns (python_intermediate, mojo_output)."""
-    return transpile_cpp_via_python(source, "mojo", llm_fill=llm_fill, ir_hints=ir_hints)
+    return transpile_cpp_via_python(
+        source, "mojo", llm_fill=llm_fill, ir_hints=ir_hints
+    )
 
 
 # Convenience wrappers for the new frontends. Targets are picked at the call
@@ -151,9 +189,15 @@ def transpile_javascript(source: str, target: str = "rust", *, llm_fill=None) ->
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="transpile")
     parser.add_argument("source", type=Path)
-    parser.add_argument("--source", dest="source_lang", choices=sorted(FRONTENDS), default=None)
+    parser.add_argument(
+        "--source", dest="source_lang", choices=sorted(FRONTENDS), default=None
+    )
     parser.add_argument("--target", choices=sorted(TARGETS), default="rust")
-    parser.add_argument("--verify", action="store_true", help="invoke target compiler on the emitted source")
+    parser.add_argument(
+        "--verify",
+        action="store_true",
+        help="invoke target compiler on the emitted source",
+    )
     parser.add_argument(
         "--infer-with-llm",
         action="store_true",
@@ -218,13 +262,14 @@ def main(argv: list[str] | None = None) -> int:
         ),
     )
     parser.add_argument(
-        "--include-dir", "-I",
+        "--include-dir",
+        "-I",
         dest="include_dirs",
         action="append",
         default=[],
         help=(
             "cpp/c only: search directory for transitively resolving local "
-            "#include \"X.h\" headers (base classes, shared typedefs) so a "
+            '#include "X.h" headers (base classes, shared typedefs) so a '
             "multi-file project's entry point becomes a self-contained "
             "translation unit. Repeatable. The entry file's own directory is "
             "always searched first, even without this flag."
@@ -257,7 +302,7 @@ def main(argv: list[str] | None = None) -> int:
             "own .cxx is otherwise only a declaration in the amalgamated "
             "translation unit this engine builds (no separate link step to "
             "resolve the real body at) -- calling it from another inlined "
-            "method reports \"has no attribute\" without this."
+            'method reports "has no attribute" without this.'
         ),
     )
     args = parser.parse_args(argv)
@@ -285,8 +330,12 @@ def main(argv: list[str] | None = None) -> int:
         # multi-file project's class declarations are visible to the parser
         # instead of failing with "use of undeclared identifier".
         from transpilers.frontends.cpp.parser.includes import resolve_local_includes
+
         src_input = resolve_local_includes(
-            args.source, include_dirs=args.include_dirs, include_impls=args.include_impls)
+            args.source,
+            include_dirs=args.include_dirs,
+            include_impls=args.include_impls,
+        )
     elif source_lang == "cpp" and args.cbm_repo:
         # Opt-in (only when --cbm is given): recover the cross-file
         # class/method/macro surface for this file from a codebase-memory-mcp
@@ -299,6 +348,7 @@ def main(argv: list[str] | None = None) -> int:
         # so the existing parse path is untouched when --cbm is absent.
         from transpilers.frontends.cpp.parser import cbmpreamble
         import tempfile
+
         rel = None
         try:
             rel = str(args.source.relative_to(Path(args.cbm_repo)))
@@ -333,6 +383,7 @@ def main(argv: list[str] | None = None) -> int:
     ir_hints = None
     if args.ir_augment and source_lang in ("c", "cpp"):
         from transpilers.passes.ir_preload import extract_ir_types
+
         ir_hints = extract_ir_types(args.source)
 
     trace_types_hints = None
@@ -377,7 +428,9 @@ def main(argv: list[str] | None = None) -> int:
                 from transpilers.verify.taxonomy import classify_compile_stderr
 
                 bucket, _ = classify_compile_stderr(result.stderr)
-                sys.stderr.write(f"\n--- {args.target} compiler rejected emitted code ---\n")
+                sys.stderr.write(
+                    f"\n--- {args.target} compiler rejected emitted code ---\n"
+                )
                 sys.stderr.write(result.stderr)
                 sys.stderr.write(f"\n[taxonomy] bucket={bucket} stage=compile\n")
                 return 1
@@ -412,11 +465,17 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.provenance is not None:
         import json
+
         if trace.provenance_map is None:
-            provenance_data = {"provenance_map": None, "warning": "provenance map not built"}
+            provenance_data = {
+                "provenance_map": None,
+                "warning": "provenance map not built",
+            }
         else:
             provenance_data = trace.provenance_map.to_dict()
-        args.provenance.write_text(json.dumps(provenance_data, indent=2, sort_keys=True))
+        args.provenance.write_text(
+            json.dumps(provenance_data, indent=2, sort_keys=True)
+        )
         sys.stderr.write(f"[provenance] wrote sidecar to {args.provenance}\n")
 
     if args.verify:
@@ -426,7 +485,9 @@ def main(argv: list[str] | None = None) -> int:
             from transpilers.verify.taxonomy import classify_compile_stderr
 
             bucket, _ = classify_compile_stderr(result.stderr)
-            sys.stderr.write(f"\n--- {args.target} compiler rejected emitted code ---\n")
+            sys.stderr.write(
+                f"\n--- {args.target} compiler rejected emitted code ---\n"
+            )
             sys.stderr.write(result.stderr)
             sys.stderr.write(f"\n[taxonomy] bucket={bucket} stage=compile\n")
             return 1
@@ -437,7 +498,9 @@ def main(argv: list[str] | None = None) -> int:
             if not report.ok:
                 sys.stderr.write("\n--- structural fidelity check failed ---\n")
                 sys.stderr.write(report.summary() + "\n")
-                sys.stderr.write("[taxonomy] bucket=structural-divergence stage=structural\n")
+                sys.stderr.write(
+                    "[taxonomy] bucket=structural-divergence stage=structural\n"
+                )
                 return 1
         sys.stderr.write("\n[verify] ok\n")
     return 0

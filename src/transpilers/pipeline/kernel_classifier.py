@@ -44,16 +44,16 @@ from enum import Enum
 
 
 class FunctionKind(str, Enum):
-    KERNEL      = "kernel"       # Pure numeric/tensor — route to Mojo direct lift
+    KERNEL = "kernel"  # Pure numeric/tensor — route to Mojo direct lift
     APPLICATION = "application"  # I/O / business logic — route to Python pivot
-    MIXED       = "mixed"        # Contains both — recommend splitting
-    UNKNOWN     = "unknown"      # Couldn't determine
+    MIXED = "mixed"  # Contains both — recommend splitting
+    UNKNOWN = "unknown"  # Couldn't determine
 
 
 @dataclass
 class ClassificationResult:
     kind: FunctionKind
-    confidence: float          # 0.0 – 1.0
+    confidence: float  # 0.0 – 1.0
     reasons: list[str] = field(default_factory=list)
     kernel_score: float = 0.0
     app_score: float = 0.0
@@ -74,40 +74,40 @@ class ClassificationResult:
 # Kernel signals (numeric / SIMD-friendly)
 _KERNEL_PATTERNS: list[tuple[str, float, str]] = [
     # (regex, weight, label)
-    (r"\bfor\s*\(.*;\s*\w+\s*[<>]=?\s*\w+\s*;",     0.3, "bounded for-loop"),
-    (r"\bwhile\s*\(",                                  0.15, "while-loop"),
+    (r"\bfor\s*\(.*;\s*\w+\s*[<>]=?\s*\w+\s*;", 0.3, "bounded for-loop"),
+    (r"\bwhile\s*\(", 0.15, "while-loop"),
     (r"\b(?:float|double|int32_t|int64_t|__m256|__m128)\b", 0.2, "numeric types"),
-    (r"\[\s*\w+\s*\]",                                0.2, "array indexing"),
-    (r"\*\w+\s*[+\-\*/]",                             0.15, "pointer arithmetic"),
+    (r"\[\s*\w+\s*\]", 0.2, "array indexing"),
+    (r"\*\w+\s*[+\-\*/]", 0.15, "pointer arithmetic"),
     (r"\b(?:sqrt|pow|exp|log|sin|cos|fabs|fma|cbrt)\b", 0.25, "math intrinsics"),
-    (r"#pragma\s+(?:omp|simd|ivdep|unroll)",          0.3, "parallelism pragma"),
-    (r"\bstd::transform\b|\bstd::accumulate\b",       0.2, "STL algorithm"),
-    (r"__builtin_|_mm256_|_mm512_|vld1q_|vmulq_",    0.4, "SIMD intrinsics"),
-    (r"\bconst\s+\w+\s*\*",                           0.1, "const pointer param"),
-    (r"->data\(\)|\.data\(\)",                        0.15, "contiguous buffer access"),
-    (r"\bEigen::",                                     0.3, "Eigen matrix ops"),
-    (r"\bblaze::|armadillo::|arma::",                 0.3, "numerical library"),
-    (r"\bstd::vector<(?:float|double|int)",           0.2, "numeric vector"),
+    (r"#pragma\s+(?:omp|simd|ivdep|unroll)", 0.3, "parallelism pragma"),
+    (r"\bstd::transform\b|\bstd::accumulate\b", 0.2, "STL algorithm"),
+    (r"__builtin_|_mm256_|_mm512_|vld1q_|vmulq_", 0.4, "SIMD intrinsics"),
+    (r"\bconst\s+\w+\s*\*", 0.1, "const pointer param"),
+    (r"->data\(\)|\.data\(\)", 0.15, "contiguous buffer access"),
+    (r"\bEigen::", 0.3, "Eigen matrix ops"),
+    (r"\bblaze::|armadillo::|arma::", 0.3, "numerical library"),
+    (r"\bstd::vector<(?:float|double|int)", 0.2, "numeric vector"),
 ]
 
 # Application signals (I/O, exceptions, business logic)
 _APP_PATTERNS: list[tuple[str, float, str]] = [
     (r"\bstd::cout\b|\bprintf\b|\bfprintf\b|\bstd::cerr\b", 0.4, "console I/O"),
-    (r"\bstd::cin\b|\bgetline\b|\bscanf\b",          0.3, "console input"),
+    (r"\bstd::cin\b|\bgetline\b|\bscanf\b", 0.3, "console input"),
     (r"\bstd::fstream\b|\bopen\b.*\bfile\b|\bfopen\b", 0.3, "file I/O"),
-    (r"\bthrow\b|\bcatch\b|\btry\b",                  0.35, "exception handling"),
-    (r"\bnew\b|\bdelete\b",                           0.2, "manual heap alloc"),
-    (r"\bstd::string\b",                              0.2, "string type"),
-    (r"\bvirtual\b|\boverride\b|\bpolymorphi",        0.35, "OOP/polymorphism"),
-    (r"\bdynamic_cast\b|\btypeid\b",                  0.3, "dynamic dispatch"),
-    (r"\bstd::map\b|\bstd::unordered_map\b",         0.2, "associative container"),
-    (r"\bgoto\b",                                     0.2, "goto"),
-    (r"\bsocket\b|\bbind\b|\baccept\b|\brecv\b",     0.5, "network I/O"),
-    (r"\bgetenv\b|\bsystem\b|\bpopen\b",             0.4, "OS calls"),
-    (r"\bstd::thread\b|\bstd::mutex\b",              0.25, "threading"),
-    (r"\bboost::",                                    0.1, "Boost dependency"),
-    (r"\bstd::shared_ptr\b|\bstd::unique_ptr\b",     0.15, "smart pointer"),
-    (r"\bstd::variant\b|\bstd::any\b",               0.2, "type-erasure"),
+    (r"\bthrow\b|\bcatch\b|\btry\b", 0.35, "exception handling"),
+    (r"\bnew\b|\bdelete\b", 0.2, "manual heap alloc"),
+    (r"\bstd::string\b", 0.2, "string type"),
+    (r"\bvirtual\b|\boverride\b|\bpolymorphi", 0.35, "OOP/polymorphism"),
+    (r"\bdynamic_cast\b|\btypeid\b", 0.3, "dynamic dispatch"),
+    (r"\bstd::map\b|\bstd::unordered_map\b", 0.2, "associative container"),
+    (r"\bgoto\b", 0.2, "goto"),
+    (r"\bsocket\b|\bbind\b|\baccept\b|\brecv\b", 0.5, "network I/O"),
+    (r"\bgetenv\b|\bsystem\b|\bpopen\b", 0.4, "OS calls"),
+    (r"\bstd::thread\b|\bstd::mutex\b", 0.25, "threading"),
+    (r"\bboost::", 0.1, "Boost dependency"),
+    (r"\bstd::shared_ptr\b|\bstd::unique_ptr\b", 0.15, "smart pointer"),
+    (r"\bstd::variant\b|\bstd::any\b", 0.2, "type-erasure"),
 ]
 
 
@@ -119,10 +119,14 @@ class KernelClassifier:
     """
 
     def __init__(self) -> None:
-        self._kernel_re = [(re.compile(pat, re.IGNORECASE), w, label)
-                           for pat, w, label in _KERNEL_PATTERNS]
-        self._app_re    = [(re.compile(pat, re.IGNORECASE), w, label)
-                           for pat, w, label in _APP_PATTERNS]
+        self._kernel_re = [
+            (re.compile(pat, re.IGNORECASE), w, label)
+            for pat, w, label in _KERNEL_PATTERNS
+        ]
+        self._app_re = [
+            (re.compile(pat, re.IGNORECASE), w, label)
+            for pat, w, label in _APP_PATTERNS
+        ]
 
     def classify(self, cpp_source: str) -> ClassificationResult:
         """Classify a single C++ function or code block.
@@ -134,7 +138,7 @@ class KernelClassifier:
             ClassificationResult with kind, confidence, and reasons.
         """
         kernel_score = 0.0
-        app_score    = 0.0
+        app_score = 0.0
         reasons: list[str] = []
 
         for pattern, weight, label in self._kernel_re:
@@ -240,13 +244,16 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python kernel_classifier.py <cpp_file_or_snippet>")
         print("\nExample:")
-        print('  python kernel_classifier.py "void saxpy(float* y, const float* x, float a, int n) {')
+        print(
+            '  python kernel_classifier.py "void saxpy(float* y, const float* x, float a, int n) {'
+        )
         print('      for (int i=0; i<n; ++i) y[i] = a*x[i] + y[i]; }"')
         sys.exit(0)
 
     source = sys.argv[1]
     # If it looks like a file path, read it
     import pathlib
+
     p = pathlib.Path(source)
     if p.exists():
         source = p.read_text()

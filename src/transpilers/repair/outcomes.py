@@ -225,7 +225,7 @@ class RepairTracker:
                 continue
             try:
                 yield RepairOutcome.from_json(line)
-            except (json.JSONDecodeError, TypeError, KeyError):
+            except json.JSONDecodeError, TypeError, KeyError:
                 # Skip corrupted lines rather than abort the whole rollup.
                 continue
 

@@ -109,7 +109,9 @@ def _convert_function(fn: c_ast.FuncDef) -> hir.HirFunction:
     params = _convert_params(func_decl.args)
     return_annotation = _type_text(func_decl.type)
     body = _convert_block(fn.body)
-    return hir.HirFunction(name=name, params=params, return_annotation=return_annotation, body=body)
+    return hir.HirFunction(
+        name=name, params=params, return_annotation=return_annotation, body=body
+    )
 
 
 def _convert_params(args) -> list[hir.HirParam]:
@@ -179,10 +181,19 @@ def _convert_for(node: c_ast.For) -> list[hir.HirNode]:
             out.append(_convert_assignment(node.init))
         else:
             raise UnsupportedConstruct(f"for-init {type(node.init).__name__}")
-    cond = _convert_expr(node.cond) if node.cond is not None else hir.HirBoolLiteral(value=True)
+    cond = (
+        _convert_expr(node.cond)
+        if node.cond is not None
+        else hir.HirBoolLiteral(value=True)
+    )
     body = _convert_block(node.stmt) if node.stmt is not None else []
     if node.next is not None:
-        if isinstance(node.next, c_ast.UnaryOp) and node.next.op in ("p++", "++", "p--", "--"):
+        if isinstance(node.next, c_ast.UnaryOp) and node.next.op in (
+            "p++",
+            "++",
+            "p--",
+            "--",
+        ):
             body.append(_convert_increment(node.next))
         elif isinstance(node.next, c_ast.Assignment):
             body.append(_convert_assignment(node.next))
@@ -194,7 +205,11 @@ def _convert_for(node: c_ast.For) -> list[hir.HirNode]:
 
 def _convert_decl(node: c_ast.Decl) -> hir.HirNode:
     annotation = _type_text(node.type)
-    value = _convert_expr(node.init) if node.init is not None else hir.HirIntLiteral(value=0)
+    value = (
+        _convert_expr(node.init)
+        if node.init is not None
+        else hir.HirIntLiteral(value=0)
+    )
     return hir.HirAssign(target=node.name, value=value, annotation=annotation)
 
 
@@ -225,10 +240,19 @@ def _convert_expr(node: c_ast.Node) -> hir.HirNode:
     if isinstance(node, c_ast.Constant):
         # Integer literals may carry `u`/`U`/`l`/`L`/`ll`/`LL` suffixes
         # (and combinations) on the value text; strip them before parsing.
-        if node.type in ("int", "unsigned int", "long int", "long unsigned int",
-                         "long long int", "long long unsigned int",
-                         "signed int", "short", "unsigned short",
-                         "char", "unsigned char"):
+        if node.type in (
+            "int",
+            "unsigned int",
+            "long int",
+            "long unsigned int",
+            "long long int",
+            "long long unsigned int",
+            "signed int",
+            "short",
+            "unsigned short",
+            "char",
+            "unsigned char",
+        ):
             text = node.value.rstrip("uUlL")
             return hir.HirIntLiteral(value=int(text, 0))
         if node.type in ("float", "double", "long double"):
@@ -250,7 +274,9 @@ def _convert_expr(node: c_ast.Node) -> hir.HirNode:
         # we don't, in the initial subset.
         raise UnsupportedConstruct("assignment as expression")
     if isinstance(node, c_ast.ArrayRef):
-        return hir.HirSubscript(value=_convert_expr(node.name), index=_convert_expr(node.subscript))
+        return hir.HirSubscript(
+            value=_convert_expr(node.name), index=_convert_expr(node.subscript)
+        )
     if isinstance(node, c_ast.Cast):
         # Drop the cast — best-effort; the target's type system handles
         # whatever the underlying expression already represents.
@@ -260,7 +286,11 @@ def _convert_expr(node: c_ast.Node) -> hir.HirNode:
         # method/builtin call so each backend can shape it per target.
         return hir.HirCall(
             func="__ternary__",
-            args=[_convert_expr(node.cond), _convert_expr(node.iftrue), _convert_expr(node.iffalse)],
+            args=[
+                _convert_expr(node.cond),
+                _convert_expr(node.iftrue),
+                _convert_expr(node.iffalse),
+            ],
         )
     raise UnsupportedConstruct(f"expr {type(node).__name__}")
 
@@ -276,7 +306,9 @@ def _convert_binop(node: c_ast.BinaryOp) -> hir.HirNode:
     if node.op in COMPARE_OPS:
         return hir.HirCompare(op=node.op, left=left, right=right)
     if node.op in LOGICAL_OPS:
-        return hir.HirBoolOp(op="and" if node.op == "&&" else "or", left=left, right=right)
+        return hir.HirBoolOp(
+            op="and" if node.op == "&&" else "or", left=left, right=right
+        )
     if node.op in ARITH_OPS:
         return hir.HirBinOp(op=node.op, left=left, right=right)
     # Bitwise operators — pass through. Rust supports `&`, `|`, `^`, `<<`,
@@ -315,10 +347,14 @@ def _convert_call(node: c_ast.FuncCall) -> hir.HirNode:
     args = []
     if node.args is not None:
         args = [_convert_expr(a) for a in node.args.exprs]
-    return hir.HirCall(func=node.name.value if hasattr(node.name, "value") else node.name.name, args=args)
+    return hir.HirCall(
+        func=node.name.value if hasattr(node.name, "value") else node.name.name,
+        args=args,
+    )
 
 
 # ---------- type text rendering ----------
+
 
 def _type_text(node: c_ast.Node) -> str:
     """Render a C type expression as a HIR annotation string. We collapse

@@ -13,10 +13,26 @@ INDENT = "    "
 # Mojo reserved words that are valid C++ identifiers — rename on emit (append _)
 # so e.g. a C++ variable named `var`/`ref`/`out` doesn't collide. Deterministic,
 # so declaration and uses stay consistent without a rename map.
-_MOJO_KEYWORDS = frozenset({
-    "var", "ref", "mut", "out", "read", "owned", "deinit", "fn", "def",
-    "alias", "let", "in", "raises", "comptime", "trait", "struct",
-})
+_MOJO_KEYWORDS = frozenset(
+    {
+        "var",
+        "ref",
+        "mut",
+        "out",
+        "read",
+        "owned",
+        "deinit",
+        "fn",
+        "def",
+        "alias",
+        "let",
+        "in",
+        "raises",
+        "comptime",
+        "trait",
+        "struct",
+    }
+)
 
 
 def _safe(name: str) -> str:
@@ -40,8 +56,9 @@ def emit_mojo(module: lir.MojoModule) -> str:
     if imports:
         # Entries may be bare module names (`math`) or full statements
         # (`from math import sqrt`); emit the latter verbatim.
-        lines = [m if m.startswith(("from ", "import ")) else f"import {m}"
-                 for m in imports]
+        lines = [
+            m if m.startswith(("from ", "import ")) else f"import {m}" for m in imports
+        ]
         return "\n".join(lines) + "\n\n" + body
     return body
 
@@ -73,9 +90,19 @@ def _emit_struct(s: lir.MojoStruct, mutating_names: frozenset[str]) -> str:
     return "\n".join(lines)
 
 
-_MUTATING_METHODS = frozenset({
-    "append", "pop", "clear", "insert", "extend", "resize", "remove", "reverse", "sort",
-})
+_MUTATING_METHODS = frozenset(
+    {
+        "append",
+        "pop",
+        "clear",
+        "insert",
+        "extend",
+        "resize",
+        "remove",
+        "reverse",
+        "sort",
+    }
+)
 
 
 def _is_self(node: object) -> bool:
@@ -102,6 +129,7 @@ def _mutates_self(nodes: object, mutating_names: frozenset[str]) -> bool:
     hardcoded STL-container names and any user struct method that mutates
     self itself, directly or transitively."""
     import dataclasses
+
     if isinstance(nodes, list):
         return any(_mutates_self(n, mutating_names) for n in nodes)
     if not dataclasses.is_dataclass(nodes):
@@ -117,10 +145,16 @@ def _mutates_self(nodes: object, mutating_names: frozenset[str]) -> bool:
         # outright is just as much a mutation as assigning one of its
         # fields, and needs the same `mut self`.
         return True
-    if (isinstance(nodes, lir.MojoMethodCall) and nodes.method in mutating_names
-            and _touches_self(nodes.receiver)):
+    if (
+        isinstance(nodes, lir.MojoMethodCall)
+        and nodes.method in mutating_names
+        and _touches_self(nodes.receiver)
+    ):
         return True
-    return any(_mutates_self(getattr(nodes, f.name), mutating_names) for f in dataclasses.fields(nodes))
+    return any(
+        _mutates_self(getattr(nodes, f.name), mutating_names)
+        for f in dataclasses.fields(nodes)
+    )
 
 
 def _compute_mutating_method_names(module: lir.MojoModule) -> frozenset[str]:
@@ -142,7 +176,12 @@ def _compute_mutating_method_names(module: lir.MojoModule) -> frozenset[str]:
     too, which Mojo permits on a method that doesn't strictly need it.
     """
     names = set(_MUTATING_METHODS)
-    methods = [m for item in module.items if isinstance(item, lir.MojoStruct) for m in item.methods]
+    methods = [
+        m
+        for item in module.items
+        if isinstance(item, lir.MojoStruct)
+        for m in item.methods
+    ]
     changed = True
     while changed:
         changed = False
@@ -159,12 +198,20 @@ def _emit_fn(fn: lir.MojoFn, mutating_names: frozenset[str], *, depth: int = 0) 
     indent = INDENT * depth
     # `__init__` takes `out self`; a method that mutates self takes `mut self`;
     # otherwise the default immutable borrow `self`.
-    mut_self = (fn.params and fn.params[0][0] == "self"
-                and fn.name != "__init__" and _mutates_self(fn.body, mutating_names))
+    mut_self = (
+        fn.params
+        and fn.params[0][0] == "self"
+        and fn.name != "__init__"
+        and _mutates_self(fn.body, mutating_names)
+    )
     params = ", ".join(
-        ("out self" if (n == "self" and fn.name == "__init__")
-         else "mut self" if (n == "self" and mut_self)
-         else _emit_param(n, t))
+        (
+            "out self"
+            if (n == "self" and fn.name == "__init__")
+            else "mut self"
+            if (n == "self" and mut_self)
+            else _emit_param(n, t)
+        )
         for n, t in fn.params
     )
     ret = f" -> {fn.return_type}" if fn.return_type != "None" else ""
@@ -250,7 +297,10 @@ def _op_of(node: lir.LirNode) -> str | None:
 
 def _paren(child: lir.LirNode, parent_op: str, *, on_right: bool) -> str:
     from transpilers.backends._precedence import paren_emit
-    return paren_emit(child, parent_op, on_right=on_right, emit_expr=_emit_expr, op_of=_op_of)
+
+    return paren_emit(
+        child, parent_op, on_right=on_right, emit_expr=_emit_expr, op_of=_op_of
+    )
 
 
 def _emit_expr(node: lir.LirNode | None) -> str:
@@ -312,6 +362,7 @@ def _emit_expr(node: lir.LirNode | None) -> str:
         args = ", ".join(_emit_expr(a) for a in node.args)
         return f"{_emit_expr(node.receiver)}.{node.method}({args})"
     from transpilers.passes.mir_to_mojo_lir import _MojoIfExpr
+
     if isinstance(node, _MojoIfExpr):
         return f"({_emit_expr(node.then_)} if {_emit_expr(node.test)} else {_emit_expr(node.else_)})"
     raise NotImplementedError(f"LIR node {type(node).__name__}")

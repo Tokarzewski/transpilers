@@ -16,7 +16,12 @@ from tree_sitter import Language, Node
 import tree_sitter_javascript
 
 from transpilers.ir import hir
-from transpilers.frontends._treesitter import make_parser, named_children, required_field, text
+from transpilers.frontends._treesitter import (
+    make_parser,
+    named_children,
+    required_field,
+    text,
+)
 
 
 from transpilers.frontends.errors import UnsupportedConstruct
@@ -33,7 +38,12 @@ def parse_javascript(source: str) -> hir.HirModule:
         if c.type == "function_declaration":
             body.append(_convert_function(c))
             continue
-        if c.type in ("comment", "import_statement", "export_statement", "hash_bang_line"):
+        if c.type in (
+            "comment",
+            "import_statement",
+            "export_statement",
+            "hash_bang_line",
+        ):
             if c.type == "export_statement":
                 for inner in named_children(c):
                     if inner.type == "function_declaration":
@@ -43,8 +53,13 @@ def parse_javascript(source: str) -> hir.HirModule:
         # bare `let` declarations, expression statements) — skip silently
         # rather than refusing the whole file.
         if c.type in (
-            "expression_statement", "lexical_declaration", "variable_declaration",
-            "for_statement", "if_statement", "while_statement", "block_statement",
+            "expression_statement",
+            "lexical_declaration",
+            "variable_declaration",
+            "for_statement",
+            "if_statement",
+            "while_statement",
+            "block_statement",
         ):
             continue
         raise UnsupportedConstruct(f"top-level {c.type}")
@@ -55,7 +70,9 @@ def _convert_function(node: Node) -> hir.HirFunction:
     name_node = required_field(node, "name")
     params_node = required_field(node, "parameters")
     body_node = required_field(node, "body")
-    params = [_convert_param(p) for p in named_children(params_node) if p.type == "identifier"]
+    params = [
+        _convert_param(p) for p in named_children(params_node) if p.type == "identifier"
+    ]
     return hir.HirFunction(
         name=text(name_node),
         params=params,
@@ -131,9 +148,15 @@ def _convert_for(node: Node) -> list[hir.HirNode]:
         out.extend(_convert_stmt(init_node))
     if cond_node is not None and cond_node.type == "expression_statement":
         cond_kids = named_children(cond_node)
-        cond_expr = _convert_expr(cond_kids[0]) if cond_kids else hir.HirBoolLiteral(value=True)
+        cond_expr = (
+            _convert_expr(cond_kids[0]) if cond_kids else hir.HirBoolLiteral(value=True)
+        )
     else:
-        cond_expr = _convert_expr(cond_node) if cond_node is not None else hir.HirBoolLiteral(value=True)
+        cond_expr = (
+            _convert_expr(cond_node)
+            if cond_node is not None
+            else hir.HirBoolLiteral(value=True)
+        )
     inner = _convert_stmt(body_node)
     if update_node is not None:
         inner.append(_convert_expression_stmt(update_node))
@@ -154,7 +177,11 @@ def _convert_variable_declarator(node: Node) -> hir.HirNode:
     if name_node.type != "identifier":
         raise UnsupportedConstruct(f"js declarator pattern {name_node.type}")
     value_node = node.child_by_field_name("value")
-    value = _convert_expr(value_node) if value_node is not None else hir.HirIntLiteral(value=0)
+    value = (
+        _convert_expr(value_node)
+        if value_node is not None
+        else hir.HirIntLiteral(value=0)
+    )
     return hir.HirAssign(target=text(name_node), value=value, annotation=None)
 
 
@@ -185,7 +212,10 @@ def _convert_aug_assignment(node: Node) -> hir.HirNode:
     if left.type != "identifier" or not op.endswith("="):
         raise UnsupportedConstruct(f"js aug-assign {op!r}")
     return hir.HirAssign(
-        target=text(left), value=_convert_expr(right), annotation=None, augmented_op=op[:-1]
+        target=text(left),
+        value=_convert_expr(right),
+        annotation=None,
+        augmented_op=op[:-1],
     )
 
 
@@ -196,11 +226,15 @@ def _convert_update(node: Node) -> hir.HirNode:
         raise UnsupportedConstruct(f"js update {op!r}")
     sign = "+" if op == "++" else "-"
     return hir.HirAssign(
-        target=text(argument), value=hir.HirIntLiteral(value=1), annotation=None, augmented_op=sign
+        target=text(argument),
+        value=hir.HirIntLiteral(value=1),
+        annotation=None,
+        augmented_op=sign,
     )
 
 
 # ---------- expressions ----------
+
 
 def _convert_expr(node: Node) -> hir.HirNode:
     kind = node.type

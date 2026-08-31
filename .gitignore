@@ -72,3 +72,6 @@ transpyle/
 
 # large regenerable cbm-derived dependency graph (rebuild: migration_plan.py --cbm)
 data/sft/cpp_mojo/dep_graph_cbm.json
+
+# graphify cache (generated)
+graphify-out/

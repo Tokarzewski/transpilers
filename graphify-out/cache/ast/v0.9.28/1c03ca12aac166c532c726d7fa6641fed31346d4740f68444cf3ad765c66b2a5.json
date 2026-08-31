@@ -1,1 +1,0 @@
-{"nodes": [{"id": "pkg_migraph", "label": "migraph", "file_type": "code", "type": "package", "ecosystem": "python", "source_file": "tools/migraph/pyproject.toml", "source_location": "L1", "version": "0.1.0"}], "edges": []}

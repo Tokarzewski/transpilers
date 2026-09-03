@@ -1,7 +1,7 @@
 """Tests for the toolchain-free dataset generator (issue #57).
 
 The generator runs the transpiler's algorithmic path over a Python corpus and
-emits source->{mojo,rust,zig,c} SFT pairs, behaviorally self-verifying what is
+emits source->{mojo,rust,c} SFT pairs, behaviorally self-verifying what is
 runnable in pure Python. These tests assert the pure-Python logic — record
 schema, the entry-point stripper, the BaseException-based timeout guard, and
 honest verified-flagging — without requiring any external compiler.

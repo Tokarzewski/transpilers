@@ -1,7 +1,7 @@
 [project]
 name = "transpilers"
 version = "0.0.1"
-description = "Hybrid algorithmic + LLM source-to-source transpiler. N-to-M across Fortran/C/C++/VB/Python and Rust/Zig/C/Mojo."
+description = "Hybrid algorithmic + LLM source-to-source transpiler. N-to-M across Fortran/C/C++/VB/Python and Rust/C/Mojo."
 requires-python = ">=3.14"
 dependencies = [
     "libcst>=1.8.6",

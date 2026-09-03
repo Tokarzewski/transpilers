@@ -20,20 +20,16 @@ from transpilers.cli.main import transpile
 from transpilers.verify import (
     c_compiles,
     fortran_compiles,
-    go_compiles,
     mojo_compiles,
     python_compiles,
     rust_compiles,
-    zig_compiles,
 )
 
 # Map target name → verify function (same as cli/main.py TARGETS)
 _VERIFIERS = {
     "rust": rust_compiles,
-    "zig": zig_compiles,
     "c": c_compiles,
     "mojo": mojo_compiles,
-    "go": go_compiles,
     "python": python_compiles,
     "fortran": fortran_compiles,
 }

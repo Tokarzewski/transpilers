@@ -3,9 +3,9 @@
 Hybrid algorithmic + LLM source-to-source transpiler. **N-to-M** across many
 languages through a single shared IR pipeline.
 
-**11 frontends** — Python, C, C++, Java, C#, TypeScript, JavaScript, Fortran,
-Go, Visual Basic, and Assembly (via PyGhidra → C-like pseudocode).
-**7 targets** — Rust, Zig, C, Mojo, Go, Python, Fortran.
+**10 frontends** — Python, C, C++, Java, C#, TypeScript, JavaScript, Fortran,
+Visual Basic, and Assembly (via PyGhidra → C-like pseudocode).
+**5 targets** — Rust, C, Mojo, Python, Fortran.
 
 ## Why hybrid
 
@@ -46,11 +46,11 @@ EnergyPlus). Run any granularity — object · file · module · folder/repo —
 ## Status
 
 Verified end-to-end (compile + run + output match) on `examples/algorithms/`
-(18 Python files): **Rust, Go, Mojo, Python, Fortran, C all 18/18; Zig 17/18**
-(needs ArrayList growth for `sieve.py`).
+(18 Python files): **Rust, Mojo, Python, Fortran all 18/18; C 17/18**
+(needs dynamic-array growth for `sieve.py`).
 
 Real-world corpus (`examples/samples/`, transpile-only → Rust): JavaScript
-26/27, C++ 78/170, Python 32/57, Java 27/74, C 20/70, Go 1/9.
+26/27, C++ 78/170, Python 32/57, Java 27/74, C 20/70.
 
 The end-to-end Mojo and C++ numbers above are *compile-and-run* results that
 require those toolchains to be installed. The engine itself (parse → IR →
@@ -66,7 +66,7 @@ Beyond the live engine, a toolchain-free data + fine-tune stack bootstraps the
 C++/Python → Mojo translator adapter (all pure-Python, exercised by pytest):
 
 - **Algorithm dataset generator** — `scripts/sft/build_algorithm_pairs.py`
-  emits verified C/C++/Python → Mojo (plus Rust/Zig bonus) SFT pairs into
+  emits verified C/C++/Python → Mojo (plus Rust/C bonus) SFT pairs into
   `data/sft/algorithms/` from the seed corpus in `examples/`, with a rejects
   channel for unmappable constructs.
 - **Qwen2.5-Coder-7B finetune** — `scripts/sft/train_7b.sh` plus the two-phase
@@ -161,6 +161,6 @@ ROCm/WSL) and `tools/cloud/` (RunPod).
 ## Roadmap
 
 Tracked in [GitHub Issues](https://github.com/Tokarzewski/transpilers/issues).
-Highlights: dynamic array growth on Zig/Fortran (done on C), `OptionT`/`RefT` in
+Highlights: dynamic array growth on Fortran (done on C), `OptionT`/`RefT` in
 the type lattice, and statement-expression sequencing in HIR (to lift postfix
 `i++`/`i--` out of expression contexts).

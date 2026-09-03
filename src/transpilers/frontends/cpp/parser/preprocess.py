@@ -113,7 +113,7 @@ namespace std {
     template <class T> class deque {};
     template <typename R, typename... A> class function {};
     class exception {};
-    using size_t = unsigned long;
+    using size_t = __SIZE_TYPE__;
     using ptrdiff_t = long;
     class string { public:
         string(); string(const char*); string(const string&);
@@ -207,8 +207,8 @@ namespace std {
     template <typename T, typename U> T* static_cast_helper(U*);
     template <typename T, typename U> T* dynamic_cast_helper(U*);
 }
-void* operator new(unsigned long, void*);
-void* operator new(unsigned long);
+void* operator new(__SIZE_TYPE__, void*);
+void* operator new(__SIZE_TYPE__);
 void operator delete(void*);
 
 // TU-scope `using` declarations so user code that writes bare

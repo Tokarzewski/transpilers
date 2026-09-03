@@ -3,7 +3,7 @@
 Hand-curated Python implementations of canonical algorithms — used as a
 cross-target end-to-end stress test. Each file is intentionally simple:
 explicit types, basic control flow, no dependencies. The goal is to
-verify that the pipeline carries algorithmic structure across all seven
+verify that the pipeline carries algorithmic structure across all five
 targets and produces output that *runs* and *matches Python*, not just
 compiles.
 
@@ -20,12 +20,10 @@ uv run transpile examples/algorithms/fibonacci.py --target mojo --verify
 | Target | Pass | Notes |
 |--------|-----:|-------|
 | Rust   | 18/18 | |
-| Go     | 18/18 | |
 | Mojo   | 18/18 | |
 | Python | 18/18 | reference |
 | Fortran| 18/18 | program-wrap + `pyfloat` helper |
 | C      | 17/18 | sieve.py needs dynamic-array growth |
-| Zig    | 17/18 | sieve.py same; newton_sqrt float-precision diff |
 
 ## Files
 

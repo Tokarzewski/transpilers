@@ -14,17 +14,12 @@ from transpilers.cli.main import (
     transpile_cpp_to_c,
     transpile_cpp_to_mojo,
     transpile_cpp_to_rust,
-    transpile_cpp_to_zig,
 )
-from transpilers.verify import c_compiles, mojo_compiles, rust_compiles, zig_compiles
+from transpilers.verify import c_compiles, mojo_compiles, rust_compiles
 
 
 def _rust(src: str) -> str:
     return transpile_cpp_to_rust(textwrap.dedent(src).lstrip())
-
-
-def _zig(src: str) -> str:
-    return transpile_cpp_to_zig(textwrap.dedent(src).lstrip())
 
 
 def _c(src: str) -> str:
@@ -822,15 +817,6 @@ def test_cpp_to_rust_compiles():
     assert result.ok, result.stderr
 
 
-# ---------- C++ → Zig compile check ----------
-
-@pytest.mark.skipif(not _has("zig"), reason="zig not installed")
-def test_cpp_to_zig_compiles():
-    out = _zig("int add(int a, int b) { return a + b; }")
-    result = zig_compiles(out)
-    assert result.ok, result.stderr
-
-
 # ---------- C++ → C compile check ----------
 
 @pytest.mark.skipif(not _has("cc") and not _has("gcc") and not _has("clang"), reason="no C compiler")
@@ -929,21 +915,6 @@ def test_cpp_class_to_c_struct():
     assert "} Point;" in out
     assert "int64_t Point_sum(Point *self)" in out
     assert "self->x + self->y" in out
-
-
-def test_cpp_class_to_zig_struct():
-    out = _to("zig")
-    assert "const Point = struct {" in out
-    assert "x: i64," in out
-    assert "fn sum(self: Point) i64" in out
-    assert "self.x + self.y" in out
-
-
-def test_cpp_class_to_go_struct():
-    out = _to("go")
-    assert "type Point struct {" in out
-    assert "func (self *Point) sum() int64" in out
-    assert "self.x + self.y" in out
 
 
 def test_cpp_class_to_python_class():

@@ -18,9 +18,7 @@ import pytest
     [
         ("transpilers.verify.rust", "rust_compiles", "fn f() {}", False),
         ("transpilers.verify.c", "c_compiles", "int f(void) { return 0; }", True),
-        ("transpilers.verify.go", "go_compiles", "package main\nfunc f() {}\n", True),
         ("transpilers.verify.mojo", "mojo_compiles", "def f():\n    pass\n", True),
-        ("transpilers.verify.zig", "zig_compiles", "fn f() void {}", False),
         (
             "transpilers.verify.fortran",
             "fortran_compiles",

@@ -12,7 +12,7 @@ the outcome with ``transpilers.verify.taxonomy``, and emits:
   (source, target) pair is actionable, not just countable.
 
 Compilation runs only for targets whose compiler is on PATH (rustc, gcc,
-go, zig, mojo, gfortran; python always). Use --no-compile to skip the
+mojo, gfortran; python always). Use --no-compile to skip the
 compiler gate entirely, --structural to also run the skeleton-isomorphism
 gate (issue #45).
 
@@ -42,7 +42,7 @@ from transpilers.verify.taxonomy import (  # noqa: E402
 
 EXT_MAP = {
     "c": "c", "cpp": "cpp", "cs": "csharp", "f90": "fortran",
-    "go": "go", "java": "java", "js": "javascript", "py": "python",
+    "java": "java", "js": "javascript", "py": "python",
     "ts": "typescript", "vb": "vb",
 }
 

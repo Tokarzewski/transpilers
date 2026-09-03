@@ -108,7 +108,7 @@ def _convert_function(node: Node) -> hir.HirFunction:
     params = [hir.HirParam(name=p, annotation=var_types.get(p)) for p in param_names]
 
     # The Fortran result variable is implicitly declared by appearing in
-    # `result(...)`. Other backends (Rust/Zig/C/Mojo) need an explicit
+    # `result(...)`. Other backends (Rust/C/Mojo) need an explicit
     # declaration before the variable can be assigned in a branch — otherwise
     # `if (cond) { r = a } else { r = b }` introduces `r` in branch scope
     # only.

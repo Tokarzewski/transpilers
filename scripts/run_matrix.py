@@ -68,26 +68,6 @@ def _build_and_run_rust(src: str, td: pathlib.Path) -> tuple[bool, str]:
     return run.returncode == 0, (run.stdout if run.returncode == 0 else run.stderr)
 
 
-def _build_and_run_zig(src: str, td: pathlib.Path) -> tuple[bool, str]:
-    p = td / "main.zig"
-    p.write_text(src)
-    exe = td / "prog"
-    build = subprocess.run(
-        ["zig", "build-exe", str(p), "-O", "ReleaseSafe", "--name", "prog"],
-        cwd=td, capture_output=True, text=True, timeout=120,
-    )
-    if build.returncode != 0:
-        return False, f"compile: {(build.stderr or build.stdout).strip().splitlines()[-1] if (build.stderr or build.stdout) else 'unknown'}"
-    if not exe.exists():
-        # zig build-exe puts the binary in cwd as `prog`
-        exe = td / "prog"
-    run = subprocess.run([str(exe)], capture_output=True, text=True, timeout=15)
-    # Zig's `std.debug.print` writes to stderr; we accept either stream
-    # so the matrix focuses on algorithmic correctness, not Zig's stdio
-    # convention. Combine in source order: stdout first, then stderr.
-    return run.returncode == 0, (run.stdout + run.stderr)
-
-
 def _build_and_run_c(src: str, td: pathlib.Path) -> tuple[bool, str]:
     p = td / "main.c"
     p.write_text(src)
@@ -99,20 +79,6 @@ def _build_and_run_c(src: str, td: pathlib.Path) -> tuple[bool, str]:
     if build.returncode != 0:
         return False, f"compile: {build.stderr.strip().splitlines()[-1] if build.stderr else 'unknown'}"
     run = subprocess.run([str(exe)], capture_output=True, text=True, timeout=15)
-    return run.returncode == 0, (run.stdout if run.returncode == 0 else run.stderr)
-
-
-def _build_and_run_go(src: str, td: pathlib.Path) -> tuple[bool, str]:
-    (td / "go.mod").write_text("module prog\n\ngo 1.21\n")
-    p = td / "main.go"
-    p.write_text(src)
-    build = subprocess.run(
-        ["go", "build", "-o", "prog", "main.go"],
-        cwd=td, capture_output=True, text=True, timeout=60,
-    )
-    if build.returncode != 0:
-        return False, f"compile: {build.stderr.strip().splitlines()[-1] if build.stderr else 'unknown'}"
-    run = subprocess.run([str(td / "prog")], capture_output=True, text=True, timeout=15)
     return run.returncode == 0, (run.stdout if run.returncode == 0 else run.stderr)
 
 
@@ -160,9 +126,7 @@ def _build_and_run_mojo(src: str, td: pathlib.Path) -> tuple[bool, str]:
 
 BUILDERS = {
     "rust": _build_and_run_rust,
-    "zig": _build_and_run_zig,
     "c": _build_and_run_c,
-    "go": _build_and_run_go,
     "python": _build_and_run_python,
     "fortran": _build_and_run_fortran,
     "mojo": _build_and_run_mojo,
@@ -217,7 +181,7 @@ def _topo_ordered_py(root: pathlib.Path, files: list[pathlib.Path]) -> list[path
 
 def main(argv: list[str]) -> int:
     root = pathlib.Path(argv[1] if len(argv) > 1 else "examples/algorithms")
-    targets = ["rust", "zig", "c", "go", "python", "fortran", "mojo"]
+    targets = ["rust", "c", "python", "fortran", "mojo"]
     raw_py_files = sorted(p for p in root.rglob("*.py") if "main()" in p.read_text())
     py_files = _topo_ordered_py(root, raw_py_files)
 

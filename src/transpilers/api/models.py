@@ -13,11 +13,10 @@ SourceLang = Literal[
     "typescript",
     "javascript",
     "fortran",
-    "go",
     "vb",
     "asm",
 ]
-TargetLang = Literal["rust", "zig", "c", "mojo", "go", "python", "fortran"]
+TargetLang = Literal["rust", "c", "mojo", "python", "fortran"]
 Path = Literal["direct", "python_pivot"]
 Fidelity = Literal["structural", "idiomatic"]
 

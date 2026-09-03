@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Toolchain-free SFT dataset generator (issue #57): C++/C/Python -> Mojo,
-C++ -> Python, plus a Python -> {Rust, Zig, C} bonus.
+C++ -> Python, plus a Python -> {Rust, C} bonus.
 
 Issue #57 asks for ``cpp / c -> mojo`` and ``cpp -> python`` training data
 (``rust -> mojo`` is requested but the transpiler has no Rust *frontend*, so it
@@ -17,7 +17,7 @@ generator covers the part that needs **no external compiler**:
                                         (only python source + python/rust target
                                         are runnable in pure Python here)
              * ``unverified_no_runner`` — emitted but no in-env oracle/runner for
-                                        this direction (cpp/c source, mojo/zig/c
+                                        this direction (cpp/c source, mojo/c
                                         target): the headline ->Mojo pairs land
                                         here; the compile/behaviour gate is
                                         deferred to a box with the toolchain
@@ -65,7 +65,6 @@ LANG_NAME = {
     "python": "Python",
     "mojo": "Mojo",
     "rust": "Rust",
-    "zig": "Zig",
     "c": "C",
     "cpp": "C++",
 }
@@ -213,7 +212,7 @@ def _strip_main(code: str, target: str) -> str:
     (Python/Mojo) and its braced/indented body. Leaves the named functions
     intact. If no entry point is found the code is returned unchanged.
     """
-    if target in ("rust", "zig", "c"):
+    if target in ("rust", "c"):
         idx = code.find("fn main")
         if target == "c":
             # crude: C main is usually `int main(`
@@ -297,7 +296,7 @@ def build(corpus: Path, source_lang: str, target: str) -> list[Pair]:
 
 
 # (source_lang, corpus-dir, target). The headline #57 asks are the ->mojo
-# directions + cpp->python; python->{rust,zig,c} is a behaviorally-verifiable
+# directions + cpp->python; python->{rust,c} is a behaviorally-verifiable
 # bonus. rust->mojo is omitted: the transpiler has no Rust frontend.
 DIRECTIONS = [
     ("cpp", "examples/cpp_algorithms", "mojo"),
@@ -305,7 +304,6 @@ DIRECTIONS = [
     ("cpp", "examples/cpp_algorithms", "python"),
     ("python", "examples/algorithms", "mojo"),
     ("python", "examples/algorithms", "rust"),
-    ("python", "examples/algorithms", "zig"),
     ("python", "examples/algorithms", "c"),
 ]
 

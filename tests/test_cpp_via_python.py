@@ -63,8 +63,6 @@ def test_cpp_via_python_to_mojo():
     "target,needle",
     [
         ("c", "int64_t add(int64_t a, int64_t b)"),
-        ("zig", "fn add(a: i64, b: i64) i64"),
-        ("go", "func add(a int64, b int64) int64"),
         ("fortran", "function add(a, b) result(result_)"),
     ],
 )

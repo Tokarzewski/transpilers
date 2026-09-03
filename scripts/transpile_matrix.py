@@ -30,7 +30,7 @@ import tempfile
 
 EXT_MAP = {
     "c": "c", "cpp": "cpp", "cs": "csharp", "f90": "fortran",
-    "go": "go", "java": "java", "js": "javascript", "py": "python",
+    "java": "java", "js": "javascript", "py": "python",
     "ts": "typescript", "vb": "vb",
 }
 

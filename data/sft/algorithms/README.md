@@ -20,7 +20,6 @@ uv run python scripts/sft/build_algorithm_pairs.py
 | `cpp_python_pairs.jsonl`  | C++ → Python  | yes |
 | `python_mojo_pairs.jsonl` | Python → Mojo | bonus (repo also trains on this) |
 | `python_rust_pairs.jsonl` | Python → Rust | bonus, behaviorally verified in-env |
-| `python_zig_pairs.jsonl`  | Python → Zig  | bonus |
 | `python_c_pairs.jsonl`    | Python → C    | bonus |
 
 `rust → mojo` is in the issue but the transpiler has **no Rust frontend**, so it
@@ -48,7 +47,7 @@ provenance:
   with a `python`/`rust` target is runnable in this pure-Python environment, so
   only those can reach `verified` here.
 - **`unverified_no_runner`** — emitted but no in-env oracle/runner for this
-  direction (all `→mojo`/`→zig`/`→c` and all `cpp`/`c` source). The
+  direction (all `→mojo`/`→c` and all `cpp`/`c` source). The
   compile/behaviour gate is **deferred** to a box with `g++`/`mojo`/`gcov`; the
   pair is *not* claimed correct. The headline `→Mojo` pairs live here.
 - **`failed`** — the harness *ran* and the target diverged from the source
@@ -61,7 +60,7 @@ provenance:
 
 The Python→Rust rejects (`gcd`, `lcm`, `fast_pow`) diverge on negative operands:
 Python's **floored** `%`/`//` vs Rust/C's **truncated** `%`/`/`
-(`-1 % 2` → Python `1`, Rust/C `-1`). The unverified `→mojo`/`→zig`/`→c` pairs
+(`-1 % 2` → Python `1`, Rust/C `-1`). The unverified `→mojo`/`→c` pairs
 for those same functions almost certainly share this bug — "no_runner" means
 *not yet checked*, **not** "presumed correct". A dedicated floored-mod emission
 fix is tracked separately.

@@ -307,7 +307,7 @@ class _MojoLowering(MirLoweringBase):
         # restriction as a var-decl, reassign, return, or call-argument
         # hand-off of a bare struct-typed name/field (see lower_assign /
         # lower_return / lower_arg above) -- the base implementation has no
-        # copy-insertion at all (correct for Rust/Zig, which don't need
+        # copy-insertion at all (correct for Rust, which doesn't need
         # it), so Mojo needs its own override.
         value = self.lower_arg(node.value)
         return lir.MojoFieldAssign(

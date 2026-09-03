@@ -86,7 +86,7 @@ def test_try_catch_transpiles_to_rust_with_hole():
 
 
 @pytest.mark.parametrize(
-    "target", ["mojo", "rust", "c", "go", "zig", "fortran", "python"]
+    "target", ["mojo", "rust", "c", "fortran", "python"]
 )
 def test_never_refuse_reaches_all_targets(target):
     """One unsupported construct never aborts transpilation to any target."""

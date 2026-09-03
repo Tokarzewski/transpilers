@@ -25,7 +25,7 @@ example:
 examples-all:
     @for src in examples/*; do \
         case "$src" in *.py|*.c|*.cpp|*.java|*.cs|*.ts|*.js|*.f90|*.vb) ;; *) continue ;; esac; \
-        for target in rust zig c mojo go python; do \
+        for target in rust c mojo python fortran; do \
             echo "=== $src -> $target ==="; \
             just transpile $src $target || true; \
         done; \

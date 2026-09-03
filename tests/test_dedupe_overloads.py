@@ -4,7 +4,7 @@ C++ allows overloading by signedness alone (`int` vs `unsigned int`), but
 every backend here maps both to the same target scalar type, so two such
 overloads previously emitted two methods with an *identical* signature in
 the same struct -- a guaranteed duplicate-definition compile error in
-Mojo/Rust/Zig (confirmed against the real Mojo compiler). Found stress-
+Mojo/Rust (confirmed against the real Mojo compiler). Found stress-
 testing against github.com/wassimj/Topologic's `Bitwise::NOT(int)` /
 `Bitwise::NOT(unsigned int)`.
 """

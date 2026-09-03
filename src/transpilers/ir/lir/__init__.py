@@ -1,18 +1,15 @@
 """LIR — target-shaped IR.
 
 Each backend defines its own LIR dialect. Rust LIR has explicit lifetimes and
-Result-based error handling; Zig LIR has error unions; C LIR is flat; Mojo LIR
-distinguishes var/let/fn. Keeping these separate prevents the MIR from
-absorbing target-specific concerns.
+Result-based error handling; C LIR is flat; Mojo LIR distinguishes var/let/fn.
+Keeping these separate prevents the MIR from absorbing target-specific concerns.
 
 For the initial Python -> Rust slice, only the Rust dialect is populated.
 """
 
 from .base import LirNode
 from .rust import *
-from .zig import *
 from .c import *
-from .go import *
 from .mojo import *
 from .py import *
 from .fortran import *
@@ -52,35 +49,6 @@ __all__ = [
     "RustBreak",
     "RustContinue",
     "RustRaw",
-    "ZigFieldAssign",
-    "ZigStructInit",
-    "ZigSubscriptAssign",
-    "ZigModule",
-    "ZigFn",
-    "ZigReturn",
-    "ZigBinOp",
-    "ZigCompare",
-    "ZigBoolOp",
-    "ZigUnary",
-    "ZigName",
-    "ZigIntLiteral",
-    "ZigFloatLiteral",
-    "ZigBoolLiteral",
-    "ZigStringLiteral",
-    "ZigIf",
-    "ZigWhile",
-    "ZigForRange",
-    "ZigVar",
-    "ZigReassign",
-    "ZigArrayLit",
-    "ZigIndex",
-    "ZigMethodCall",
-    "ZigCall",
-    "ZigStruct",
-    "ZigFieldAccess",
-    "ZigBreak",
-    "ZigContinue",
-    "ZigRaw",
     "CFieldAssign",
     "CStructInit",
     "CSubscriptAssign",
@@ -109,32 +77,6 @@ __all__ = [
     "CBreak",
     "CContinue",
     "CRaw",
-    "GoFieldAssign",
-    "GoStructInit",
-    "GoSubscriptAssign",
-    "GoModule",
-    "GoFn",
-    "GoReturn",
-    "GoBinOp",
-    "GoCompare",
-    "GoBoolOp",
-    "GoUnary",
-    "GoName",
-    "GoIntLiteral",
-    "GoFloatLiteral",
-    "GoBoolLiteral",
-    "GoStringLiteral",
-    "GoIf",
-    "GoWhile",
-    "GoForRange",
-    "GoDecl",
-    "GoReassign",
-    "GoCall",
-    "GoStruct",
-    "GoFieldAccess",
-    "GoBreak",
-    "GoContinue",
-    "GoRaw",
     "MojoFieldAssign",
     "MojoStructInit",
     "MojoSubscriptAssign",

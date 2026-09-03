@@ -4,7 +4,6 @@
 // assignment, and method call.
 //
 //   $ transpile examples/classes/point.cpp --target rust   --verify
-//   $ transpile examples/classes/point.cpp --target zig    --verify
 //   $ transpile examples/classes/point.cpp --target c      --verify
 //   $ transpile examples/classes/point.cpp --target go     --verify
 //   $ transpile examples/classes/point.cpp --target mojo   --verify

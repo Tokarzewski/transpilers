@@ -1,8 +1,0 @@
-var a = Array44i.Random()
-print("Here is the array a:")
-print(a)
-print("Here is a.topRows<2>():")
-print(a.topRows[2]())
-a.topRows[2]().setZero()
-print("Now the array a is:")
-print(a)

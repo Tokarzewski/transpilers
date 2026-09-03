@@ -1,7 +1,0 @@
-var a = MatrixXf(2, 3)
-a << (1, 2, 3, 4, 5, 6)
-print("Here is the initial matrix a:")
-print(a)
-a.transposeInPlace()
-print("and after being transposed:")
-print(a)

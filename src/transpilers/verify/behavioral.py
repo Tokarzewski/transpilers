@@ -126,7 +126,7 @@ def classify_divergence(div: Divergence, ret_tag: str) -> str:
     """Categorize a single divergence by likely root cause.
 
     The headline class is the C-family integer-semantics gap: Python's ``%``/
-    ``//`` are *floored* (sign follows the divisor) while Rust/C/Zig/Mojo are
+    ``//`` are *floored* (sign follows the divisor) while Rust/C/Mojo are
     *truncated* (sign follows the dividend). On a negative operand the two
     disagree (``-1 % 2`` → ``1`` vs ``-1``), and the difference is exactly a
     multiple of one of the inputs — the fingerprint we test for here. This is

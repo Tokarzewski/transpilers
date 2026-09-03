@@ -15,8 +15,8 @@ ids and additionally catch renames-with-identical-shape.
 Allowed idiom set (divergences that do NOT fail the check):
 
 * All loop kinds count as one ``loop`` shape — the MIR pass desugars
-  foreach into an indexed range loop, and Zig lowers stepped ranges to an
-  ``init + while`` block; both preserve the nesting tree, which is what we
+  foreach into an indexed range loop, and stepped ranges lower to a
+  transparent ``init + while`` block; both preserve the nesting tree, which is what we
   assert. (Flattening a loop into straight-line code is still caught.)
 * A struct method may surface as a *free function* of the same name —
   Fortran has no type-bound procedures in the supported slice, so methods
@@ -46,7 +46,7 @@ __all__ = [
 
 
 # Longest-first so "Fortran" wins over "For..." typos and "C" comes last.
-_DIALECT_PREFIXES = ("Fortran", "Mojo", "Rust", "Zig", "Go", "Py", "C")
+_DIALECT_PREFIXES = ("Fortran", "Mojo", "Rust", "Py", "C")
 
 # LIR node kinds that open a struct-like item. "Class" is Python's, "Type"
 # is Fortran's (which carries no methods — see allowed idiom set above).
@@ -115,7 +115,7 @@ def _lir_shape(body: list[LirNode]) -> Shape:
         elif kind in ("While", "ForRange"):
             out.append(("loop", _lir_shape(node.body)))
         else:
-            # Transparent statement blocks (e.g. Zig's init+while desugar of a
+            # Transparent statement blocks (the init+while desugar of a
             # stepped range lives in a private block node): splice their items.
             items = getattr(node, "items", None)
             if isinstance(items, list):

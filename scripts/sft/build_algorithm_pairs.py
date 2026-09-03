@@ -208,7 +208,7 @@ def _verify(source: str, source_lang: str, target: str, output: str) -> tuple[st
 def _strip_main(code: str, target: str) -> str:
     """Remove the emitted entry point so the runner can append its own.
 
-    Best-effort: drops a top-level ``fn main`` (Rust/Zig) or ``def main``
+    Best-effort: drops a top-level ``fn main`` (Rust) or ``def main``
     (Python/Mojo) and its braced/indented body. Leaves the named functions
     intact. If no entry point is found the code is returned unchanged.
     """

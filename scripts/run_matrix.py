@@ -32,7 +32,7 @@ WRAP_MAIN = {
 def run_python(path: pathlib.Path) -> tuple[bool, str]:
     # The corpus files define `main()` but don't call it at module scope.
     # Append a top-level call so the reference run produces output to
-    # compare against. The transpilers do this implicitly: Rust/Zig/C/Go
+    # compare against. The transpilers do this implicitly: Rust/C
     # treat `main` as the entry point, Mojo/Python need the explicit call
     # — they pick it up from the Builder's wrapper too.
     src = path.read_text() + "\n\nmain()\n"

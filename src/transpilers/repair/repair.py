@@ -198,7 +198,7 @@ def repair(
     source_lang:
         Language of *source* (e.g. ``"python"``, ``"cpp"``).
     target:
-        Target language (e.g. ``"rust"``, ``"zig"``).
+        Target language (e.g. ``"rust"``, ``"mojo"``).
     llm_client:
         An object with a ``.complete(prompt: str) -> str`` method, or a
         callable that accepts a prompt string and returns a string.

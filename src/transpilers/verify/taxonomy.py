@@ -12,7 +12,7 @@ Buckets (fixed — these strings are reporting keys, do not rename):
   on a construct or type the target can't map). The ``stage`` field records
   where the refusal happened.
 * ``unresolved-symbol``      — a name/function couldn't be resolved, either
-  in-pipeline or by the target compiler (rustc E0425, go ``undefined:``...).
+  in-pipeline or by the target compiler (rustc E0425, gcc ``undefined reference``...).
 * ``unfilled-UnknownT-hole`` — an ``UnknownT`` survived inference and reached
   a target type map ("unresolved type hole").
 * ``type-inference-miss``    — inference *filled* the types but the target
@@ -126,10 +126,9 @@ _SYMBOL_PATTERNS = [
     r"\bE0412\b",  # rustc: name/path/type not found
     r"cannot find (?:function|value|type|macro|struct)",  # rustc prose
     r"undeclared identifier",
-    r"undeclared \(first use",  # zig / gcc
+    r"undeclared \(first use",  # gcc
     r"implicit declaration of function",  # gcc
     r"undefined reference",  # ld
-    r"undefined:",  # go
     r"use of unknown declaration",  # mojo
     r"has no IMPLICIT type",  # gfortran
 ]
@@ -138,8 +137,6 @@ _TYPE_PATTERNS = [
     r"mismatched types",  # rustc
     r"incompatible type",
     r"but argument is of type",  # gcc
-    r"cannot use .+ as .+ value",  # go
-    r"expected type",  # zig
     r"cannot be converted",
     r"invalid conversion",  # mojo
     r"Type mismatch",  # gfortran
@@ -191,9 +188,7 @@ def classify_run(
 
 _COMPILER_BINS = {
     "rust": ("rustc",),
-    "zig": ("zig",),
     "c": ("gcc", "clang", "cc"),
-    "go": ("go",),
     "mojo": ("mojo",),
     "fortran": ("gfortran", "flang"),
     "python": (),  # host interpreter — always available
@@ -201,6 +196,10 @@ _COMPILER_BINS = {
 
 
 def compiler_available(target: str) -> bool:
+    if target == "mojo":
+        from transpilers.verify.mojo import mojo_available
+
+        return mojo_available()
     bins = _COMPILER_BINS.get(target, ())
     return not bins or any(shutil.which(b) for b in bins)
 

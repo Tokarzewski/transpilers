@@ -6,8 +6,8 @@ BoolT, StrT, ListT, NoneT, ...), and returns an ``IrHints`` dict suitable for
 feeding into ``infer_types(..., ir_hints=...)``.
 
 This provides ground-truth typing for Python code that lacks annotations,
-dramatically improving transpilation to statically-typed targets (Rust, Go, C,
-Mojo, Zig, Fortran).
+dramatically improving transpilation to statically-typed targets (Rust, C,
+Mojo, Fortran).
 """
 
 from __future__ import annotations

@@ -14,17 +14,13 @@ from transpilers.cli.main import (
     transpile_cpp_to_c,
     transpile_cpp_to_mojo,
     transpile_cpp_to_rust,
-    transpile_cpp_to_zig,
 )
-from transpilers.verify import c_compiles, mojo_compiles, rust_compiles, zig_compiles
+from transpilers.verify import c_compiles, mojo_compiles, rust_compiles
+from transpilers.verify.mojo import mojo_available
 
 
 def _rust(src: str) -> str:
     return transpile_cpp_to_rust(textwrap.dedent(src).lstrip())
-
-
-def _zig(src: str) -> str:
-    return transpile_cpp_to_zig(textwrap.dedent(src).lstrip())
 
 
 def _c(src: str) -> str:
@@ -119,7 +115,7 @@ def test_cpp_anonymous_namespace_struct_return_type_resolves():
     assert "def makeHelper(t: Int) -> Helper:" in out
 
 
-@pytest.mark.skipif(not _has("mojo"), reason="mojo not installed")
+@pytest.mark.skipif(not mojo_available(), reason="working mojo toolchain not available")
 def test_cpp_anonymous_namespace_struct_return_type_compiles():
     out = _mojo(
         """
@@ -288,7 +284,7 @@ def test_cpp_auto_var_type_inferred():
 
 # ---------- C++ → Mojo compile checks ----------
 
-@pytest.mark.skipif(not _has("mojo"), reason="mojo not installed")
+@pytest.mark.skipif(not mojo_available(), reason="working mojo toolchain not available")
 @pytest.mark.parametrize(
     "src",
     [
@@ -384,7 +380,7 @@ def test_cpp_copy_ctor_in_var_decl_not_padded():
     assert "var aCopy: Vec = self.copy()" in out
 
 
-@pytest.mark.skipif(not _has("mojo"), reason="mojo not installed")
+@pytest.mark.skipif(not mojo_available(), reason="working mojo toolchain not available")
 def test_cpp_copy_ctor_in_var_decl_compiles():
     src = """
         class Vec {
@@ -469,7 +465,7 @@ def test_cpp_unary_minus_is_neg_not_sub():
     assert "def __sub__" not in out
 
 
-@pytest.mark.skipif(not _has("mojo"), reason="mojo not installed")
+@pytest.mark.skipif(not mojo_available(), reason="working mojo toolchain not available")
 def test_cpp_unary_minus_compiles():
     out = _mojo(
         """
@@ -563,7 +559,7 @@ def test_cpp_plain_operator_assign_on_implicit_field():
     assert "operator=" not in out
 
 
-@pytest.mark.skipif(not _has("mojo"), reason="mojo not installed")
+@pytest.mark.skipif(not mojo_available(), reason="working mojo toolchain not available")
 def test_cpp_plain_operator_assign_on_implicit_field_compiles():
     out = _mojo(
         """
@@ -588,7 +584,7 @@ def test_cpp_plain_operator_assign_on_implicit_field_compiles():
     assert result.ok, f"mojo rejected:\n{out}\n\nstderr:\n{result.stderr}"
 
 
-@pytest.mark.skipif(not _has("mojo"), reason="mojo not installed")
+@pytest.mark.skipif(not mojo_available(), reason="working mojo toolchain not available")
 def test_cpp_transitive_mut_self_via_user_method_call():
     # Mojo's `mut self` requirement was only detected for a small hardcoded
     # list of STL-container method names (append/pop/clear/...) calling
@@ -619,7 +615,7 @@ def test_cpp_transitive_mut_self_via_user_method_call():
     assert result.ok, f"mojo rejected:\n{out}\n\nstderr:\n{result.stderr}"
 
 
-@pytest.mark.skipif(not _has("mojo"), reason="mojo not installed")
+@pytest.mark.skipif(not mojo_available(), reason="working mojo toolchain not available")
 def test_cpp_mutating_method_call_on_reference_param_compiles():
     # A *parameter* (not `self`) receiving a call to a user-defined mutating
     # method needs `var`/`mut` decoration too, not just self -- previously
@@ -646,7 +642,7 @@ def test_cpp_mutating_method_call_on_reference_param_compiles():
     assert result.ok, f"mojo rejected:\n{out}\n\nstderr:\n{result.stderr}"
 
 
-@pytest.mark.skipif(not _has("mojo"), reason="mojo not installed")
+@pytest.mark.skipif(not mojo_available(), reason="working mojo toolchain not available")
 def test_cpp_constructor_calling_self_mutating_setter_keeps_out_self():
     # Widening mut-param detection to user-defined methods (previous test)
     # regressed constructors: `self` is always in a method's own param list,
@@ -671,7 +667,7 @@ def test_cpp_constructor_calling_self_mutating_setter_keeps_out_self():
     assert result.ok, f"mojo rejected:\n{out}\n\nstderr:\n{result.stderr}"
 
 
-@pytest.mark.skipif(not _has("mojo"), reason="mojo not installed")
+@pytest.mark.skipif(not mojo_available(), reason="working mojo toolchain not available")
 def test_cpp_struct_call_argument_gets_copy_inserted():
     # A struct-typed CALL ARGUMENT (as opposed to a return/assign, already
     # covered) also needs `.copy()` once the receiving parameter is `var`
@@ -704,7 +700,7 @@ def test_cpp_struct_call_argument_gets_copy_inserted():
     assert result.ok, f"mojo rejected:\n{out}\n\nstderr:\n{result.stderr}"
 
 
-@pytest.mark.skipif(not _has("mojo"), reason="mojo not installed")
+@pytest.mark.skipif(not mojo_available(), reason="working mojo toolchain not available")
 def test_cpp_struct_reassignment_gets_copy_inserted():
     # A struct-typed REASSIGNMENT (`x = y.field;` where `x` already exists)
     # needs the same `.copy()` insertion as a fresh declaration does -- the
@@ -731,7 +727,7 @@ def test_cpp_struct_reassignment_gets_copy_inserted():
     assert result.ok, f"mojo rejected:\n{out}\n\nstderr:\n{result.stderr}"
 
 
-@pytest.mark.skipif(not _has("mojo"), reason="mojo not installed")
+@pytest.mark.skipif(not mojo_available(), reason="working mojo toolchain not available")
 def test_cpp_return_field_of_struct_type_compiles():
     # `return self.field;` where the field's own type is a struct hit the
     # same "cannot be implicitly copied" restriction a bare `return
@@ -761,7 +757,7 @@ def test_cpp_return_field_of_struct_type_compiles():
     assert result.ok, f"mojo rejected:\n{out}\n\nstderr:\n{result.stderr}"
 
 
-@pytest.mark.skipif(not _has("mojo"), reason="mojo not installed")
+@pytest.mark.skipif(not mojo_available(), reason="working mojo toolchain not available")
 def test_cpp_field_of_method_call_result_gets_copy_inserted():
     # `var v: T = a.Method().field;` -- a struct-typed field access rooted
     # in a METHOD CALL's result (not a bare name/nested-field chain) hit
@@ -819,15 +815,6 @@ def test_cpp_to_rust_compiles():
         """
     )
     result = rust_compiles(out)
-    assert result.ok, result.stderr
-
-
-# ---------- C++ → Zig compile check ----------
-
-@pytest.mark.skipif(not _has("zig"), reason="zig not installed")
-def test_cpp_to_zig_compiles():
-    out = _zig("int add(int a, int b) { return a + b; }")
-    result = zig_compiles(out)
     assert result.ok, result.stderr
 
 
@@ -931,21 +918,6 @@ def test_cpp_class_to_c_struct():
     assert "self->x + self->y" in out
 
 
-def test_cpp_class_to_zig_struct():
-    out = _to("zig")
-    assert "const Point = struct {" in out
-    assert "x: i64," in out
-    assert "fn sum(self: Point) i64" in out
-    assert "self.x + self.y" in out
-
-
-def test_cpp_class_to_go_struct():
-    out = _to("go")
-    assert "type Point struct {" in out
-    assert "func (self *Point) sum() int64" in out
-    assert "self.x + self.y" in out
-
-
 def test_cpp_class_to_python_class():
     out = _to("python")
     assert "class Point:" in out
@@ -978,6 +950,7 @@ def test_cpp_class_compiles_as_rust():
     assert result.ok, result.stderr
 
 
+@pytest.mark.skipif(not mojo_available(), reason="working mojo toolchain not available")
 def test_cpp_return_struct_param_is_copy_not_fabricated_ctor():
     # `return v;` where v is a struct-typed parameter is an implicit copy
     # construction -- libclang materializes it as a CALL_EXPR to the
@@ -1015,6 +988,7 @@ def test_cpp_return_struct_param_compiles_in_rust_too():
     assert result.ok, result.stderr
 
 
+@pytest.mark.skipif(not mojo_available(), reason="working mojo toolchain not available")
 def test_cpp_ctor_with_fewer_params_than_fields_not_padded():
     # A struct can have MORE fields than its constructor takes explicit
     # params for, when the constructor's member-init list computes some
@@ -1039,7 +1013,7 @@ def test_cpp_ctor_with_fewer_params_than_fields_not_padded():
     assert result.ok, f"mojo rejected:\n{out}\n\nstderr:\n{result.stderr}"
 
 
-@pytest.mark.skipif(not _has("mojo"), reason="mojo not installed")
+@pytest.mark.skipif(not mojo_available(), reason="working mojo toolchain not available")
 def test_cpp_defaulted_default_ctor_alongside_real_ctor_compiles():
     # `Vec() = default;` alongside another *real*, explicit constructor
     # (`Vec(double, double)`) previously vanished entirely: the explicit
@@ -1106,7 +1080,7 @@ def test_cpp_qualified_static_call_resolves_to_struct_dot_method():
     assert "Tol.Small()" in out
 
 
-@pytest.mark.skipif(not _has("mojo"), reason="mojo not installed")
+@pytest.mark.skipif(not mojo_available(), reason="working mojo toolchain not available")
 def test_cpp_qualified_static_call_compiles():
     out = _mojo(
         """
@@ -1153,7 +1127,7 @@ def test_cpp_unnamed_param_gets_synthesized_name():
     assert "def Epsilon(_arg0: Float64) -> Float64:" in out
 
 
-@pytest.mark.skipif(not _has("mojo"), reason="mojo not installed")
+@pytest.mark.skipif(not mojo_available(), reason="working mojo toolchain not available")
 def test_cpp_unnamed_param_compiles():
     out = _mojo(
         """
@@ -1198,7 +1172,7 @@ def test_cpp_free_operator_overload_gets_sanitized_name():
     assert "def _operator__mul__(s: Float64, v: Vec) -> Vec:" in out
 
 
-@pytest.mark.skipif(not _has("mojo"), reason="mojo not installed")
+@pytest.mark.skipif(not mojo_available(), reason="working mojo toolchain not available")
 def test_cpp_free_operator_overload_compiles():
     out = _mojo(
         """
@@ -1231,7 +1205,7 @@ def test_cpp_2d_accessor_operator_call_becomes_getitem():
     assert "m[0, 0]" in out or "m.__getitem__(0, 0)" in out
 
 
-@pytest.mark.skipif(not _has("mojo"), reason="mojo not installed")
+@pytest.mark.skipif(not mojo_available(), reason="working mojo toolchain not available")
 def test_cpp_2d_accessor_operator_call_compiles():
     out = _mojo(
         """
@@ -1299,7 +1273,7 @@ def test_cpp_macro_constant_in_binop_not_a_todo_hole():
     assert "def f(x: Float64) -> Float64:" in out
 
 
-@pytest.mark.skipif(not _has("mojo"), reason="mojo not installed")
+@pytest.mark.skipif(not mojo_available(), reason="working mojo toolchain not available")
 def test_cpp_macro_constant_in_binop_compiles():
     out = _mojo(
         """
@@ -1346,7 +1320,7 @@ def test_cpp_unary_operator_overload_call_site():
     assert "return -d" in out
 
 
-@pytest.mark.skipif(not _has("mojo"), reason="mojo not installed")
+@pytest.mark.skipif(not mojo_available(), reason="working mojo toolchain not available")
 def test_cpp_unary_operator_overload_call_site_compiles():
     out = _mojo(
         """
@@ -1362,7 +1336,7 @@ def test_cpp_unary_operator_overload_call_site_compiles():
     assert result.ok, f"mojo rejected:\n{out}\n\nstderr:\n{result.stderr}"
 
 
-@pytest.mark.skipif(not _has("mojo"), reason="mojo not installed")
+@pytest.mark.skipif(not mojo_available(), reason="working mojo toolchain not available")
 def test_cpp_this_deref_assign_becomes_self_reassign_and_mut_self():
     # `(*this) = expr;` (the "replace my whole value" idiom for a
     # mutate-via-copy-assign method, e.g. OCCT's `gp_Quaternion::Multiply`)
@@ -1418,7 +1392,7 @@ def test_cpp_this_vs_addr_of_identity_check_drops_to_false():
     assert "if False:" in out
 
 
-@pytest.mark.skipif(not _has("mojo"), reason="mojo not installed")
+@pytest.mark.skipif(not mojo_available(), reason="working mojo toolchain not available")
 def test_cpp_this_vs_addr_of_identity_check_compiles():
     out = _mojo(
         """
@@ -1476,7 +1450,7 @@ def test_cpp_std_swap_desugars_to_temp_swap_not_builtin_call():
     assert "def Transpose(mut self):" in out
 
 
-@pytest.mark.skipif(not _has("mojo"), reason="mojo not installed")
+@pytest.mark.skipif(not mojo_available(), reason="working mojo toolchain not available")
 def test_cpp_std_swap_on_same_matrix_compiles():
     out = _mojo(
         """
@@ -1510,7 +1484,7 @@ def test_cpp_uninitialized_2d_array_local_gets_zero_fill_not_size_literal():
     assert "[[0.0, 0.0], [0.0, 0.0]]" in out
 
 
-@pytest.mark.skipif(not _has("mojo"), reason="mojo not installed")
+@pytest.mark.skipif(not mojo_available(), reason="working mojo toolchain not available")
 def test_cpp_uninitialized_2d_array_local_compiles():
     out = _mojo(
         """

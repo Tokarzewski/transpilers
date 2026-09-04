@@ -18,9 +18,7 @@ import pytest
     [
         ("transpilers.verify.rust", "rust_compiles", "fn f() {}", False),
         ("transpilers.verify.c", "c_compiles", "int f(void) { return 0; }", True),
-        ("transpilers.verify.go", "go_compiles", "package main\nfunc f() {}\n", True),
         ("transpilers.verify.mojo", "mojo_compiles", "def f():\n    pass\n", True),
-        ("transpilers.verify.zig", "zig_compiles", "fn f() void {}", False),
         (
             "transpilers.verify.fortran",
             "fortran_compiles",
@@ -41,8 +39,19 @@ def test_verifier_subprocess_call_has_timeout(
             patch(f"{module_name}.subprocess.run", return_value=fake_result)
         )
         if needs_which:
+            # Gates resolve launch paths through _tool.resolve_tool, so the
+            # PATH lookup happens there — mock it at the source.
             stack.enter_context(
-                patch(f"{module_name}.shutil.which", return_value="/usr/bin/fake-tool")
+                patch(
+                    "transpilers.verify._tool.shutil.which",
+                    return_value="/usr/bin/fake-tool",
+                )
+            )
+        if module_name == "transpilers.verify.mojo":
+            # mojo_available() probes the tool once (cached); the which-mock
+            # above is not enough — force the availability check to pass.
+            stack.enter_context(
+                patch(f"{module_name}.mojo_available", return_value=True)
             )
         fn(source)
 

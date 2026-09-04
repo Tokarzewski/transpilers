@@ -1,8 +1,8 @@
-"""Fortran / Go / VB / Assembly frontends + Go / Python targets.
+"""Fortran / VB / Assembly frontends + Python target.
 
-Closes the original goal list (Fortran, VB) and adds modern targets
-(Go, Python). Assembly is intentionally stubbed — the test verifies the
-refusal includes the architectural explanation."""
+Closes the original goal list (Fortran, VB). Assembly is intentionally
+stubbed — the test verifies the refusal includes the architectural
+explanation."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ import textwrap
 import pytest
 
 from transpilers.cli.main import transpile
-from transpilers.verify import go_compiles, python_compiles, rust_compiles
+from transpilers.verify import python_compiles, rust_compiles
 
 
 def _has(name: str) -> bool:
@@ -99,117 +99,6 @@ def test_fortran_factorial_compiles():
     out = _t("fortran", src)
     result = rust_compiles(out)
     assert result.ok, result.stderr
-
-
-# ---------- Go (source) ----------
-
-
-def test_go_function_to_rust():
-    out = _t(
-        "go",
-        """
-        package main
-        func add(a int64, b int64) int64 {
-            return a + b
-        }
-        """,
-    )
-    assert "fn add(a: i64, b: i64) -> i64" in out
-
-
-def test_go_short_var_declaration():
-    """Go's C-style for desugars at the frontend to init + while — same pattern
-    as C/C++/Java. The target's emitter can re-emerge a for-range if it
-    chooses, but here we're checking the source-side conversion."""
-    out = _t(
-        "go",
-        """
-        package main
-        func sumTo(n int64) int64 {
-            total := int64(0)
-            for i := int64(0); i < n; i++ {
-                total = total + i
-            }
-            return total
-        }
-        """,
-    )
-    assert "let mut total: i64 = 0;" in out
-    assert "while i < n {" in out
-    assert "i += 1;" in out
-
-
-def test_go_while_via_for_cond():
-    """Go's `for cond { }` is our `while`."""
-    out = _t(
-        "go",
-        """
-        package main
-        func factorial(n int64) int64 {
-            var result int64 = 1
-            var i int64 = 1
-            for i <= n {
-                result = result * i
-                i = i + 1
-            }
-            return result
-        }
-        """,
-    )
-    assert "while i <= n {" in out
-
-
-# ---------- Go (target) ----------
-
-
-def test_python_to_go_emission():
-    out = _t(
-        "python",
-        """
-        def add(a: int, b: int) -> int:
-            return a + b
-        """,
-        target="go",
-    )
-    assert "package main" in out
-    assert "func add(a int64, b int64) int64 {" in out
-
-
-def test_python_to_go_for_loop_uses_int64_cast():
-    """Loop var needs `int64(0)` for Go's strict type checks against int64 bounds."""
-    out = _t(
-        "python",
-        """
-        def sum_to(n: int) -> int:
-            total: int = 0
-            for i in range(n):
-                total = total + i
-            return total
-        """,
-        target="go",
-    )
-    assert "for i := int64(0); i < n; i++" in out
-
-
-@pytest.mark.skipif(not _has("go"), reason="go not installed")
-def test_python_to_go_compiles():
-    out = _t(
-        "python",
-        """
-        def factorial(n: int) -> int:
-            result: int = 1
-            i: int = 1
-            while i <= n:
-                result = result * i
-                i = i + 1
-            return result
-        """,
-        target="go",
-    )
-    result = go_compiles(out)
-    assert result.ok, result.stderr
-
-
 # ---------- Python (target) ----------
 
 

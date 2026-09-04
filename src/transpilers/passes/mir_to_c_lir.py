@@ -3,7 +3,7 @@
 C has no mut/const split — every variable is mutable. Mutability inference
 is therefore irrelevant; declarations always emit the bare `<ty> <name> =
 <value>;` form. For-range uses native C syntax. Strings are literals only;
-concat raises (would need allocator-aware emission, same as Zig).
+concat raises (would need allocator-aware emission, as Rust does).
 
 Structure is shared with the other backends via ``_mir_lower_base``; this
 module supplies the C spec plus the `self`-pointer field access, method-name

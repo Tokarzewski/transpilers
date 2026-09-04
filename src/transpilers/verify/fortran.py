@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-import shutil
 import subprocess
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
+
+from transpilers.verify._tool import resolve_tool
 
 
 @dataclass
@@ -15,12 +16,21 @@ class CompileResult:
     stderr: str
 
 
+def _fortran_compiler() -> str | None:
+    # resolve_tool returns the which() absolute path, or the bare name
+    # unchanged when nothing matched — the comparison detects "not found".
+    for name in ("gfortran", "flang"):
+        if (path := resolve_tool(name)) != name:
+            return path
+    return None
+
+
 def fortran_available() -> bool:
-    return shutil.which("gfortran") is not None or shutil.which("flang") is not None
+    return _fortran_compiler() is not None
 
 
 def fortran_compiles(source: str) -> CompileResult:
-    compiler = shutil.which("gfortran") or shutil.which("flang")
+    compiler = _fortran_compiler()
     if compiler is None:
         return CompileResult(ok=False, stderr="no Fortran compiler on PATH")
     with tempfile.TemporaryDirectory() as td:

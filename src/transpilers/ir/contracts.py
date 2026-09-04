@@ -31,7 +31,7 @@ class OverflowBehavior(Enum):
 
     UNSPECIFIED = auto()  # No contract yet — infer or refuse
     WRAP = auto()  # Two's-complement wrapping (Rust wrapping_*, u32/i32)
-    CHECKED = auto()  # Panic / trap on overflow (Rust debug, Zig)
+    CHECKED = auto()  # Panic / trap on overflow (Rust debug builds)
     SATURATE = auto()  # Clamp to min/max (Rust saturating_*)
     ARBITRARY = auto()  # Python-style arbitrary precision (never overflows)
 

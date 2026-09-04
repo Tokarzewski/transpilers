@@ -1,0 +1,278 @@
+{
+  "strict": [
+    {
+      "file": "Bitwise.cpp",
+      "ok": false,
+      "stage": "strict",
+      "err": "libclang parse errors:",
+      "bucket": "occt-external-type"
+    },
+    {
+      "file": "DoubleAttribute.cpp",
+      "ok": false,
+      "stage": "strict",
+      "err": "libclang parse errors:",
+      "bucket": "occt-external-type"
+    },
+    {
+      "file": "IntAttribute.cpp",
+      "ok": false,
+      "stage": "strict",
+      "err": "libclang parse errors:",
+      "bucket": "occt-external-type"
+    },
+    {
+      "file": "StringAttribute.cpp",
+      "ok": false,
+      "stage": "strict",
+      "err": "libclang parse errors:",
+      "bucket": "occt-external-type"
+    },
+    {
+      "file": "ListAttribute.cpp",
+      "ok": false,
+      "stage": "strict",
+      "err": "libclang parse errors:",
+      "bucket": "occt-external-type"
+    },
+    {
+      "file": "Dictionary.cpp",
+      "ok": false,
+      "stage": "strict",
+      "err": "libclang parse errors:",
+      "bucket": "occt-external-type"
+    },
+    {
+      "file": "Context.cpp",
+      "ok": false,
+      "stage": "strict",
+      "err": "libclang parse errors:",
+      "bucket": "occt-external-type"
+    },
+    {
+      "file": "Geometry.cpp",
+      "ok": false,
+      "stage": "strict",
+      "err": "libclang parse errors:",
+      "bucket": "occt-external-type"
+    },
+    {
+      "file": "Line.cpp",
+      "ok": false,
+      "stage": "strict",
+      "err": "libclang parse errors:",
+      "bucket": "occt-external-type"
+    },
+    {
+      "file": "Surface.cpp",
+      "ok": false,
+      "stage": "strict",
+      "err": "libclang parse errors:",
+      "bucket": "occt-external-type"
+    },
+    {
+      "file": "Vertex.cpp",
+      "ok": false,
+      "stage": "strict",
+      "err": "libclang parse errors:",
+      "bucket": "occt-external-type"
+    },
+    {
+      "file": "Edge.cpp",
+      "ok": false,
+      "stage": "strict",
+      "err": "libclang parse errors:",
+      "bucket": "occt-external-type"
+    },
+    {
+      "file": "Wire.cpp",
+      "ok": false,
+      "stage": "strict",
+      "err": "libclang parse errors:",
+      "bucket": "occt-external-type"
+    },
+    {
+      "file": "Face.cpp",
+      "ok": false,
+      "stage": "strict",
+      "err": "libclang parse errors:",
+      "bucket": "occt-external-type"
+    },
+    {
+      "file": "Shell.cpp",
+      "ok": false,
+      "stage": "strict",
+      "err": "libclang parse errors:",
+      "bucket": "occt-external-type"
+    },
+    {
+      "file": "Cell.cpp",
+      "ok": false,
+      "stage": "strict",
+      "err": "libclang parse errors:",
+      "bucket": "occt-external-type"
+    },
+    {
+      "file": "Cluster.cpp",
+      "ok": false,
+      "stage": "strict",
+      "err": "libclang parse errors:",
+      "bucket": "occt-external-type"
+    }
+  ],
+  "lift": [
+    {
+      "file": "Bitwise.cpp",
+      "nodes": 43,
+      "todo": 0,
+      "coverage_pct": 100.0,
+      "stub_categories": {},
+      "lines": 39
+    },
+    {
+      "file": "DoubleAttribute.cpp",
+      "nodes": 20,
+      "todo": 0,
+      "coverage_pct": 100.0,
+      "stub_categories": {},
+      "lines": 35
+    },
+    {
+      "file": "IntAttribute.cpp",
+      "nodes": 20,
+      "todo": 0,
+      "coverage_pct": 100.0,
+      "stub_categories": {},
+      "lines": 35
+    },
+    {
+      "file": "StringAttribute.cpp",
+      "nodes": 15,
+      "todo": 0,
+      "coverage_pct": 100.0,
+      "stub_categories": {},
+      "lines": 35
+    },
+    {
+      "file": "ListAttribute.cpp",
+      "nodes": 15,
+      "todo": 0,
+      "coverage_pct": 100.0,
+      "stub_categories": {},
+      "lines": 35
+    },
+    {
+      "file": "Dictionary.cpp",
+      "nodes": 150,
+      "todo": 1,
+      "coverage_pct": 99.3,
+      "stub_categories": {},
+      "lines": 94
+    },
+    {
+      "file": "Context.cpp",
+      "nodes": 46,
+      "todo": 0,
+      "coverage_pct": 100.0,
+      "stub_categories": {},
+      "lines": 81
+    },
+    {
+      "file": "Geometry.cpp",
+      "nodes": 12,
+      "todo": 0,
+      "coverage_pct": 100.0,
+      "stub_categories": {},
+      "lines": 18
+    },
+    {
+      "file": "Line.cpp",
+      "nodes": 13,
+      "todo": 0,
+      "coverage_pct": 100.0,
+      "stub_categories": {},
+      "lines": 25
+    },
+    {
+      "file": "Surface.cpp",
+      "nodes": 12,
+      "todo": 0,
+      "coverage_pct": 100.0,
+      "stub_categories": {},
+      "lines": 22
+    },
+    {
+      "file": "Vertex.cpp",
+      "nodes": 248,
+      "todo": 1,
+      "coverage_pct": 99.6,
+      "stub_categories": {
+        "other": 1
+      },
+      "lines": 343
+    },
+    {
+      "file": "Edge.cpp",
+      "nodes": 342,
+      "todo": 3,
+      "coverage_pct": 99.1,
+      "stub_categories": {
+        "other": 3
+      },
+      "lines": 397
+    },
+    {
+      "file": "Wire.cpp",
+      "nodes": 211,
+      "todo": 2,
+      "coverage_pct": 99.1,
+      "stub_categories": {
+        "other": 2
+      },
+      "lines": 269
+    },
+    {
+      "file": "Face.cpp",
+      "nodes": 478,
+      "todo": 1,
+      "coverage_pct": 99.8,
+      "stub_categories": {
+        "other": 1
+      },
+      "lines": 451
+    },
+    {
+      "file": "Shell.cpp",
+      "nodes": 206,
+      "todo": 1,
+      "coverage_pct": 99.5,
+      "stub_categories": {
+        "other": 1
+      },
+      "lines": 307
+    },
+    {
+      "file": "Cell.cpp",
+      "nodes": 395,
+      "todo": 2,
+      "coverage_pct": 99.5,
+      "stub_categories": {
+        "other": 2
+      },
+      "lines": 421
+    },
+    {
+      "file": "Cluster.cpp",
+      "nodes": 292,
+      "todo": 3,
+      "coverage_pct": 99.0,
+      "stub_categories": {
+        "other": 3
+      },
+      "lines": 369
+    }
+  ],
+  "strict_buckets": {
+    "occt-external-type": 17
+  }
+}

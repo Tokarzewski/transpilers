@@ -61,7 +61,7 @@ def copy_provenance(lir_node: lir.LirNode, mir_node: mir.MirNode) -> lir.LirNode
 # --------------------------------------------------------------------------- #
 #
 # These walk the nested statement structure (if / while / for-range bodies)
-# the same way in every target. They were copy-pasted across rust/zig/mojo;
+# the same way in every target. They were copy-pasted across rust/mojo;
 # this is the single source of truth.
 
 
@@ -254,7 +254,7 @@ class MirLoweringBase:
 
     def lower_params(self, fn: mir.MirFunction):
         """Default: ``(name, type)`` tuples. Targets that decorate params
-        (rust `mut`, zig const-shadowing, mojo `var`/`mut`) override."""
+        (rust `mut`, mojo `var`/`mut`) override."""
         return [(p.name, self.type_str(p.ty)) for p in fn.params]
 
     def return_type(self, fn: mir.MirFunction):

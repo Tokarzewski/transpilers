@@ -10,6 +10,8 @@ import textwrap
 
 import pytest
 
+from transpilers.verify.mojo import mojo_available
+
 from transpilers.cli.main import transpile_python_to_mojo
 from transpilers.frontends.errors import UnsupportedConstruct
 from transpilers.verify import mojo_compiles
@@ -328,6 +330,7 @@ def test_mojo_zip_refused():
         """,
     ],
 )
+@pytest.mark.skipif(not mojo_available(), reason="working mojo toolchain not available")
 def test_python_to_mojo_compiles(src: str):
     out = _m(src)
     result = mojo_compiles(out)

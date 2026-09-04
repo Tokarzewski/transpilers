@@ -78,7 +78,7 @@ def categorise(error_msg: str) -> str:
 
 EXT_MAP = {
     "c": "c", "cpp": "cpp", "cs": "csharp", "f90": "fortran",
-    "go": "go", "java": "java", "js": "javascript", "py": "python",
+    "java": "java", "js": "javascript", "py": "python",
     "ts": "typescript", "vb": "vb",
 }
 
@@ -283,7 +283,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("root", type=Path, help="Directory containing source files.")
     parser.add_argument("--target", default="python", choices=[
-        "rust", "zig", "c", "mojo", "go", "python", "fortran"
+        "rust", "c", "mojo", "python", "fortran"
     ])
     parser.add_argument("--repair-passes", type=int, default=2,
                         help="LLM repair iterations per failure category (default: 2).")

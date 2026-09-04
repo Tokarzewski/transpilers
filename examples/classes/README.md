@@ -8,7 +8,7 @@ this subset because libclang's AST exposes the explicit `class` shape.
 ## Try it
 
 ```sh
-for tgt in rust zig c go mojo python fortran; do
+for tgt in rust c mojo python fortran; do
     just transpile examples/classes/point.cpp $tgt
 done
 ```
@@ -19,9 +19,7 @@ shared; the per-target LIRs handle the syntactic differences:
 | Target | Struct emission | Field access | Method receiver | Construction |
 |--------|----------------|--------------|-----------------|--------------|
 | Rust | `struct` + `impl` | `.` | `&self` | `Point { x: 0, y: 0 }` |
-| Zig | `const T = struct {...}` | `.` | `self: T` | `Point{ .x = 0, .y = 0 }` |
 | C | `typedef struct {...} T` | `->` (self) / `.` | `T *self` | `(Point){.x = 0, .y = 0}` |
-| Go | `type T struct {...}` | `.` | `*T` receiver | `Point{x: 0, y: 0}` |
 | Mojo | `@fieldwise_init struct T(Copyable, Movable)` | `.` | `self` | `Point(0, 0)` |
 | Python | `@dataclass class T` | `.` | `self` | `Point(0, 0)` |
 | Fortran | `type :: T ... end type T` in a module | `%` | `type(T), intent(in)` | `Point(0, 0)` |

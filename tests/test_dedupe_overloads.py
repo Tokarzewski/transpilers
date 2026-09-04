@@ -4,17 +4,18 @@ C++ allows overloading by signedness alone (`int` vs `unsigned int`), but
 every backend here maps both to the same target scalar type, so two such
 overloads previously emitted two methods with an *identical* signature in
 the same struct -- a guaranteed duplicate-definition compile error in
-Mojo/Rust/Zig (confirmed against the real Mojo compiler). Found stress-
+Mojo/Rust (confirmed against the real Mojo compiler). Found stress-
 testing against github.com/wassimj/Topologic's `Bitwise::NOT(int)` /
 `Bitwise::NOT(unsigned int)`.
 """
 
 from __future__ import annotations
 
-import shutil
 import textwrap
 
 import pytest
+
+from transpilers.verify.mojo import mojo_available
 
 from transpilers.cli.main import transpile_cpp_to_mojo, transpile_cpp_to_rust
 from transpilers.verify import mojo_compiles, rust_compiles
@@ -47,7 +48,7 @@ def test_signedness_overload_renamed_not_duplicated():
     assert out.count("def NOT(") == 1
 
 
-@pytest.mark.skipif(shutil.which("mojo") is None, reason="mojo not installed")
+@pytest.mark.skipif(not mojo_available(), reason="working mojo toolchain not available")
 def test_signedness_overload_mojo_actually_compiles():
     out = _mojo(_SIGNEDNESS_OVERLOAD_SRC)
     result = mojo_compiles(out)

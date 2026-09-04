@@ -1,7 +1,7 @@
 """End-to-end CLI: source file in, target source out, verified.
 
 Usage:
-    transpile <source> [--source python|c] [--target rust|zig]
+    transpile <source> [--source python|c] [--target rust|mojo]
                        [--verify] [--fidelity structural|idiomatic]
                        [--infer-with-llm]
 
@@ -62,24 +62,8 @@ def transpile_python_to_rust(
     )
 
 
-def transpile_python_to_zig(
-    source: str, *, llm_fill=None, trace_types_hints=None
-) -> str:
-    return transpile(
-        source,
-        source_lang="python",
-        target="zig",
-        llm_fill=llm_fill,
-        trace_types_hints=trace_types_hints,
-    )
-
-
 def transpile_c_to_rust(source: str, *, llm_fill=None) -> str:
     return transpile(source, source_lang="c", target="rust", llm_fill=llm_fill)
-
-
-def transpile_c_to_zig(source: str, *, llm_fill=None) -> str:
-    return transpile(source, source_lang="c", target="zig", llm_fill=llm_fill)
 
 
 def transpile_python_to_c(source: str, *, llm_fill=None, trace_types_hints=None) -> str:
@@ -120,10 +104,6 @@ def transpile_cpp_to_rust(source: str, *, llm_fill=None) -> str:
     return transpile(source, source_lang="cpp", target="rust", llm_fill=llm_fill)
 
 
-def transpile_cpp_to_zig(source: str, *, llm_fill=None) -> str:
-    return transpile(source, source_lang="cpp", target="zig", llm_fill=llm_fill)
-
-
 def transpile_cpp_to_c(source: str, *, llm_fill=None) -> str:
     return transpile(source, source_lang="cpp", target="c", llm_fill=llm_fill)
 
@@ -138,7 +118,7 @@ def transpile_cpp_via_python(
     """Python-as-pivot: C++ → Python (stage 1), Python → <target> (stage 2).
 
     Returns (python_pivot, final_output) for any supported target (mojo, rust,
-    c, zig, go, fortran, python).
+    c, fortran, python).
 
     Routing through Python as a shared IR — the "Python-as-pivot" path
     validated by the CodePivot paper (arXiv:2604.18027) — replaces N×M direct

@@ -1,7 +1,7 @@
 [project]
 name = "transpilers"
 version = "0.0.1"
-description = "Hybrid algorithmic + LLM source-to-source transpiler. N-to-M across Fortran/C/C++/VB/Python and Rust/Zig/C/Mojo."
+description = "Hybrid algorithmic + LLM source-to-source transpiler. N-to-M across Fortran/C/C++/VB/Python and Rust/C/Mojo."
 requires-python = ">=3.14"
 dependencies = [
     "libcst>=1.8.6",
@@ -14,7 +14,6 @@ dependencies = [
     "tree-sitter-typescript>=0.23.2",
     "tree-sitter-javascript>=0.25.0",
     "tree-sitter-fortran>=0.6.0",
-    "tree-sitter-go>=0.25.0",
     "pyghidra>=3.1.0",
     "libclang>=18.1.1",
     "openrouter>=0.10.0",

@@ -3,8 +3,8 @@
 C++ allows overloading by signedness alone (`int` vs `unsigned int`), but
 every backend here maps both to the same target scalar type (Mojo/Rust
 `Int`/`i64`, ...) -- so two such overloads emit two methods/functions with
-an *identical* signature in the same struct/module, which Mojo, Rust and
-Zig all reject as a duplicate definition (none of them support overloading
+an *identical* signature in the same struct/module, which Mojo and Rust
+both reject as a duplicate definition (neither supports overloading
 by signedness either). Found stress-testing against a real-world corpus
 (github.com/wassimj/Topologic, issue #79/#80): `Bitwise::NOT(int)` and
 `Bitwise::NOT(unsigned int)`.

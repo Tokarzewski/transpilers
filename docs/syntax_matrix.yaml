@@ -8,9 +8,7 @@ constructs:
     python:  "def f(x: int) -> int: ..."
     mojo:    "fn f(x: Int) -> Int: ..."
     rust:    "fn f(x: i64) -> i64 { ... }"
-    zig:     "fn f(x: i64) i64 { ... }"
     c:       "int f(int x) { return x + 1; }"
-    go:      "func f(x int64) int64 { ... }"
     fortran: "function f(x) result(r)\n  integer :: x, r\nend function"
 
   - concept: "for_range_loop"
@@ -18,9 +16,7 @@ constructs:
     python:  "for i in range(n): ..."
     mojo:    "for i in range(n): ..."
     rust:    "for i in 0..n { ... }"
-    zig:     "var i: usize = 0; while (i < n) : (i += 1) { ... }"
     c:       "for (int i = 0; i < n; i++) { ... }"
-    go:      "for i := 0; i < n; i++ { ... }"
     fortran: "do i = 1, n\n  ...\nend do"
 
   - concept: "while_loop"
@@ -28,9 +24,7 @@ constructs:
     python:  "while cond: ..."
     mojo:    "while cond: ..."
     rust:    "while cond { ... }"
-    zig:     "while (cond) { ... }"
     c:       "while (cond) { ... }"
-    go:      "for cond { ... }"
     fortran: "do while (cond)\n  ...\nend do"
 
   - concept: "if_elif_else"
@@ -38,9 +32,7 @@ constructs:
     python:  "if a:\n  ...\nelif b:\n  ...\nelse:\n  ..."
     mojo:    "if a:\n  ...\nelif b:\n  ...\nelse:\n  ..."
     rust:    "if a { ... } else if b { ... } else { ... }"
-    zig:     "if (a) { ... } else if (b) { ... } else { ... }"
     c:       "if (a) { ... } else if (b) { ... } else { ... }"
-    go:      "if a { ... } else if b { ... } else { ... }"
     fortran: "if (a) then\n  ...\nelse if (b) then\n  ...\nelse\n  ...\nend if"
 
   - concept: "variable_declaration"
@@ -48,9 +40,7 @@ constructs:
     python:  "x: int = 42"
     mojo:    "var x: Int = 42"
     rust:    "let x: i64 = 42;"
-    zig:     "var x: i64 = 42;"
     c:       "int x = 42;"
-    go:      "var x int64 = 42"
     fortran: "integer :: x\nx = 42"
 
   - concept: "mutable_variable"
@@ -58,9 +48,7 @@ constructs:
     python:  "x: int = 0\nx = 1"
     mojo:    "var x: Int = 0\nx = 1"
     rust:    "let mut x: i64 = 0;\nx = 1;"
-    zig:     "var x: i64 = 0;\nx = 1;"
     c:       "int x = 0;\nx = 1;"
-    go:      "x := 0\nx = 1"
     fortran: "integer :: x\nx = 0\nx = 1"
 
   - concept: "immutable_variable"
@@ -68,9 +56,7 @@ constructs:
     python:  "X: Final[int] = 42"
     mojo:    "let x: Int = 42"
     rust:    "let x: i64 = 42;"
-    zig:     "const x: i64 = 42;"
     c:       "const int x = 42;"
-    go:      "const x int64 = 42"
     fortran: "integer, parameter :: x = 42"
 
   - concept: "list_create"
@@ -78,9 +64,7 @@ constructs:
     python:  "v: list[int] = [1, 2, 3]"
     mojo:    "var v = DynamicVector[Int]()"
     rust:    "let v: Vec<i64> = vec![1, 2, 3];"
-    zig:     "var v = std.ArrayList(i64).init(allocator);"
     c:       "int v[] = {1, 2, 3};"
-    go:      "v := []int64{1, 2, 3}"
     fortran: "integer, allocatable :: v(:)\nallocate(v(3))\nv = [1, 2, 3]"
 
   - concept: "list_append"
@@ -88,9 +72,7 @@ constructs:
     python:  "v.append(x)"
     mojo:    "v.push_back(x)"
     rust:    "v.push(x);"
-    zig:     "try v.append(x);"
     c:       "v[len++] = x;  /* manual */"
-    go:      "v = append(v, x)"
     fortran: "v = [v, x]  ! or RESHAPE"
 
   - concept: "list_index"
@@ -98,9 +80,7 @@ constructs:
     python:  "v[i]"
     mojo:    "v[i]"
     rust:    "v[i]"
-    zig:     "v.items[i]"
     c:       "v[i]"
-    go:      "v[i]"
     fortran: "v(i+1)  ! 1-indexed"
 
   - concept: "return_statement"
@@ -108,9 +88,7 @@ constructs:
     python:  "return x"
     mojo:    "return x"
     rust:    "return x;  // or trailing expr"
-    zig:     "return x;"
     c:       "return x;"
-    go:      "return x"
     fortran: "r = x  ! assign result variable"
 
   - concept: "print_int"
@@ -118,9 +96,7 @@ constructs:
     python:  "print(x)"
     mojo:    "print(x)"
     rust:    "println!(\"{}\", x);"
-    zig:     "std.debug.print(\"{}\\n\", .{x});"
     c:       "printf(\"%d\\n\", x);"
-    go:      "fmt.Println(x)"
     fortran: "print *, x"
 
   - concept: "print_string"
@@ -128,9 +104,7 @@ constructs:
     python:  "print(s)"
     mojo:    "print(s)"
     rust:    "println!(\"{}\", s);"
-    zig:     "std.debug.print(\"{}\\n\", .{s});"
     c:       "printf(\"%s\\n\", s);"
-    go:      "fmt.Println(s)"
     fortran: "print *, s"
 
   - concept: "struct_definition"
@@ -138,9 +112,7 @@ constructs:
     python:  "from dataclasses import dataclass\n@dataclass\nclass Point:\n  x: int\n  y: int"
     mojo:    "struct Point:\n  var x: Int\n  var y: Int"
     rust:    "struct Point { x: i64, y: i64 }"
-    zig:     "const Point = struct { x: i64, y: i64 };"
     c:       "typedef struct { int x; int y; } Point;"
-    go:      "type Point struct { X int64; Y int64 }"
     fortran: "type :: Point\n  integer :: x, y\nend type Point"
 
   - concept: "struct_instantiation"
@@ -148,9 +120,7 @@ constructs:
     python:  "p = Point(x=1, y=2)"
     mojo:    "var p = Point(1, 2)"
     rust:    "let p = Point { x: 1, y: 2 };"
-    zig:     "const p = Point{ .x = 1, .y = 2 };"
     c:       "Point p = {1, 2};"
-    go:      "p := Point{X: 1, Y: 2}"
     fortran: "type(Point) :: p\np%x = 1; p%y = 2"
 
   - concept: "method_definition"
@@ -158,9 +128,7 @@ constructs:
     python:  "class Foo:\n  def bar(self, x: int) -> int:\n    return x"
     mojo:    "struct Foo:\n  fn bar(self, x: Int) -> Int:\n    return x"
     rust:    "impl Foo {\n  fn bar(&self, x: i64) -> i64 { x }\n}"
-    zig:     "fn bar(self: Foo, x: i64) i64 { return x; }"
     c:       "int Foo_bar(Foo* self, int x) { return x; }"
-    go:      "func (f Foo) Bar(x int64) int64 { return x }"
     fortran: "contains\n  function bar(self, x) result(r)\n    type(Foo) :: self\n    integer :: x, r\n    r = x\n  end function"
 
   - concept: "logical_and"
@@ -168,9 +136,7 @@ constructs:
     python:  "a and b"
     mojo:    "a and b"
     rust:    "a && b"
-    zig:     "a and b"
     c:       "a && b"
-    go:      "a && b"
     fortran: "a .and. b"
 
   - concept: "logical_or"
@@ -178,9 +144,7 @@ constructs:
     python:  "a or b"
     mojo:    "a or b"
     rust:    "a || b"
-    zig:     "a or b"
     c:       "a || b"
-    go:      "a || b"
     fortran: "a .or. b"
 
   - concept: "integer_division"
@@ -188,9 +152,7 @@ constructs:
     python:  "a // b  # floor division"
     mojo:    "a // b"
     rust:    "a / b  // truncates toward zero"
-    zig:     "@divTrunc(a, b)"
     c:       "a / b"
-    go:      "a / b"
     fortran: "a / b  ! integer division"
 
   - concept: "modulo"
@@ -198,9 +160,7 @@ constructs:
     python:  "a % b"
     mojo:    "a % b"
     rust:    "a % b"
-    zig:     "@rem(a, b)"
     c:       "a % b"
-    go:      "a % b"
     fortran: "mod(a, b)"
 
   - concept: "bitwise_and_or_xor"
@@ -208,9 +168,7 @@ constructs:
     python:  "a & b  |  a | b  |  a ^ b"
     mojo:    "a & b  |  a | b  |  a ^ b"
     rust:    "a & b  |  a | b  |  a ^ b"
-    zig:     "a & b  |  a | b  |  a ^ b"
     c:       "a & b  |  a | b  |  a ^ b"
-    go:      "a & b  |  a | b  |  a ^ b"
     fortran: "iand(a,b)  |  ior(a,b)  |  ieor(a,b)"
 
   - concept: "string_concat"
@@ -218,9 +176,7 @@ constructs:
     python:  "s1 + s2"
     mojo:    "s1 + s2"
     rust:    "format!(\"{}{}\", s1, s2)  // or s1.to_owned() + &s2"
-    zig:     "try std.fmt.allocPrint(alloc, \"{s}{s}\", .{s1, s2})"
     c:       "strcat(buf, s2);  // manual"
-    go:      "s1 + s2"
     fortran: "trim(s1) // trim(s2)"
 
   - concept: "string_length"
@@ -228,9 +184,7 @@ constructs:
     python:  "len(s)"
     mojo:    "len(s)"
     rust:    "s.len()"
-    zig:     "s.len"
     c:       "strlen(s)"
-    go:      "len(s)"
     fortran: "len_trim(s)"
 
   - concept: "string_to_int"
@@ -238,9 +192,7 @@ constructs:
     python:  "int(s)"
     mojo:    "atol(s)"
     rust:    "s.parse::<i64>().unwrap()"
-    zig:     "try std.fmt.parseInt(i64, s, 10)"
     c:       "atoi(s)"
-    go:      "strconv.Atoi(s)"
     fortran: "read(s, *) i"
 
   - concept: "int_to_string"
@@ -248,9 +200,7 @@ constructs:
     python:  "str(n)"
     mojo:    "String(n)"
     rust:    "n.to_string()"
-    zig:     "try std.fmt.allocPrint(alloc, \"{d}\", .{n})"
     c:       "sprintf(buf, \"%d\", n);"
-    go:      "strconv.Itoa(n)"
     fortran: "write(s, '(I0)') n"
 
   - concept: "null_check"
@@ -258,9 +208,7 @@ constructs:
     python:  "if x is not None: ..."
     mojo:    "if x:  # Optional check"
     rust:    "if let Some(v) = opt { ... }"
-    zig:     "if (ptr) |v| { ... }"
     c:       "if (ptr != NULL) { ... }"
-    go:      "if v != nil { ... }"
     fortran: "! No native null; check associated(ptr)"
 
   - concept: "early_return"
@@ -268,9 +216,7 @@ constructs:
     python:  "if err:\n  return -1"
     mojo:    "if err:\n  return -1"
     rust:    "if err { return Err(e); }"
-    zig:     "if (err) return error.Fail;"
     c:       "if (err) return -1;"
-    go:      "if err != nil { return err }"
     fortran: "if (err /= 0) return"
 
   - concept: "break_continue"
@@ -278,9 +224,7 @@ constructs:
     python:  "break  /  continue"
     mojo:    "break  /  continue"
     rust:    "break;  /  continue;"
-    zig:     "break;  /  continue;"
     c:       "break;  /  continue;"
-    go:      "break  /  continue"
     fortran: "exit  /  cycle"
 
   - concept: "ternary_expression"
@@ -288,9 +232,7 @@ constructs:
     python:  "a if cond else b"
     mojo:    "a if cond else b"
     rust:    "if cond { a } else { b }"
-    zig:     "if (cond) a else b"
     c:       "cond ? a : b"
-    go:      "// no ternary; use if/else"
     fortran: "merge(a, b, cond)"
 
   - concept: "exception_handling"
@@ -298,7 +240,5 @@ constructs:
     python:  "try:\n  ...\nexcept Exception as e:\n  ..."
     mojo:    "# Not yet supported; use Result pattern"
     rust:    "match risky() { Ok(v) => v, Err(e) => ... }"
-    zig:     "risky() catch |err| { ... }"
     c:       "// No exceptions; use return codes"
-    go:      "v, err := risky()\nif err != nil { ... }"
     fortran: "! No exceptions; use IOSTAT/STAT clauses"

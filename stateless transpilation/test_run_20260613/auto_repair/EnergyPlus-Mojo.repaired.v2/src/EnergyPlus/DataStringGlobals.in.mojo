@@ -1,4 +1,0 @@
-let VerString: String = "EnergyPlus, Version ${CMAKE_VERSION_MAJOR}.${CMAKE_VERSION_MINOR}.${CMAKE_VERSION_PATCH}-${CMAKE_VERSION_BUILD}"
-let MatchVersion: String = "${CMAKE_VERSION_MAJOR}.${CMAKE_VERSION_MINOR}"
-let PythonAPIVersion: String = "${PYTHON_API_VERSION_MAJOR}.${PYTHON_API_VERSION_MINOR}"
-let BuildPlatformString: String = "${BUILD_PLATFORM_STRING}"

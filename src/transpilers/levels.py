@@ -308,7 +308,6 @@ def main() -> None:
                 "mojo": ".mojo",
                 "python": ".py",
                 "rust": ".rs",
-                "zig": ".zig",
                 "c": ".c",
             }.get(args.target, ".txt")
             open(os.path.join(args.emit_dir, f"{r.origin}.{r.label}{ext}"), "w").write(

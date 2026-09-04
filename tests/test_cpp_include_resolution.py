@@ -12,10 +12,11 @@ with no -I is byte-for-byte the old behavior).
 
 from __future__ import annotations
 
-import shutil
 import textwrap
 
 import pytest
+
+from transpilers.verify.mojo import mojo_available
 
 from transpilers.cli.main import main
 from transpilers.frontends.cpp.parser.includes import resolve_local_includes
@@ -310,7 +311,7 @@ def test_resolve_local_includes_impls_do_not_reintroduce_entry_point(tmp_path):
     assert out.count("Dir::Dir(double x) : myX(x)") == 1
 
 
-@pytest.mark.skipif(shutil.which("mojo") is None, reason="mojo not installed")
+@pytest.mark.skipif(not mojo_available(), reason="working mojo toolchain not available")
 def test_cli_include_impls_resolves_cross_file_method_call(tmp_path, capsys):
     # Without --include-impls, `Value()` is declared-but-not-defined from
     # this translation unit's point of view (its real body lives in

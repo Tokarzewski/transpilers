@@ -7,6 +7,8 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
+from transpilers.verify._tool import resolve_tool
+
 
 @dataclass
 class CompileResult:
@@ -20,7 +22,7 @@ def rust_compiles(source: str) -> CompileResult:
         src.write_text(source)
         out = subprocess.run(
             [
-                "rustc",
+                resolve_tool("rustc"),
                 "--crate-type",
                 "lib",
                 "--edition",

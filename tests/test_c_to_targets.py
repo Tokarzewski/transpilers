@@ -9,16 +9,12 @@ import textwrap
 
 import pytest
 
-from transpilers.cli.main import transpile_c_to_rust, transpile_c_to_zig
-from transpilers.verify import rust_compiles, zig_compiles
+from transpilers.cli.main import transpile_c_to_rust
+from transpilers.verify import rust_compiles
 
 
 def _rust(src: str) -> str:
     return transpile_c_to_rust(textwrap.dedent(src).lstrip())
-
-
-def _zig(src: str) -> str:
-    return transpile_c_to_zig(textwrap.dedent(src).lstrip())
 
 
 # ---------- shape ----------
@@ -154,39 +150,6 @@ def test_c_to_rust_compiles(src: str):
     out = _rust(src)
     result = rust_compiles(out)
     assert result.ok, f"rustc rejected:\n{out}\n\nstderr:\n{result.stderr}"
-
-
-@pytest.mark.skipif(shutil.which("zig") is None, reason="zig not installed")
-@pytest.mark.parametrize(
-    "src",
-    [
-        "int add(int a, int b) { return a + b; }",
-        """
-        int factorial(int n) {
-            int result = 1;
-            int i = 1;
-            while (i <= n) {
-                result = result * i;
-                i = i + 1;
-            }
-            return result;
-        }
-        """,
-        """
-        int sum_to(int n) {
-            int total = 0;
-            for (int i = 0; i < n; i++) {
-                total = total + i;
-            }
-            return total;
-        }
-        """,
-    ],
-)
-def test_c_to_zig_compiles(src: str):
-    out = _zig(src)
-    result = zig_compiles(out)
-    assert result.ok, f"zig rejected:\n{out}\n\nstderr:\n{result.stderr}"
 
 
 # ---------- cross-frontend: inference works for C too ----------

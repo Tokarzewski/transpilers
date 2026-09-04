@@ -1,8 +1,0 @@
-var A = MatrixXcf.Random(4,4)
-var schur = ComplexSchur[MatrixXcf](4)
-schur.compute(A)
-print("The matrix T in the decomposition of A is:")
-print(schur.matrixT())
-schur.compute(A.inverse())
-print("The matrix T in the decomposition of A^(-1) is:")
-print(schur.matrixT())

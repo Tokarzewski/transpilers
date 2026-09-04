@@ -4,13 +4,15 @@ These tests pin down the behaviour added by the preprocessor and the
 ``cpp_ground_truth`` MIR pass: macros are expanded, libclang gives
 us resolved types, and the HIR->MIR hole-filling picks them up.
 """
+
 from __future__ import annotations
 
-
+import pytest
 
 from transpilers.frontends.cpp.parser import parse_cpp
 from transpilers.frontends.cpp.parser.preprocess import (
     PARSER_PREAMBLE,
+    _clang_executable,
     preprocess_cpp,
 )
 from transpilers.frontends.cpp.parser.type_extractor import TypeGroundTruth
@@ -25,6 +27,10 @@ from transpilers.ir.types import (
 )
 from transpilers.passes.cpp_ground_truth import apply_ground_truth
 from transpilers.passes import hir_to_mir
+from transpilers.verify.mojo import mojo_available
+
+
+_HAS_CLANG = _clang_executable() is not None
 
 
 # ---------------------------------------------------------------------------
@@ -32,6 +38,7 @@ from transpilers.passes import hir_to_mir
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.skipif(not _HAS_CLANG, reason="clang CLI not installed")
 def test_preprocess_cpp_expands_object_like_macros():
     """`#define X 1` is fully expanded before libclang sees the source.
 
@@ -175,9 +182,8 @@ def test_parser_preamble_declares_math_intrinsics():
     `std::` declaration here re-enables a whole bucket of code
     that was previously failing with "no member named 'X' in std"."""
     for name in ("sqrt", "exp", "log", "swap", "min", "max"):
-        assert name in PARSER_PREAMBLE, (
-            f"parser preamble missing {name}"
-        )
+        assert name in PARSER_PREAMBLE, f"parser preamble missing {name}"
+
 
 # ---------------------------------------------------------------------------
 # parse_cpp returns (HirModule, TypeGroundTruth)
@@ -220,8 +226,11 @@ def test_parse_cpp_ground_truth_records_template_signature():
     # namespace in this test source) or any qualified key whose
     # last segment is `bubble_sort`.
     qualified = next(
-        (k for k in truth.func_returns
-         if k == "bubble_sort" or k.endswith("::bubble_sort")),
+        (
+            k
+            for k in truth.func_returns
+            if k == "bubble_sort" or k.endswith("::bubble_sort")
+        ),
         None,
     )
     assert qualified is not None, f"missing bubble_sort in {list(truth.func_returns)}"
@@ -275,6 +284,7 @@ def test_apply_ground_truth_fills_function_return_and_params():
 def test_apply_ground_truth_is_noop_on_empty_truth():
     """Empty TypeGroundTruth is a no-op fast path."""
     from transpilers.ir.mir import MirFunction, MirModule
+
     fn = MirFunction(name="f", params=[], return_type=UnknownT(), body=[])
     mod = MirModule(functions=[fn])
     out = apply_ground_truth(mod, TypeGroundTruth())
@@ -288,7 +298,8 @@ def test_apply_ground_truth_preserves_user_supplied_types():
     mir_mod = hir_to_mir(hir_mod)
     # Tamper: set the first param to a non-UnknownT type.
     mir_mod.functions[0].params[0] = mir.MirParam(
-        name="a", ty=StrT(),  # wrong on purpose
+        name="a",
+        ty=StrT(),  # wrong on purpose
     )
     apply_ground_truth(mir_mod, truth, hir_mod)
     # The pre-existing StrT survives -- we don't overwrite concrete types.
@@ -310,9 +321,8 @@ def test_e2e_macro_expansion_flows_to_annotation():
     the typed annotation" has to live inside a function body.
     """
     from transpilers.cli.main import transpile_cpp_to_mojo
-    out = transpile_cpp_to_mojo(
-        "#define NULL 0\nint f() { int x = NULL; return x; }\n"
-    )
+
+    out = transpile_cpp_to_mojo("#define NULL 0\nint f() { int x = NULL; return x; }\n")
     assert "var x: Int = 0" in out
 
 
@@ -332,6 +342,7 @@ def test_project_preamble_declares_types_usable_by_source(monkeypatch):
     assert "def f(x: Float64) -> Float64:" in out
 
 
+@pytest.mark.skipif(not mojo_available(), reason="working mojo toolchain not available")
 def test_mojo_backend_emits_placeholder_for_foreign_preamble_struct(monkeypatch):
     """A class declared only in a project-preamble shim (e.g. docs/occt_preamble.hpp
     for a third-party library's opaque handle type) resolves fine during
@@ -405,6 +416,7 @@ def test_project_preamble_stub_part_stays_excluded_with_real_marker(monkeypatch)
 def test_e2e_uses_clang_resolved_intrinsic_signature():
     """`std::sqrt(x)` -> Mojo emits `from std.math import sqrt`."""
     from transpilers.cli.main import transpile_cpp_to_mojo
+
     out = transpile_cpp_to_mojo("double f(double x){ return std::sqrt(x); }")
     assert "from std.math import sqrt" in out
 
@@ -414,9 +426,9 @@ def test_e2e_template_definition_emits_todo_stub():
     every backend emits a TODO[port] stub. The ownership/RAII/
     template-instantiation is left for the inference / LLM pass."""
     from transpilers.cli.main import transpile_cpp_to_mojo
+
     out = transpile_cpp_to_mojo(
-        "template <typename T>\n"
-        "T add(T a, T b) { return a + b; }\n"
+        "template <typename T>\nT add(T a, T b) { return a + b; }\n"
     )
     assert "TODO[port]" in out
 
@@ -450,9 +462,14 @@ def test_default_init_for_unknown_field_type_stays_a_hole():
                 "make",
                 params=[],
                 return_annotation="Foo",
-                body=[hir.HirReturn(value=hir.HirStructInit(
-                    name="Foo", args=[hir.HirIntLiteral(value=1)],
-                ))],
+                body=[
+                    hir.HirReturn(
+                        value=hir.HirStructInit(
+                            name="Foo",
+                            args=[hir.HirIntLiteral(value=1)],
+                        )
+                    )
+                ],
             ),
         ],
     )

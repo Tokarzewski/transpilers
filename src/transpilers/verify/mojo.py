@@ -22,10 +22,10 @@ class CompileResult:
 def mojo_available() -> bool:
     """True only if a *working* mojo toolchain is on PATH.
 
-    ``shutil.which`` alone is not enough: an unrelated program that happens
-to be named ``mojo`` (a name-collision shim) passes the PATH check but
-fails at launch or answers ``--version`` with something else. Probe once
-and cache — a real toolchain prints a version banner and exits 0.
+        ``shutil.which`` alone is not enough: an unrelated program that happens
+    to be named ``mojo`` (a name-collision shim) passes the PATH check but
+    fails at launch or answers ``--version`` with something else. Probe once
+    and cache — a real toolchain prints a version banner and exits 0.
     """
     exe = shutil.which("mojo")
     if exe is None:
@@ -34,7 +34,7 @@ and cache — a real toolchain prints a version banner and exits 0.
         probe = subprocess.run(
             [exe, "--version"], capture_output=True, text=True, timeout=15
         )
-    except (OSError, subprocess.TimeoutExpired):
+    except OSError, subprocess.TimeoutExpired:
         return False
     return probe.returncode == 0 and "mojo" in (probe.stdout or "").lower()
 

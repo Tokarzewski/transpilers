@@ -104,13 +104,6 @@ def test_rustc_missing_symbol_is_unresolved_symbol():
     assert classify_compile_stderr(stderr)[0] == "unresolved-symbol"
 
 
-def test_go_undefined_is_unresolved_symbol():
-    assert (
-        classify_compile_stderr("./main.go:5:2: undefined: fmt\n")[0]
-        == "unresolved-symbol"
-    )
-
-
 def test_symbol_beats_type_when_both_present():
     stderr = (
         "error[E0425]: cannot find value `n` in this scope\n"

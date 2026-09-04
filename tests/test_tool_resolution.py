@@ -68,45 +68,76 @@ def _which_is(path):
 
 
 def test_mojo_gate_launches_resolved_shim_path():
-    with _which_is(r"C:\pixi\bin\mojo.bat"), mock.patch(
-        "transpilers.verify.mojo.subprocess.run", return_value=MOCK
-    ) as run, mock.patch(
-        "transpilers.verify.mojo.mojo_available", return_value=True
+    with (
+        _which_is(r"C:\pixi\bin\mojo.bat"),
+        mock.patch("transpilers.verify.mojo.subprocess.run", return_value=MOCK) as run,
+        mock.patch("transpilers.verify.mojo.mojo_available", return_value=True),
     ):
         mojo_gate.mojo_compiles("def main():\n    pass\n")
     assert run.call_args.args[0][0] == r"C:\pixi\bin\mojo.bat"
 
 
 def test_rust_gate_launches_resolved_path():
-    with _which_is(r"C:\rustup\bin\rustc.exe"), mock.patch(
-        "transpilers.verify.rust.subprocess.run", return_value=MOCK
-    ) as run:
+    with (
+        _which_is(r"C:\rustup\bin\rustc.exe"),
+        mock.patch("transpilers.verify.rust.subprocess.run", return_value=MOCK) as run,
+    ):
         rust_gate.rust_compiles("fn f() {}")
     assert run.call_args.args[0][0] == r"C:\rustup\bin\rustc.exe"
 
 
 def test_c_gate_launches_resolved_path():
-    with _which_is("/usr/bin/cc"), mock.patch(
-        "transpilers.verify.c.subprocess.run", return_value=MOCK
-    ) as run:
+    with (
+        _which_is("/usr/bin/cc"),
+        mock.patch("transpilers.verify.c.subprocess.run", return_value=MOCK) as run,
+    ):
         c_gate.c_compiles("int f(void) { return 0; }")
     assert run.call_args.args[0][0] == "/usr/bin/cc"
 
 
 def test_fortran_gate_launches_resolved_path():
-    with _which_is("/usr/bin/gfortran"), mock.patch(
-        "transpilers.verify.fortran.subprocess.run", return_value=MOCK
-    ) as run:
+    with (
+        _which_is("/usr/bin/gfortran"),
+        mock.patch(
+            "transpilers.verify.fortran.subprocess.run", return_value=MOCK
+        ) as run,
+    ):
         fortran_gate.fortran_compiles("subroutine f()\nend subroutine f\n")
     assert run.call_args.args[0][0] == "/usr/bin/gfortran"
+
+
+def test_behavioral_rust_runner_launches_resolved_path():
+    # The behavioral gate's RustRunner compiles a generated harness — its
+    # rustc launch must also go through resolve_tool (same shim hazard).
+    from transpilers.verify.behavioral import RustRunner
+
+    compile_ok = mock.MagicMock(returncode=0, stderr="", stdout="")
+    harness_fail = mock.MagicMock(returncode=1, stderr="", stdout="")
+    with (
+        _which_is("/rust/bin/rustc"),
+        mock.patch(
+            "transpilers.verify.behavioral.subprocess.run",
+            side_effect=[compile_ok, harness_fail],
+        ) as run,
+    ):
+        samples = RustRunner().run(
+            "fn f(x: i64) -> i64 { x + 1 }",
+            "f",
+            [(1,), (2,)],
+            param_tags=["int"],
+            ret_tag="int",
+        )
+    assert run.call_args_list[0].args[0][0] == "/rust/bin/rustc"
+    assert samples  # harness run short-circuited into divergence samples
 
 
 def test_c_gate_reports_missing_compiler_not_bare_name():
     # With nothing on PATH, the C gate must report "no compiler found" —
     # resolve_tool's bare-name fallback must not leak into the launch args.
-    with _which_is(None), mock.patch(
-        "transpilers.verify.c.subprocess.run", return_value=MOCK
-    ) as run:
+    with (
+        _which_is(None),
+        mock.patch("transpilers.verify.c.subprocess.run", return_value=MOCK) as run,
+    ):
         result = c_gate.c_compiles("int f(void) { return 0; }")
     assert not result.ok
     assert "no C compiler" in result.stderr

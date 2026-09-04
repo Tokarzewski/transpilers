@@ -196,6 +196,10 @@ _COMPILER_BINS = {
 
 
 def compiler_available(target: str) -> bool:
+    if target == "mojo":
+        from transpilers.verify.mojo import mojo_available
+
+        return mojo_available()
     bins = _COMPILER_BINS.get(target, ())
     return not bins or any(shutil.which(b) for b in bins)
 

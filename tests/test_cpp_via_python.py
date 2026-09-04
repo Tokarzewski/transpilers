@@ -13,6 +13,8 @@ import textwrap
 
 import pytest
 
+from transpilers.verify.mojo import mojo_available
+
 from transpilers.cli.main import (
     main,
     transpile_cpp_to_python_to_mojo,
@@ -122,6 +124,7 @@ def test_cpp_via_python_to_rust_compiles():
 
 
 @pytest.mark.skipif(not _has("mojo"), reason="mojo not installed")
+@pytest.mark.skipif(not mojo_available(), reason="working mojo toolchain not available")
 def test_cpp_via_python_to_mojo_compiles():
     _, out = _pivot(_ADD, "mojo")
     result = mojo_compiles(out)

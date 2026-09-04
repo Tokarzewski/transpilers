@@ -48,6 +48,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Protocol
 
+from transpilers.verify._tool import resolve_tool
+
 from transpilers.verify._exec_timeout import ExecTimeout, time_limit
 from transpilers.verify.taxonomy import compiler_available
 
@@ -442,7 +444,7 @@ class RustRunner:
             exe = Path(td) / ("harness.exe")
             comp = subprocess.run(
                 [
-                    "rustc",
+                    resolve_tool("rustc"),
                     "--edition",
                     "2021",
                     "-A",

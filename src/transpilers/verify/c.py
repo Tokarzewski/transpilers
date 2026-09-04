@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-import shutil
 import subprocess
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
+
+from transpilers.verify._tool import resolve_tool
 
 
 @dataclass
@@ -16,9 +17,10 @@ class CompileResult:
 
 
 def _cc() -> str | None:
+    # resolve_tool returns the which() absolute path, or the bare name
+    # unchanged when nothing matched — the comparison detects "not found".
     for candidate in ("cc", "gcc", "clang"):
-        path = shutil.which(candidate)
-        if path:
+        if (path := resolve_tool(candidate)) != candidate:
             return path
     return None
 
